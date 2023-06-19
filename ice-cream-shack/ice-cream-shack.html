@@ -12,23 +12,49 @@
     />
   </head>
   <body>
-    <nav class="navbar navbar-expand bg-info">
+    <nav class="navbar navbar-expand-lg bg-body-tertiary">
       <div class="container-fluid">
         <a class="navbar-brand" href="/index.html">noah's ice cream shack</a>
-        <div class="navbar-nav">
-          <a class="nav-link text-black" href="#hours">Home</a>
-          <a class="nav-link text-black" href="#contact">Pricing</a>
-          <a class="nav-link text-black" href="#flavors">Features</a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+          aria-controls="navbarNav"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <a class="nav-link text-black text-end px-2 pt-3" href="#hours"
+                >Hours</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link text-black text-end px-2 pt-3" href="#flavors"
+                >Flavors</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link text-black text-end px-2 pt-3" href="#contact"
+                >Contact</a
+              >
+            </li>
+          </ul>
         </div>
       </div>
     </nav>
 
-    <p class="display-4 d-flex justify-content-center">Our Hours</p>
+    <p class="display-5 d-flex justify-content-center">Our Hours</p>
 
     <div
-      class="container-fluid text-center justify-content-around h5 row-cols-lg-7"
+      class="container-fluid justify-content-around"
+      style="max-width: 900px"
     >
-      <div class="row fw-bold row-cols-7 g-3">
+      <div class="row fw-bold text-center h5 row-cols-7 g-3">
         <div class="col">Monday<br />Closed</div>
         <div class="col">Tuesday<br />Closed</div>
         <div class="col">Wednesday<br />12-8pm</div>
