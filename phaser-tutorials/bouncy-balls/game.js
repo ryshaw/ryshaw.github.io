@@ -163,8 +163,8 @@ class BouncyBalls extends Phaser.Scene {
 
 const config = {
   type: Phaser.AUTO,
-  width: window.innerWidth * window.devicePixelRatio - 10,
-  height: window.innerHeight * window.devicePixelRatio - 10,
+  width: window.innerWidth,
+  height: window.innerHeight,
   physics: {
     default: "arcade",
     arcade: {
