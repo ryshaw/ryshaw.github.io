@@ -66,15 +66,15 @@ class BouncyBalls extends Phaser.Scene {
       fill: "#00ff00",
     });
 
-    this.add.text(
-      game.config.width - 100,
-      5,
-      `dpr: ${window.devicePixelRatio}`,
-      {
+    this.dprText = this.add
+      .text(window.innerWidth - 5, 5, `dpr: ${window.devicePixelRatio}`, {
         font: "24px Courier",
         fill: "#00ff00",
-      }
-    );
+      })
+      .setOrigin(1, 0);
+
+    this.score.scale = window.devicePixelRatio;
+    this.dprText.scale = window.devicePixelRatio;
 
     // remove circle if player touches
     this.physics.add.overlap(
@@ -99,6 +99,11 @@ class BouncyBalls extends Phaser.Scene {
         circle2.setFillStyle(Phaser.Display.Color.RandomRGB().color);
       }
     );
+
+    this.player.scale = window.devicePixelRatio;
+    this.circles.forEach((circle) => {
+      circle.scale = window.devicePixelRatio;
+    });
 
     // detect if mouse or touch input is happening
     this.input.on("pointerdown", () => (this.isPointerDown = true), this);
@@ -171,8 +176,8 @@ const config = {
       debug: false,
     },
   },
+  scaleMode: Phaser.Scale.FIT,
   pixelArt: true,
-  scaleMode: Phaser.Scale.ScaleModes.FIT,
   backgroundColor: "#000000",
   scene: BouncyBalls,
 };
