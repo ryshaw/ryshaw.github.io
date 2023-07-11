@@ -8,6 +8,8 @@ class BouncyBalls extends Phaser.Scene {
   width; // width of canvas
   height; // height of canvas
   startMenu; // container for all start menu UI objects
+  colorPalettes; // object containing the color palettes for the themes
+  colorTheme; // string representing the current color theme
 
   preload() {
     this.isPointerDown = false;
@@ -15,6 +17,41 @@ class BouncyBalls extends Phaser.Scene {
     this.scaleRatio = Math.min(window.devicePixelRatio, 2);
     this.width = game.config.width;
     this.height = game.config.height;
+    this.colorTheme = "rgb";
+    // each palette has one background color at index 0,
+    // and seven primary colors from indices 1-7
+    this.colorPalettes = {
+      forest: [
+        "#344e41",
+        "#a5a58d",
+        "#b7b7a4",
+        "#ffe8d6",
+        "#ddbea9",
+        "#cb997e",
+        "#52b788",
+        "#582f0e",
+      ],
+      beach: [
+        "#582f0e",
+        "#8ecae6",
+        "#023047",
+        "#ffb703",
+        "#f8edeb",
+        "#004e89",
+        "#c0fdfb",
+        "#33a9ff",
+      ],
+      space: [
+        "#161e3c",
+        "#14213d",
+        "#fca311",
+        "#f5f5f5",
+        "#b83c41",
+        "#ffc8dd",
+        "#cdb4db",
+        "#bde0fe",
+      ],
+    };
   }
 
   create() {
@@ -65,10 +102,9 @@ class BouncyBalls extends Phaser.Scene {
     this.physics.add.collider(
       this.circles,
       this.circles,
-      function (circle1, circle2) {
-        circle1.setFillStyle(Phaser.Display.Color.RandomRGB().color);
-        circle2.setFillStyle(Phaser.Display.Color.RandomRGB().color);
-      }
+      this.circleCollider,
+      null,
+      this
     );
 
     this.score = this.add
@@ -91,12 +127,11 @@ class BouncyBalls extends Phaser.Scene {
     });
 
     const startText = this.add
-      .text(0, 0, "start", {
-        font: "24px Courier",
+      .text(0, 140, "start", {
+        font: "28px Courier",
         fill: "#00ff00",
       })
       .setOrigin(0.5, 1)
-      .setScale(this.scaleRatio)
       .setInteractive()
       .on("pointerover", function () {
         this.setFill("#fff");
@@ -112,9 +147,113 @@ class BouncyBalls extends Phaser.Scene {
       .setOrigin(0.5, 0.5)
       .setFillStyle(0x0, 0.8);
 
+    const titleText = this.add
+      .text(0, -150, "bouncy balls!", {
+        font: "32px Courier",
+        fill: "#00ff00",
+      })
+      .setOrigin(0.5, 1);
+
+    const t1 = this.add
+      .text(
+        0,
+        -80,
+        "collect all bouncy balls\nuse mouse/touch to control\nselect a theme:",
+        {
+          font: "22px Courier",
+          fill: "#00ff00",
+          align: "center",
+          lineSpacing: 10,
+        }
+      )
+      .setOrigin(0.5, 0.5);
+
+    const theme1 = this.add
+      .text(-60, 15, "RGB", {
+        font: "26px Courier",
+        fill: "#00ff00",
+        align: "center",
+      })
+      .setOrigin(0.5, 1)
+      .setInteractive()
+      .on("pointerover", function () {
+        this.setFill("#fff");
+      })
+      .on("pointerout", function () {
+        this.setFill("#00ff00");
+      })
+      .on("pointerdown", () => this.chooseTheme("rgb"));
+
+    const theme2 = this.add
+      .text(60, 15, "beach", {
+        font: "26px Courier",
+        fill: "#00ff00",
+        align: "center",
+      })
+      .setOrigin(0.5, 1)
+      .setInteractive()
+      .on("pointerover", function () {
+        this.setFill("#fff");
+      })
+      .on("pointerout", function () {
+        this.setFill("#00ff00");
+      })
+      .on("pointerdown", () => this.chooseTheme("beach"));
+
+    const theme3 = this.add
+      .text(-60, 75, "forest", {
+        font: "26px Courier",
+        fill: "#00ff00",
+        align: "center",
+      })
+      .setOrigin(0.5, 1)
+      .setInteractive()
+      .on("pointerover", function () {
+        this.setFill("#fff");
+      })
+      .on("pointerout", function () {
+        this.setFill("#00ff00");
+      })
+      .on("pointerdown", () => this.chooseTheme("forest"));
+
+    const theme4 = this.add
+      .text(60, 75, "space", {
+        font: "26px Courier",
+        fill: "#00ff00",
+        align: "center",
+      })
+      .setOrigin(0.5, 1)
+      .setInteractive()
+      .on("pointerover", function () {
+        this.setFill("#fff");
+      })
+      .on("pointerout", function () {
+        this.setFill("#00ff00");
+      })
+      .on("pointerdown", () => this.chooseTheme("space"));
+
+    const t2 = this.add
+      .text(0, 180, "a game by ryshaw, made w/ phaser 3", {
+        font: "18px Courier",
+        fill: "#00ff00",
+        align: "center",
+      })
+      .setOrigin(0.5, 0.5);
+
     this.startMenu = this.add
-      .container(this.width * 0.5, this.height * 0.5, [startBox, startText])
-      .setDepth(1);
+      .container(this.width * 0.5, this.height * 0.5, [
+        startBox,
+        startText,
+        titleText,
+        t1,
+        theme1,
+        theme2,
+        theme3,
+        theme4,
+        t2,
+      ])
+      .setDepth(1)
+      .setScale(this.scaleRatio);
   }
 
   update() {
@@ -166,8 +305,8 @@ class BouncyBalls extends Phaser.Scene {
       } else {
         // player is close enough, decelerate quickly
         this.player.body.setVelocity(
-          Phaser.Math.Linear(this.player.body.velocity.x, 0, 0.2),
-          Phaser.Math.Linear(this.player.body.velocity.y, 0, 0.2)
+          Phaser.Math.Linear(this.player.body.velocity.x, 0, 0.3),
+          Phaser.Math.Linear(this.player.body.velocity.y, 0, 0.3)
         );
       }
     } else {
@@ -192,7 +331,7 @@ class BouncyBalls extends Phaser.Scene {
     this.player.body
       .setBounce(1, 1)
       .setCollideWorldBounds(true)
-      .setMaxSpeed(200);
+      .setMaxSpeed(350);
 
     this.physics.add.overlap(
       this.player,
@@ -214,6 +353,42 @@ class BouncyBalls extends Phaser.Scene {
     this.input.on("pointerup", () => (this.isPointerDown = false), this);
 
     this.startMenu.destroy();
+  }
+
+  chooseTheme(theme) {
+    this.colorTheme = theme;
+    if (theme == "rgb") {
+      this.cameras.main.setBackgroundColor("#000");
+      this.circles.forEach((circle) => {
+        circle.setFillStyle(Phaser.Display.Color.RandomRGB().color);
+      });
+    } else {
+      this.cameras.main.setBackgroundColor(this.colorPalettes[theme][0]);
+
+      this.circles.forEach((circle) => {
+        const hexColor = this.colorPalettes[theme][Phaser.Math.Between(1, 7)];
+        circle.setFillStyle(
+          Phaser.Display.Color.HexStringToColor(hexColor).color
+        );
+      });
+    }
+  }
+
+  circleCollider(circle1, circle2) {
+    if (this.colorTheme == "rgb") {
+      circle1.setFillStyle(Phaser.Display.Color.RandomRGB().color);
+      circle2.setFillStyle(Phaser.Display.Color.RandomRGB().color);
+    } else {
+      let hexColor =
+        this.colorPalettes[this.colorTheme][Phaser.Math.Between(1, 7)];
+      circle1.setFillStyle(
+        Phaser.Display.Color.HexStringToColor(hexColor).color
+      );
+      hexColor = this.colorPalettes[this.colorTheme][Phaser.Math.Between(1, 7)];
+      circle2.setFillStyle(
+        Phaser.Display.Color.HexStringToColor(hexColor).color
+      );
+    }
   }
 }
 
