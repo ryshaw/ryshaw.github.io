@@ -25,28 +25,28 @@ class BouncyBalls extends Phaser.Scene {
         "#344e41",
         "#a5a58d",
         "#b7b7a4",
-        "#ffe8d6",
+        "#aaae7f",
         "#ddbea9",
         "#cb997e",
         "#52b788",
-        "#582f0e",
+        "#7f4f24",
       ],
       beach: [
-        "#582f0e",
+        "#e29578",
         "#8ecae6",
         "#023047",
         "#ffb703",
-        "#f8edeb",
+        "#f7c59f",
         "#004e89",
         "#c0fdfb",
         "#33a9ff",
       ],
       space: [
         "#161e3c",
-        "#14213d",
+        "#9bf6ff",
         "#fca311",
         "#f5f5f5",
-        "#b83c41",
+        "#f15bb5",
         "#ffc8dd",
         "#cdb4db",
         "#bde0fe",
@@ -72,7 +72,11 @@ class BouncyBalls extends Phaser.Scene {
       const randomPos = Phaser.Geom.Rectangle.Random(bounds);
 
       // basic circle
-      const circle = this.add.arc(randomPos.x, randomPos.y, 10);
+      const circle = this.add.arc(
+        randomPos.x,
+        randomPos.y,
+        Phaser.Math.Between(10, 18)
+      );
       circle.setFillStyle(Phaser.Display.Color.RandomRGB().color);
       circle.trail = []; // a trail of transparent circles behind the ball
       circle.alive = true; // alive until hit by player
@@ -261,12 +265,12 @@ class BouncyBalls extends Phaser.Scene {
     // add or maintain trail behind the moving ball
     this.circles.forEach((circle) => {
       // if circle is alive and doesn't have a long enough trail
-      if (circle.alive && circle.trail.length < 4) {
+      if (circle.alive && circle.trail.length < 7) {
         circle.trail.push(
           this.add
-            .arc(circle.x, circle.y, 10)
+            .arc(circle.x, circle.y, circle.radius)
             .setFillStyle(circle.fillColor)
-            .setAlpha(0.4)
+            .setAlpha(0.1)
             .setScale(this.scaleRatio)
         );
       } else if (!circle.alive && circle.trail.length > 0) {
@@ -274,7 +278,7 @@ class BouncyBalls extends Phaser.Scene {
         circle.trail.shift().destroy();
       }
       // if circle has a long enough trail, remove the oldest (farthest) part of trail
-      if (circle.trail.length == 4) {
+      if (circle.trail.length == 7) {
         circle.trail.shift().destroy();
       }
     });
@@ -324,11 +328,23 @@ class BouncyBalls extends Phaser.Scene {
       return;
     }
 
+    const r = 12; // radius of hexagon
+
     this.player = this.add
-      .rectangle(this.width * 0.5, this.height * 0.6, 20, 20)
-      .setStrokeStyle(2, 0xffffff);
+      .polygon(this.width * 0.5, this.height * 0.6, [
+        [r * Math.cos(Math.PI / 3), r * Math.sin(Math.PI / 3)],
+        [r * Math.cos((2 * Math.PI) / 3), r * Math.sin((2 * Math.PI) / 3)],
+        [r * Math.cos(Math.PI), r * Math.sin(Math.PI)],
+        [r * Math.cos((4 * Math.PI) / 3), r * Math.sin((4 * Math.PI) / 3)],
+        [r * Math.cos((5 * Math.PI) / 3), r * Math.sin((5 * Math.PI) / 3)],
+        [r * Math.cos(2 * Math.PI), r * Math.sin(2 * Math.PI)],
+        [r * Math.cos(Math.PI / 3), r * Math.sin(Math.PI / 3)],
+      ])
+      .setStrokeStyle(2, 0xffffff)
+      .setDisplayOrigin(0, 0);
     this.physics.add.existing(this.player);
     this.player.body
+      .setCircle(r, -r, -r)
       .setBounce(1, 1)
       .setCollideWorldBounds(true)
       .setMaxSpeed(350);
