@@ -10,6 +10,7 @@ class BouncyBalls extends Phaser.Scene {
   width; // width of canvas
   height; // height of canvas
   startMenu; // container for all start menu UI objects
+  titleText; // title of game, only shows up when game starts
   colorPalettes; // object containing the color palettes for the themes
   colorTheme; // string representing the current color theme
 
@@ -55,6 +56,10 @@ class BouncyBalls extends Phaser.Scene {
         "#bde0fe",
       ],
     };
+    this.load.script(
+      "webfont",
+      "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
+    );
   }
 
   create() {
@@ -114,6 +119,19 @@ class BouncyBalls extends Phaser.Scene {
       this
     );
 
+    this.circles.forEach((circle) => {
+      circle.scale = this.scaleRatio;
+    });
+
+    WebFont.load({
+      google: {
+        families: ["Press Start 2P"],
+      },
+      active: () => this.loadUI(),
+    });
+  }
+
+  loadUI() {
     this.score = this.add
       .text(this.width - 10, 10, `balls left: ${this.numCircles}`, {
         font: "16px",
@@ -134,19 +152,16 @@ class BouncyBalls extends Phaser.Scene {
       .setDepth(1)
       .setScale(this.scaleRatio);
 
-    this.add
+    this.titleText = this.add
       .text(this.width * 0.5, 8, "bouncy balls!", {
-        font: "24px",
+        font: "16px",
         fill: "#fff",
       })
       .setFontFamily('"Press Start 2P"')
       .setOrigin(0.5, 0)
       .setDepth(1)
+      .setVisible(false)
       .setScale(this.scaleRatio);
-
-    this.circles.forEach((circle) => {
-      circle.scale = this.scaleRatio;
-    });
 
     const startText = this.add
       .text(0, 140, "start", {
@@ -170,12 +185,13 @@ class BouncyBalls extends Phaser.Scene {
       .setOrigin(0.5, 0.5)
       .setFillStyle(0x0, 0.8);
 
-    const titleText = this.add
+    const gameTitle = this.add
       .text(0, -150, "bouncy balls!", {
         font: "24px",
         fill: "#fff",
       })
       .setFontFamily('"Press Start 2P"')
+      .setActive(false)
       .setOrigin(0.5, 1);
 
     const t1 = this.add
@@ -274,7 +290,7 @@ class BouncyBalls extends Phaser.Scene {
       .container(this.width * 0.5, this.height * 0.5, [
         startBox,
         startText,
-        titleText,
+        gameTitle,
         t1,
         theme1,
         theme2,
@@ -395,6 +411,10 @@ class BouncyBalls extends Phaser.Scene {
     this.input.on("pointerup", () => (this.isPointerDown = false), this);
 
     this.startMenu.destroy();
+    // if we have enough space, display title during game
+    if (this.scaleRatio == 1) {
+      this.titleText.setVisible(true);
+    }
   }
 
   chooseTheme(theme) {
