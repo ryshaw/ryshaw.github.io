@@ -6,11 +6,11 @@ class BouncyBalls extends Phaser.Scene {
   numCircles; // keeps track of score
   level; // the level of the game
   levelText; // displaying the current level
-  scaleRatio; // the minimum of Device Pixel Ratio (1 for desktops, 2-4 for phones) and 2
-  width; // width of canvas
-  height; // height of canvas
+  scaleRatio; // desktop = 1, mobile = 2
+  width; // width of game
+  height; // height of game
   startMenu; // container for all start menu UI objects
-  titleText; // title of game, only shows up when game starts
+  titleText; // title of game, only shows up on desktop when game starts
   colorPalettes; // object containing the color palettes for the themes
   colorTheme; // string representing the current color theme
 
@@ -21,22 +21,22 @@ class BouncyBalls extends Phaser.Scene {
     this.scaleRatio = Math.min(window.devicePixelRatio, 2);
     this.width = game.config.width;
     this.height = game.config.height;
-    this.colorTheme = "rgb";
-    // each palette has one background color at index 0,
+    this.colorTheme = "rgb"; // default
+    // each custom palette has the background color at index 0,
     // and seven primary colors from indices 1-7
     this.colorPalettes = {
       forest: [
-        "#344e41",
-        "#a5a58d",
-        "#b7b7a4",
-        "#aaae7f",
-        "#ddbea9",
-        "#cb997e",
+        "#04471c", // background color
+        "#588157",
+        "#b5ffe1",
+        "#84a98c",
+        "#dde5b6",
+        "#dda15e",
         "#52b788",
         "#7f4f24",
       ],
-      beach: [
-        "#e29578",
+      sea: [
+        "#0081af",
         "#8ecae6",
         "#023047",
         "#ffb703",
@@ -56,6 +56,7 @@ class BouncyBalls extends Phaser.Scene {
         "#bde0fe",
       ],
     };
+    // load google's library for the font, Press Start 2P
     this.load.script(
       "webfont",
       "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
@@ -64,51 +65,7 @@ class BouncyBalls extends Phaser.Scene {
 
   create() {
     // player instantiates in the gameStart function
-
-    // create many circles that bounce around and change colors upon collision
-    this.circles = [];
-
-    for (let i = 0; i < 40; i++) {
-      // assign a random point for circle to appear
-      const boundsOffset = 20; // so circles don't start outside bounds
-      const bounds = new Phaser.Geom.Rectangle(
-        boundsOffset,
-        boundsOffset,
-        game.config.width - boundsOffset * 2,
-        game.config.height - boundsOffset * 2
-      );
-      const randomPos = Phaser.Geom.Rectangle.Random(bounds);
-
-      // basic circle
-      const circle = this.add.arc(
-        randomPos.x,
-        randomPos.y,
-        Phaser.Math.Between(10, 18)
-      );
-      circle.setFillStyle(Phaser.Display.Color.RandomRGB().color);
-      circle.trail = []; // a trail of transparent circles behind the ball
-      circle.alive = true; // alive until hit by player
-
-      this.physics.add.existing(circle);
-      const minMaxVelocity = [25 * this.scaleRatio, 250 * this.scaleRatio];
-      circle.body
-        .setVelocity(
-          Phaser.Math.Between(minMaxVelocity[0], minMaxVelocity[1]),
-          Phaser.Math.Between(minMaxVelocity[0], minMaxVelocity[1])
-        )
-        .setBounce(1)
-        .setCollideWorldBounds(true);
-      circle.body.isCircle = true;
-
-      if (Math.random() > 0.5) {
-        circle.body.velocity.x *= -1;
-      } else {
-        circle.body.velocity.y *= -1;
-      }
-
-      this.circles.push(circle);
-      this.numCircles++;
-    }
+    this.createCircles(20); // circles instantiate here
 
     // upon balls bouncing, switch both to random colors
     this.physics.add.collider(
@@ -118,10 +75,6 @@ class BouncyBalls extends Phaser.Scene {
       null,
       this
     );
-
-    this.circles.forEach((circle) => {
-      circle.scale = this.scaleRatio;
-    });
 
     WebFont.load({
       google: {
@@ -139,8 +92,7 @@ class BouncyBalls extends Phaser.Scene {
       })
       .setFontFamily('"Press Start 2P"')
       .setOrigin(1, 0)
-      .setDepth(1)
-      .setScale(this.scaleRatio);
+      .setDepth(1);
 
     this.levelText = this.add
       .text(10, 10, `lvl: ${this.level}`, {
@@ -149,8 +101,7 @@ class BouncyBalls extends Phaser.Scene {
       })
       .setFontFamily('"Press Start 2P"')
       .setOrigin(0, 0)
-      .setDepth(1)
-      .setScale(this.scaleRatio);
+      .setDepth(1);
 
     this.titleText = this.add
       .text(this.width * 0.5, 8, "bouncy balls!", {
@@ -160,8 +111,7 @@ class BouncyBalls extends Phaser.Scene {
       .setFontFamily('"Press Start 2P"')
       .setOrigin(0.5, 0)
       .setDepth(1)
-      .setVisible(false)
-      .setScale(this.scaleRatio);
+      .setVisible(false);
 
     const startText = this.add
       .text(0, 140, "start", {
@@ -227,7 +177,7 @@ class BouncyBalls extends Phaser.Scene {
       .on("pointerdown", () => this.chooseTheme("rgb"));
 
     const theme2 = this.add
-      .text(75, 15, "beach", {
+      .text(75, 15, "sea", {
         font: "20px",
         fill: "#fff",
         align: "center",
@@ -241,7 +191,7 @@ class BouncyBalls extends Phaser.Scene {
       .on("pointerout", function () {
         this.setFill("#fff");
       })
-      .on("pointerdown", () => this.chooseTheme("beach"));
+      .on("pointerdown", () => this.chooseTheme("sea"));
 
     const theme3 = this.add
       .text(-75, 75, "forest", {
@@ -298,8 +248,12 @@ class BouncyBalls extends Phaser.Scene {
         theme4,
         t2,
       ])
-      .setDepth(1)
-      .setScale(this.scaleRatio);
+      .setDepth(1);
+
+    // upscale all objects currently created if on mobile
+    this.children.getChildren().forEach((object) => {
+      object.scale = this.scaleRatio;
+    });
   }
 
   update() {
@@ -370,20 +324,22 @@ class BouncyBalls extends Phaser.Scene {
       return;
     }
 
-    const r = 12; // radius of hexagon
+    const r = 12; // radius of player hexagon
+
+    // build hexagon with some trigonometry
+    const points = [];
+    for (let index = 1; index < 8; index++) {
+      points.push([
+        r * Math.cos((index * Math.PI) / 3),
+        r * Math.sin((index * Math.PI) / 3),
+      ]);
+    }
 
     this.player = this.add
-      .polygon(this.width * 0.5, this.height * 0.6, [
-        [r * Math.cos(Math.PI / 3), r * Math.sin(Math.PI / 3)],
-        [r * Math.cos((2 * Math.PI) / 3), r * Math.sin((2 * Math.PI) / 3)],
-        [r * Math.cos(Math.PI), r * Math.sin(Math.PI)],
-        [r * Math.cos((4 * Math.PI) / 3), r * Math.sin((4 * Math.PI) / 3)],
-        [r * Math.cos((5 * Math.PI) / 3), r * Math.sin((5 * Math.PI) / 3)],
-        [r * Math.cos(2 * Math.PI), r * Math.sin(2 * Math.PI)],
-        [r * Math.cos(Math.PI / 3), r * Math.sin(Math.PI / 3)],
-      ])
+      .polygon(this.width * 0.5, this.height * 0.6, points)
       .setStrokeStyle(2, 0xffffff)
       .setDisplayOrigin(0, 0);
+    this.player.scale = this.scaleRatio;
     this.physics.add.existing(this.player);
     this.player.body
       .setCircle(r, -r, -r)
@@ -403,8 +359,6 @@ class BouncyBalls extends Phaser.Scene {
       null,
       this
     );
-
-    this.player.scale = this.scaleRatio;
 
     // detect if mouse or touch input is happening
     this.input.on("pointerdown", () => (this.isPointerDown = true), this);
@@ -450,6 +404,55 @@ class BouncyBalls extends Phaser.Scene {
       circle2.setFillStyle(
         Phaser.Display.Color.HexStringToColor(hexColor).color
       );
+    }
+  }
+
+  // instantiates #num circles
+  createCircles(num) {
+    // create many circles that bounce around and change colors upon collision
+    this.circles = [];
+
+    const offset = 20; // so circles don't start outside bounds
+    const bounds = new Phaser.Geom.Rectangle(
+      offset,
+      offset,
+      this.width - offset * 2,
+      this.height - offset * 2
+    );
+
+    for (let i = 0; i < num; i++) {
+      // assign a random point for circle to appear
+      const p = bounds.getRandomPoint();
+
+      // basic circle, size between 10 and 18
+      const circle = this.add
+        .arc(p.x, p.y, Phaser.Math.Between(10, 18))
+        .setFillStyle(Phaser.Display.Color.RandomRGB().color);
+      circle.trail = []; // a trail of transparent circles behind the ball
+      circle.alive = true; // alive until hit by player
+      circle.scale = this.scaleRatio;
+      this.physics.add.existing(circle);
+
+      // choose somewhere slowest speed and largest speed
+      const minMaxVelocity = [25 * this.scaleRatio, 250 * this.scaleRatio];
+      circle.body
+        .setVelocity(
+          Phaser.Math.Between(minMaxVelocity[0], minMaxVelocity[1]),
+          Phaser.Math.Between(minMaxVelocity[0], minMaxVelocity[1])
+        )
+        .setBounce(1)
+        .setCollideWorldBounds(true);
+      circle.body.isCircle = true;
+
+      // random direction
+      if (Math.random() > 0.5) {
+        circle.body.velocity.x *= -1;
+      } else {
+        circle.body.velocity.y *= -1;
+      }
+
+      this.circles.push(circle);
+      this.numCircles++;
     }
   }
 }
