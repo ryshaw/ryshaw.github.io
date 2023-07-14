@@ -10,7 +10,8 @@ class BouncyBalls extends Phaser.Scene {
   width; // width of game
   height; // height of game
   startMenu; // container for all start menu UI objects
-  titleText; // title of game, only shows up on desktop when game starts
+  timerText; // displays timer to player, must collect balls before timer runs out
+  timer; // time left until game over
   colorPalettes; // object containing the color palettes for the themes
   colorTheme; // string representing the current color theme
 
@@ -21,6 +22,7 @@ class BouncyBalls extends Phaser.Scene {
     this.scaleRatio = Math.min(window.devicePixelRatio, 2);
     this.width = game.config.width;
     this.height = game.config.height;
+    this.timer = 20;
     this.colorTheme = "rgb"; // default
     // each custom palette has the background color at index 0,
     // and seven primary colors from indices 1-7
@@ -84,157 +86,80 @@ class BouncyBalls extends Phaser.Scene {
     });
   }
 
+  // creates all text objects and a menu container
   loadUI() {
-    this.score = this.add
-      .text(this.width - 10, 10, `balls left: ${this.numCircles}`, {
-        font: "16px",
-        fill: "#fff",
-      })
-      .setFontFamily('"Press Start 2P"')
-      .setOrigin(1, 0)
-      .setDepth(1);
+    this.scoreText = new CustomText(
+      this,
+      this.width - 10,
+      25,
+      `balls: ${this.numCircles}`,
+      "m",
+      "r"
+    ).setVisible(false); // invisible until game starts
 
-    this.levelText = this.add
-      .text(10, 10, `lvl: ${this.level}`, {
-        font: "16px",
-        fill: "#fff",
-      })
-      .setFontFamily('"Press Start 2P"')
-      .setOrigin(0, 0)
-      .setDepth(1);
+    this.levelText = new CustomText(
+      this,
+      10,
+      25,
+      `lvl: ${this.level}`,
+      "m",
+      "l"
+    ).setVisible(false); // invisible until game starts
 
-    this.titleText = this.add
-      .text(this.width * 0.5, 8, "bouncy balls!", {
-        font: "16px",
-        fill: "#fff",
-      })
-      .setFontFamily('"Press Start 2P"')
-      .setOrigin(0.5, 0)
-      .setDepth(1)
-      .setVisible(false);
+    this.timerText = new CustomText(
+      this,
+      this.width * 0.5 - 10,
+      20,
+      `time: ${this.timer}`
+    ).setVisible(false);
 
-    const startText = this.add
-      .text(0, 140, "start", {
-        font: "24px",
-        fill: "#fff",
-      })
-      .setFontFamily('"Press Start 2P"')
-      .setOrigin(0.5, 1)
-      .setInteractive()
-      .on("pointerover", function () {
-        this.setFill("#00ff00");
-      })
-      .on("pointerout", function () {
-        this.setFill("#fff");
-      })
-      .on("pointerdown", this.gameStart, this);
-
+    // container for start menu UI
     const startBox = this.add
       .rectangle(0, 0, 420, 400)
       .setStrokeStyle(4, 0xffffff)
       .setOrigin(0.5, 0.5)
       .setFillStyle(0x0, 0.8);
 
-    const gameTitle = this.add
-      .text(0, -150, "bouncy balls!", {
-        font: "24px",
-        fill: "#fff",
-      })
-      .setFontFamily('"Press Start 2P"')
-      .setActive(false)
-      .setOrigin(0.5, 1);
+    const startText = new CustomText(
+      this,
+      0,
+      130,
+      "start",
+      "l",
+      "c",
+      this.gameStart
+    );
 
-    const t1 = this.add
-      .text(
-        0,
-        -80,
-        "collect all bouncy balls\nmouse/touch to control\nselect a theme:",
-        {
-          font: "16px",
-          fill: "#fff",
-          align: "center",
-          lineSpacing: 16,
-        }
-      )
-      .setFontFamily('"Press Start 2P"')
-      .setOrigin(0.5, 0.5);
+    const gameTitle = new CustomText(this, 0, -160, "bouncy balls!", "l", "c");
 
-    const theme1 = this.add
-      .text(-75, 15, "RGB", {
-        font: "20px",
-        fill: "#fff",
-        align: "center",
-      })
-      .setFontFamily('"Press Start 2P"')
-      .setOrigin(0.5, 1)
-      .setInteractive()
-      .on("pointerover", function () {
-        this.setFill("#00ff00");
-      })
-      .on("pointerout", function () {
-        this.setFill("#fff");
-      })
-      .on("pointerdown", () => this.chooseTheme("rgb"));
+    const t1 = new CustomText(
+      this,
+      0,
+      -80,
+      "collect all bouncy balls\nmouse/touch to control\nselect a theme:"
+    );
 
-    const theme2 = this.add
-      .text(75, 15, "sea", {
-        font: "20px",
-        fill: "#fff",
-        align: "center",
-      })
-      .setFontFamily('"Press Start 2P"')
-      .setOrigin(0.5, 1)
-      .setInteractive()
-      .on("pointerover", function () {
-        this.setFill("#00ff00");
-      })
-      .on("pointerout", function () {
-        this.setFill("#fff");
-      })
-      .on("pointerdown", () => this.chooseTheme("sea"));
+    const theme1 = new CustomText(this, -90, 5, "RGB", "l", "c", () =>
+      this.chooseTheme("rgb")
+    );
+    const theme2 = new CustomText(this, 90, 5, "sea", "l", "c", () =>
+      this.chooseTheme("sea")
+    );
+    const theme3 = new CustomText(this, -90, 70, "forest", "l", "c", () =>
+      this.chooseTheme("forest")
+    );
+    const theme4 = new CustomText(this, 90, 70, "space", "l", "c", () =>
+      this.chooseTheme("space")
+    );
 
-    const theme3 = this.add
-      .text(-75, 75, "forest", {
-        font: "20px",
-        fill: "#fff",
-        align: "center",
-      })
-      .setFontFamily('"Press Start 2P"')
-      .setOrigin(0.5, 1)
-      .setInteractive()
-      .on("pointerover", function () {
-        this.setFill("#00ff00");
-      })
-      .on("pointerout", function () {
-        this.setFill("#fff");
-      })
-      .on("pointerdown", () => this.chooseTheme("forest"));
-
-    const theme4 = this.add
-      .text(75, 75, "space", {
-        font: "20px",
-        fill: "#fff",
-        align: "center",
-      })
-      .setFontFamily('"Press Start 2P"')
-      .setOrigin(0.5, 1)
-      .setInteractive()
-      .on("pointerover", function () {
-        this.setFill("#00ff00");
-      })
-      .on("pointerout", function () {
-        this.setFill("#fff");
-      })
-      .on("pointerdown", () => this.chooseTheme("space"));
-
-    const t2 = this.add
-      .text(0, 180, "a game by ryshaw, made w/ phaser 3", {
-        font: "10px",
-        fill: "#fff",
-        align: "center",
-      })
-      .setFontFamily('"Press Start 2P"')
-      .setOrigin(0.5, 0.5);
+    const t2 = new CustomText(
+      this,
+      0,
+      180,
+      "a game by ryshaw, made w/ phaser 3",
+      "s",
+      "c"
+    );
 
     this.startMenu = this.add
       .container(this.width * 0.5, this.height * 0.5, [
@@ -250,7 +175,7 @@ class BouncyBalls extends Phaser.Scene {
       ])
       .setDepth(1);
 
-    // upscale all objects currently created if on mobile
+    // upscale all objects currently created, if on mobile
     this.children.getChildren().forEach((object) => {
       object.scale = this.scaleRatio;
     });
@@ -354,7 +279,7 @@ class BouncyBalls extends Phaser.Scene {
         circle.alive = false; // switch to dead so we can eliminate trail
         circle.destroy();
         this.numCircles--;
-        this.score.setText(`balls left: ${this.numCircles}`);
+        this.scoreText.setText(`balls: ${this.numCircles}`);
       },
       null,
       this
@@ -364,11 +289,17 @@ class BouncyBalls extends Phaser.Scene {
     this.input.on("pointerdown", () => (this.isPointerDown = true), this);
     this.input.on("pointerup", () => (this.isPointerDown = false), this);
 
+    // remove start text
     this.startMenu.destroy();
-    // if we have enough space, display title during game
-    if (this.scaleRatio == 1) {
-      this.titleText.setVisible(true);
-    }
+
+    // show game text
+    this.levelText.setVisible(true);
+    this.scoreText.setVisible(true);
+    this.timerText.setVisible(true);
+
+    // to control the time
+    // arrow function must be used... I still don't understand why but MDN says so
+    setInterval(() => this.timeHandler(), 1000);
   }
 
   chooseTheme(theme) {
@@ -455,6 +386,18 @@ class BouncyBalls extends Phaser.Scene {
       this.numCircles++;
     }
   }
+
+  timeHandler() {
+    this.timer--;
+    this.timerText.setText(`time: ${this.timer}`);
+    if (this.timer <= 5) {
+      this.timerText.setFill("#ff0000");
+    }
+
+    if (this.timer < 0) {
+      this.timerText.setText("game over!");
+    }
+  }
 }
 
 const config = {
@@ -472,5 +415,44 @@ const config = {
   backgroundColor: "#000000",
   scene: BouncyBalls,
 };
+
+class CustomText extends Phaser.GameObjects.Text {
+  constructor(
+    scene, // always "this" in the scene class
+    x,
+    y,
+    text,
+    size = "m", // s, m, or l for small, medium, or large
+    align = "c", // l, c, or r for left, center, or right
+    callback = null // provided only for buttons
+  ) {
+    super(scene);
+
+    const cT = scene.add
+      .text(x, y, text, {
+        font: size == "l" ? "24px" : size == "m" ? "16px" : "10px",
+        fill: "#fff",
+        align: "center",
+        lineSpacing: 16,
+      })
+      .setFontFamily('"Press Start 2P"')
+      .setOrigin(align == "l" ? 0 : align == "c" ? 0.5 : 1, 0.5)
+      .setDepth(1);
+
+    // if callback is given, assume it's a button and add callback
+    if (callback) {
+      cT.setInteractive()
+        .on("pointerover", function () {
+          this.setFill("#00ff00");
+        })
+        .on("pointerout", function () {
+          this.setFill("#fff");
+        })
+        .on("pointerdown", callback, scene);
+    }
+
+    return cT;
+  }
+}
 
 const game = new Phaser.Game(config);
