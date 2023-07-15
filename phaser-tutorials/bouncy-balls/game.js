@@ -22,7 +22,7 @@ class BouncyBalls extends Phaser.Scene {
     this.scaleRatio = Math.min(window.devicePixelRatio, 2);
     this.width = game.config.width;
     this.height = game.config.height;
-    this.timer = 20;
+    this.timer = 2;
     this.colorTheme = "rgb"; // default
     // each custom palette has the background color at index 0,
     // and seven primary colors from indices 1-7
@@ -209,8 +209,8 @@ class BouncyBalls extends Phaser.Scene {
       return;
     }
 
-    // otherwise, if pointer is down, move player towards pointer
-    if (this.isPointerDown) {
+    // otherwise, if pointer is down and player is alive, move player towards pointer
+    if (this.isPointerDown && this.player.alive) {
       // get player and mouse positions
       const playerPos = new Phaser.Math.Vector2(this.player.x, this.player.y);
       const pointerPos = this.input.activePointer.position;
@@ -272,10 +272,15 @@ class BouncyBalls extends Phaser.Scene {
       .setCollideWorldBounds(true)
       .setMaxSpeed(350);
 
+    this.player.alive = true; // checks whether game is over or not
+
     this.physics.add.overlap(
       this.player,
       this.circles,
       function (player, circle) {
+        if (!player.alive) {
+          return;
+        }
         circle.alive = false; // switch to dead so we can eliminate trail
         circle.destroy();
         this.numCircles--;
@@ -396,7 +401,40 @@ class BouncyBalls extends Phaser.Scene {
 
     if (this.timer < 0) {
       this.timerText.setText("game over!");
+      this.gameOver();
     }
+  }
+
+  gameOver() {
+    this.player.alive = false;
+    this.tweens.add({
+      targets: this.player,
+      scale: 0.02,
+      angle: 360,
+      ease: "Sine.Out",
+      duration: 1200,
+      onComplete: () => {
+        const x = this.player.body.x;
+        const y = this.player.body.y;
+        const l1 = this.add
+          .line(x, y, 0, 0, 32, 0)
+          .setStrokeStyle(2, "0xffffff", 1);
+        const l2 = this.add
+          .line(x, y, 0, 0, 0, 32)
+          .setStrokeStyle(2, "0xffffff", 1);
+        this.tweens.add({
+          targets: [l1, l2],
+          scale: 0.02,
+          angle: 360,
+          ease: "Sine.Out",
+          duration: 500,
+          onComplete: function () {
+            l1.setVisible(false);
+            l2.setVisible(false);
+          },
+        });
+      },
+    });
   }
 }
 
@@ -407,7 +445,7 @@ const config = {
   physics: {
     default: "arcade",
     arcade: {
-      debug: false,
+      debug: true,
     },
   },
   scaleMode: Phaser.Scale.FIT,
