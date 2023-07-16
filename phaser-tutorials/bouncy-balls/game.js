@@ -12,6 +12,7 @@ class BouncyBalls extends Phaser.Scene {
   startMenu; // container for all start menu UI objects
   timerText; // displays timer to player, must collect balls before timer runs out
   timer; // time left until game over
+  timeInterval; // javascript interval that tracks how much time has passed
   colorPalettes; // object containing the color palettes for the themes
   colorTheme; // string representing the current color theme
 
@@ -22,7 +23,7 @@ class BouncyBalls extends Phaser.Scene {
     this.scaleRatio = Math.min(window.devicePixelRatio, 2);
     this.width = game.config.width;
     this.height = game.config.height;
-    this.timer = 2;
+    this.timer = 20;
     this.colorTheme = "rgb"; // default
     // each custom palette has the background color at index 0,
     // and seven primary colors from indices 1-7
@@ -82,12 +83,12 @@ class BouncyBalls extends Phaser.Scene {
       google: {
         families: ["Press Start 2P"],
       },
-      active: () => this.loadUI(),
+      active: () => this.loadStartUI(),
     });
   }
 
   // creates all text objects and a menu container
-  loadUI() {
+  loadStartUI() {
     this.scoreText = new CustomText(
       this,
       this.width - 10,
@@ -205,7 +206,7 @@ class BouncyBalls extends Phaser.Scene {
     });
 
     // now check for player, if game hasn't started yet, don't do anything else
-    if (this.player == undefined) {
+    if (this.player == undefined || !this.player.alive) {
       return;
     }
 
@@ -285,6 +286,10 @@ class BouncyBalls extends Phaser.Scene {
         circle.destroy();
         this.numCircles--;
         this.scoreText.setText(`balls: ${this.numCircles}`);
+
+        if (this.numCircles <= 0) {
+          this.levelClear();
+        }
       },
       null,
       this
@@ -304,7 +309,7 @@ class BouncyBalls extends Phaser.Scene {
 
     // to control the time
     // arrow function must be used... I still don't understand why but MDN says so
-    setInterval(() => this.timeHandler(), 1000);
+    this.timeInterval = setInterval(() => this.timeHandler(), 1000);
   }
 
   chooseTheme(theme) {
@@ -400,19 +405,25 @@ class BouncyBalls extends Phaser.Scene {
     }
 
     if (this.timer < 0) {
+      clearInterval(this.timeInterval);
       this.timerText.setText("game over!");
       this.gameOver();
     }
   }
 
   gameOver() {
+    // if game is already over, don't do this again
+    if (!this.player.alive) {
+      return;
+    }
+
     this.player.alive = false;
     this.tweens.add({
       targets: this.player,
-      scale: 0.02,
-      angle: 360,
-      ease: "Sine.Out",
-      duration: 1200,
+      scale: 0,
+      angle: 720,
+      ease: "Sine.InOut",
+      duration: 800,
       onComplete: () => {
         const x = this.player.body.x;
         const y = this.player.body.y;
@@ -424,17 +435,113 @@ class BouncyBalls extends Phaser.Scene {
           .setStrokeStyle(2, "0xffffff", 1);
         this.tweens.add({
           targets: [l1, l2],
-          scale: 0.02,
-          angle: 360,
+          scale: 0,
+          angle: 180,
           ease: "Sine.Out",
-          duration: 500,
-          onComplete: function () {
-            l1.setVisible(false);
-            l2.setVisible(false);
-          },
+          duration: 400,
+          completeDelay: 1000,
+          onComplete: () => this.loadGameOverUI(),
         });
       },
     });
+  }
+
+  loadGameOverUI() {
+    const box = this.add
+      .rectangle(0, 0, 350, 200)
+      .setStrokeStyle(4, 0xffffff)
+      .setOrigin(0.5, 0.5)
+      .setFillStyle(0x0, 0.8);
+
+    const restartText = new CustomText(this, 0, 60, "restart", "l", "c", () => {
+      this.children.getAll().forEach((object) => {
+        object.destroy();
+      });
+
+      this.player = undefined;
+      this.preload();
+      this.create();
+    });
+
+    const gameOverText = new CustomText(
+      this,
+      0,
+      -40,
+      "game over!\ntry again?",
+      "l",
+      "c"
+    ).setLineSpacing(24);
+
+    this.add
+      .container(this.width * 0.5, this.height * 0.5, [
+        box,
+        restartText,
+        gameOverText,
+      ])
+      .setDepth(1)
+      .setScale(this.scaleRatio);
+  }
+
+  levelClear() {
+    clearInterval(this.timeInterval);
+    this.timerText.setText("level cleared!");
+    this.timerText.setFill("#00ff00");
+    this.time.delayedCall(1000, () => {
+      this.player.alive = false;
+      this.tweens.add({
+        targets: this.player,
+        alpha: 0,
+        angle: 360,
+        scale: 1.5,
+        ease: "Sine.InOut",
+        duration: 1600,
+      });
+      this.loadLevelClearUI();
+    });
+  }
+
+  loadLevelClearUI() {
+    const box = this.add
+      .rectangle(0, 0, 350, 200)
+      .setStrokeStyle(4, 0xffffff)
+      .setOrigin(0.5, 0.5)
+      .setFillStyle(0x0, 0.8);
+
+    const continueText = new CustomText(
+      this,
+      0,
+      60,
+      "continue",
+      "l",
+      "c",
+      () => {
+        this.children.getAll().forEach((object) => {
+          object.destroy();
+        });
+
+        this.player = undefined;
+        this.preload();
+        this.create();
+      }
+    );
+
+    const levelClearText = new CustomText(
+      this,
+      0,
+      -40,
+      "level clear!!\nnext level?",
+      "l",
+      "c"
+    ).setLineSpacing(24);
+
+    this.add
+      .container(this.width * 0.5, this.height * 0.5, [
+        box,
+        continueText,
+        levelClearText,
+      ])
+      .setDepth(1)
+      .setScale(this.scaleRatio);
   }
 }
 
@@ -445,7 +552,7 @@ const config = {
   physics: {
     default: "arcade",
     arcade: {
-      debug: true,
+      debug: false,
     },
   },
   scaleMode: Phaser.Scale.FIT,
