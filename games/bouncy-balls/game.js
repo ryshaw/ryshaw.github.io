@@ -308,27 +308,27 @@ class BouncyBalls extends Phaser.Scene {
     this.scoreText = new CustomText(
       this,
       this.width - 10,
-      20,
+      20 * this.scaleRatio,
       `balls: ${this.numCircles}`,
       "m",
       "r"
-    );
+    ).setScale(this.scaleRatio);
 
     this.levelText = new CustomText(
       this,
       10,
-      20,
+      20 * this.scaleRatio,
       `lvl: ${this.level}`,
       "m",
       "l"
-    );
+    ).setScale(this.scaleRatio);
 
     this.timerText = new CustomText(
       this,
-      this.width * 0.5 - 10,
-      20,
+      this.width * 0.5 - 15,
+      20 * this.scaleRatio,
       `time: ${this.timer}`
-    );
+    ).setScale(this.scaleRatio);
 
     // to control the time
     // arrow function must be used... I still don't understand why but MDN says so
