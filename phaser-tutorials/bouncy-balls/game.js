@@ -4,7 +4,7 @@ class BouncyBalls extends Phaser.Scene {
   isPointerDown; // checks if mouse input or touch input
   scoreText; // text that displays how many balls are left
   numCircles; // keeps track of score
-  level; // the level of the game
+  level; // the level of the game***
   levelText; // displaying the current level
   scaleRatio; // desktop = 1, mobile = 2
   width; // width of game
@@ -14,17 +14,20 @@ class BouncyBalls extends Phaser.Scene {
   timer; // time left until game over
   timeInterval; // javascript interval that tracks how much time has passed
   colorPalettes; // object containing the color palettes for the themes
-  colorTheme; // string representing the current color theme
+  colorTheme; // string representing the current color theme***
+  firstTimeLoad; // if the game was just opened and loaded, show the start menu
 
+  // *** = contained in localStorage so these will be persistent
+
+  // preload is only run once when the game is loaded for the first time
   preload() {
-    this.isPointerDown = false;
-    this.numCircles = 0;
-    this.level = 1;
+    this.level = localStorage.getItem("level") || 1;
     this.scaleRatio = Math.min(window.devicePixelRatio, 2);
     this.width = game.config.width;
     this.height = game.config.height;
-    this.timer = 20;
-    this.colorTheme = "rgb"; // default
+    this.firstTimeLoad = true;
+
+    // colorTheme is set in create() after circles are instantiated
     // each custom palette has the background color at index 0,
     // and seven primary colors from indices 1-7
     this.colorPalettes = {
@@ -66,9 +69,27 @@ class BouncyBalls extends Phaser.Scene {
     );
   }
 
+  // create is ran every time the player goes to next level, or hits a game over and restarts
   create() {
+    // this load probably doesn't need to run every time but... will optimize later
+    WebFont.load({
+      google: {
+        families: ["Press Start 2P"],
+      },
+      active: () => {
+        this.firstTimeLoad ? this.loadStartUI() : this.gameStart();
+      },
+    });
+
+    // reset/initialize game values
+    this.isPointerDown = false;
+    this.numCircles = 0;
+
     // player instantiates in the gameStart function
-    this.createCircles(20); // circles instantiate here
+
+    // this is where the difficulty progression happens
+    this.createCircles(this.level * 10); // circles instantiate here
+    this.timer = this.level * 5 + 20;
 
     // upon balls bouncing, switch both to random colors
     this.physics.add.collider(
@@ -79,41 +100,12 @@ class BouncyBalls extends Phaser.Scene {
       this
     );
 
-    WebFont.load({
-      google: {
-        families: ["Press Start 2P"],
-      },
-      active: () => this.loadStartUI(),
-    });
+    this.colorTheme = localStorage.getItem("colorTheme") || "rgb"; // default is rgb
+    this.chooseTheme(this.colorTheme);
   }
 
-  // creates all text objects and a menu container
+  // creates all start menu text objects and a container
   loadStartUI() {
-    this.scoreText = new CustomText(
-      this,
-      this.width - 10,
-      25,
-      `balls: ${this.numCircles}`,
-      "m",
-      "r"
-    ).setVisible(false); // invisible until game starts
-
-    this.levelText = new CustomText(
-      this,
-      10,
-      25,
-      `lvl: ${this.level}`,
-      "m",
-      "l"
-    ).setVisible(false); // invisible until game starts
-
-    this.timerText = new CustomText(
-      this,
-      this.width * 0.5 - 10,
-      20,
-      `time: ${this.timer}`
-    ).setVisible(false);
-
     // container for start menu UI
     const startBox = this.add
       .rectangle(0, 0, 420, 400)
@@ -125,13 +117,20 @@ class BouncyBalls extends Phaser.Scene {
       this,
       0,
       130,
-      "start",
+      `start lvl ${this.level}!`,
       "l",
       "c",
       this.gameStart
     );
 
-    const gameTitle = new CustomText(this, 0, -160, "bouncy balls!", "l", "c");
+    const gameTitle = new CustomText(
+      this,
+      0,
+      -160,
+      "bouncy balls!",
+      "l",
+      "c"
+    ).setShadow(0, 0, "#fff", 4);
 
     const t1 = new CustomText(
       this,
@@ -146,10 +145,10 @@ class BouncyBalls extends Phaser.Scene {
     const theme2 = new CustomText(this, 90, 5, "sea", "l", "c", () =>
       this.chooseTheme("sea")
     );
-    const theme3 = new CustomText(this, -90, 70, "forest", "l", "c", () =>
+    const theme3 = new CustomText(this, -90, 65, "forest", "l", "c", () =>
       this.chooseTheme("forest")
     );
-    const theme4 = new CustomText(this, 90, 70, "space", "l", "c", () =>
+    const theme4 = new CustomText(this, 90, 65, "space", "l", "c", () =>
       this.chooseTheme("space")
     );
 
@@ -271,7 +270,7 @@ class BouncyBalls extends Phaser.Scene {
       .setCircle(r, -r, -r)
       .setBounce(1, 1)
       .setCollideWorldBounds(true)
-      .setMaxSpeed(350);
+      .setMaxSpeed(350 * this.scaleRatio);
 
     this.player.alive = true; // checks whether game is over or not
 
@@ -299,13 +298,37 @@ class BouncyBalls extends Phaser.Scene {
     this.input.on("pointerdown", () => (this.isPointerDown = true), this);
     this.input.on("pointerup", () => (this.isPointerDown = false), this);
 
-    // remove start text
-    this.startMenu.destroy();
+    // remove start menu if the game was just opened and loaded
+    if (this.firstTimeLoad) {
+      this.firstTimeLoad = false;
+      this.startMenu.destroy();
+    }
 
-    // show game text
-    this.levelText.setVisible(true);
-    this.scoreText.setVisible(true);
-    this.timerText.setVisible(true);
+    // instiantiate game UI
+    this.scoreText = new CustomText(
+      this,
+      this.width - 10,
+      20,
+      `balls: ${this.numCircles}`,
+      "m",
+      "r"
+    );
+
+    this.levelText = new CustomText(
+      this,
+      10,
+      20,
+      `lvl: ${this.level}`,
+      "m",
+      "l"
+    );
+
+    this.timerText = new CustomText(
+      this,
+      this.width * 0.5 - 10,
+      20,
+      `time: ${this.timer}`
+    );
 
     // to control the time
     // arrow function must be used... I still don't understand why but MDN says so
@@ -314,6 +337,8 @@ class BouncyBalls extends Phaser.Scene {
 
   chooseTheme(theme) {
     this.colorTheme = theme;
+    localStorage.setItem("colorTheme", theme);
+
     if (theme == "rgb") {
       this.cameras.main.setBackgroundColor("#000");
       this.circles.forEach((circle) => {
@@ -374,8 +399,9 @@ class BouncyBalls extends Phaser.Scene {
       circle.scale = this.scaleRatio;
       this.physics.add.existing(circle);
 
-      // choose somewhere slowest speed and largest speed
+      // choose somewhere between slowest speed and fastest speed
       const minMaxVelocity = [25 * this.scaleRatio, 250 * this.scaleRatio];
+      //const minMaxVelocity = [25, 250];
       circle.body
         .setVelocity(
           Phaser.Math.Between(minMaxVelocity[0], minMaxVelocity[1]),
@@ -429,10 +455,13 @@ class BouncyBalls extends Phaser.Scene {
         const y = this.player.body.y;
         const l1 = this.add
           .line(x, y, 0, 0, 32, 0)
-          .setStrokeStyle(2, "0xffffff", 1);
+          .setStrokeStyle(2, "0xffffff", 1)
+          .setScale(this.scaleRatio);
+
         const l2 = this.add
           .line(x, y, 0, 0, 0, 32)
-          .setStrokeStyle(2, "0xffffff", 1);
+          .setStrokeStyle(2, "0xffffff", 1)
+          .setScale(this.scaleRatio);
         this.tweens.add({
           targets: [l1, l2],
           scale: 0,
@@ -492,7 +521,7 @@ class BouncyBalls extends Phaser.Scene {
         targets: this.player,
         alpha: 0,
         angle: 360,
-        scale: 1.5,
+        scale: 2 * this.scaleRatio,
         ease: "Sine.InOut",
         duration: 1600,
       });
@@ -520,7 +549,8 @@ class BouncyBalls extends Phaser.Scene {
         });
 
         this.player = undefined;
-        this.preload();
+        this.level++;
+        localStorage.setItem("level", this.level);
         this.create();
       }
     );
