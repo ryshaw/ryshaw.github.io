@@ -11,7 +11,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
 
 const appSettings = {
-  databaseURL: "https://bouncy-balls-7-default-rtdb.firebaseio.com/",
+  databaseURL: "",
 };
 
 const database = ref(getDatabase(initializeApp(appSettings)));
