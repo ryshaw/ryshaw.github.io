@@ -9,7 +9,7 @@ class BouncyBalls extends Phaser.Scene {
   scaleRatio; // desktop = 1, mobile = 2
   width; // width of game
   height; // height of game
-  startMenu; // container for all start menu UI objects
+  currentMenu; // the current menu displaying, must destroy itself before continuing
   timerText; // displays timer to player, must collect balls before timer runs out
   timer; // time left until game over
   timeInterval; // javascript interval that tracks how much time has passed
@@ -21,6 +21,8 @@ class BouncyBalls extends Phaser.Scene {
 
   // preload is only run once when the game is loaded for the first time
   preload() {
+    localStorage.clear();
+
     this.level = localStorage.getItem("level") || 1;
     this.scaleRatio = Math.min(window.devicePixelRatio, 2);
     this.width = game.config.width;
@@ -88,7 +90,7 @@ class BouncyBalls extends Phaser.Scene {
     // player instantiates in the gameStart function
 
     // this is where the difficulty progression happens
-    this.createCircles(this.level * 10); // circles instantiate here
+    this.createCircles(this.level * 1); // circles instantiate here
     this.timer = this.level * 5 + 20;
 
     // upon balls bouncing, switch both to random colors
@@ -102,6 +104,65 @@ class BouncyBalls extends Phaser.Scene {
 
     this.colorTheme = localStorage.getItem("colorTheme") || "rgb"; // default is rgb
     this.chooseTheme(this.colorTheme);
+  }
+
+  loadOptInDataCollection() {
+    // container for start menu UI
+    const box = this.add
+      .rectangle(0, 0, 440, 400)
+      .setStrokeStyle(4, 0xffffff)
+      .setOrigin(0.5, 0.5)
+      .setFillStyle(0x0, 0.8);
+
+    const prompt = new CustomText(
+      this,
+      0,
+      -80,
+      "are we allowed to use\nyour game data to help\nmake the game better?" +
+        "\nall data is anonymous\n(e.g. your highest level)"
+    ).setLineSpacing(24);
+
+    const yes = new CustomText(this, -80, 70, "yes!", "l", "c", () => {
+      localStorage.setItem("optInDataCollection", true);
+
+      // adds a new section to the firebase database
+      // so we can start updating it with game data.
+      const event = new Event("startPlaySession");
+      dispatchEvent(event);
+
+      this.currentMenu.destroy(); // remove this menu
+      this.gameStart();
+    });
+
+    const no = new CustomText(this, 80, 70, "no!", "l", "c", () => {
+      localStorage.setItem("optInDataCollection", false);
+      this.currentMenu.destroy(); // remove this menu
+      this.gameStart();
+    });
+
+    const note = new CustomText(
+      this,
+      0,
+      160,
+      "no personally identifiable info is\ncollected in compliance with the GDPR",
+      "s",
+      "c"
+    );
+
+    this.currentMenu = this.add
+      .container(this.width * 0.5, this.height * 0.5, [
+        box,
+        prompt,
+        yes,
+        no,
+        note,
+      ])
+      .setDepth(1);
+
+    // upscale all objects currently created, if on mobile
+    this.children.getChildren().forEach((object) => {
+      object.scale = this.scaleRatio;
+    });
   }
 
   // creates all start menu text objects and a container
@@ -120,7 +181,10 @@ class BouncyBalls extends Phaser.Scene {
       `start lvl ${this.level}!`,
       "l",
       "c",
-      this.gameStart
+      () => {
+        this.currentMenu.destroy();
+        this.loadOptInDataCollection();
+      }
     );
 
     const gameTitle = new CustomText(
@@ -161,7 +225,7 @@ class BouncyBalls extends Phaser.Scene {
       "c"
     );
 
-    this.startMenu = this.add
+    this.currentMenu = this.add
       .container(this.width * 0.5, this.height * 0.5, [
         startBox,
         startText,
@@ -298,11 +362,8 @@ class BouncyBalls extends Phaser.Scene {
     this.input.on("pointerdown", () => (this.isPointerDown = true), this);
     this.input.on("pointerup", () => (this.isPointerDown = false), this);
 
-    // remove start menu if the game was just opened and loaded
-    if (this.firstTimeLoad) {
-      this.firstTimeLoad = false;
-      this.startMenu.destroy();
-    }
+    // if first time loading in, disable so we don't display start menu again
+    if (this.firstTimeLoad) this.firstTimeLoad = false;
 
     // instiantiate game UI
     this.scoreText = new CustomText(
@@ -337,7 +398,7 @@ class BouncyBalls extends Phaser.Scene {
 
   chooseTheme(theme) {
     this.colorTheme = theme;
-    localStorage.setItem("colorTheme", theme);
+    this.updateGameData("colorTheme", theme);
 
     if (theme == "rgb") {
       this.cameras.main.setBackgroundColor("#000");
@@ -550,7 +611,7 @@ class BouncyBalls extends Phaser.Scene {
 
         this.player = undefined;
         this.level++;
-        localStorage.setItem("level", this.level);
+        this.updateGameData("level", this.level);
         this.create();
       }
     );
@@ -572,6 +633,16 @@ class BouncyBalls extends Phaser.Scene {
       ])
       .setDepth(1)
       .setScale(this.scaleRatio);
+  }
+
+  // updates localStorage and fires off an update event to
+  // the firebase script so it can be updated in the database.
+  updateGameData(key, value) {
+    localStorage.setItem(key, value);
+    if (localStorage.getItem("optInDataCollection")) {
+      const updateEvent = new Event("updateGameData");
+      dispatchEvent(updateEvent);
+    }
   }
 }
 
