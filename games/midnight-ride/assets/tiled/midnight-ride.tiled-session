@@ -3,37 +3,48 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "test.tmx",
+    "activeFile": "map.tmx",
     "expandedProjectPaths": [
     ],
+    "file.lastUsedOpenFilter": "All Files (*)",
     "fileStates": {
-        "test.tmx": {
-            "scale": 2,
-            "selectedLayer": 1,
+        "": {
+            "scaleInEditor": 4
+        },
+        "map.tmx": {
+            "scale": 4,
+            "selectedLayer": 2,
             "viewCenter": {
-                "x": 145.5,
-                "y": 216.5
+                "x": 337.375,
+                "y": 407.875
             }
         },
-        "test.tmx#test": {
-            "scaleInDock": 4
+        "map.tmx#buildings": {
+            "scaleInDock": 1.5
+        },
+        "map.tmx#land": {
+            "scaleInDock": 1.5,
+            "scaleInEditor": 1
+        },
+        "map.tmx#roads": {
+            "scaleInDock": 1.5,
+            "scaleInEditor": 5.5
         }
     },
-    "last.exportedFilePath": "C:/Users/rshaw/Documents/projects/ryshaw.github.io/games/midnight-ride/assets",
-    "last.imagePath": "C:/Users/rshaw/Documents/projects/ryshaw.github.io/games/midnight-ride/assets/tiled",
-    "lastUsedTilesetExportFilter": "All Files (*)",
-    "map.height": 30,
-    "map.lastUsedExportFilter": "JSON map files (*.tmj *.json)",
+    "last.exportedFilePath": "C:/Users/rshaw/Documents/projects/ryshaw.github.io/games/midnight-ride/assets/tiled",
+    "last.imagePath": "C:/Users/rshaw/Documents/projects/ryshaw.github.io/games/midnight-ride/assets/tiled/tilesets",
+    "map.height": 50,
+    "map.lastUsedExportFilter": "All Files (*)",
     "map.lastUsedFormat": "tmx",
     "map.tileHeight": 16,
     "map.tileWidth": 16,
+    "map.width": 50,
     "openFiles": [
-        "test.tmx"
+        "map.tmx"
     ],
     "project": "midnight-ride.tiled-project",
-    "property.type": "bool",
     "recentFiles": [
-        "test.tmx"
+        "map.tmx"
     ],
     "tileset.embedInMap": true,
     "tileset.tileSize": {
