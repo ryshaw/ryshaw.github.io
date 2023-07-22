@@ -21,6 +21,7 @@
     },
     "last.exportedFilePath": "C:/Users/rshaw/Documents/projects/ryshaw.github.io/games/midnight-ride/assets",
     "last.imagePath": "C:/Users/rshaw/Documents/projects/ryshaw.github.io/games/midnight-ride/assets/tiled",
+    "lastUsedTilesetExportFilter": "All Files (*)",
     "map.height": 30,
     "map.lastUsedExportFilter": "JSON map files (*.tmj *.json)",
     "map.lastUsedFormat": "tmx",
@@ -30,6 +31,7 @@
         "test.tmx"
     ],
     "project": "midnight-ride.tiled-project",
+    "property.type": "bool",
     "recentFiles": [
         "test.tmx"
     ],
