@@ -8,6 +8,7 @@ class MidnightRide extends Phaser.Scene {
   housesRemainingText; // UI that displays how many houses have not been delivered to
   gameWin; // boolean that checks if game has been won
   housesWithinRange; // array of houses within range of player, that they can deliver to
+  playerLight; // light object that follows player around so they can see
 
   constructor(config) {
     super(config);
@@ -44,41 +45,14 @@ class MidnightRide extends Phaser.Scene {
   }
 
   create() {
-    WebFont.load({
-      google: {
-        families: ["Press Start 2P"],
-      },
-      active: () => {
-        this.loadGameUI();
-      },
-    });
-
-    this.player = this.physics.add
-      .sprite(this.width / 2, this.height / 2 - 32, "player")
-      .setScale(4)
-      .setDepth(1);
-    this.player.body.setSize(8, 8);
-    this.player.body.isCircle = true;
-
-    this.createTilemap();
-
-    /*this.arrowKeys = this.input.keyboard.createCursorKeys();
-    this.wasdKeys = this.input.keyboard.addKeys({
-      up: Phaser.Input.Keyboard.KeyCodes.W,
-      down: Phaser.Input.Keyboard.KeyCodes.S,
-      left: Phaser.Input.Keyboard.KeyCodes.A,
-      right: Phaser.Input.Keyboard.KeyCodes.D,
-    });
-
-    this.spaceKey = this.input.keyboard.addKey(
-      Phaser.Input.Keyboard.KeyCodes.SPACE
-    );*/
+    this.createMapAndPlayer();
 
     this.cameras.main.startFollow(this.player, true, 0.2, 0.2);
     this.physics.world.fixedStep = false; // fixes startFollow stuttering bug
 
     this.input.keyboard.on("keydown-SPACE", () => {
       if (this.gameWin) {
+        // restart game
         this.gameWin = false;
         this.children.getAll().forEach((object) => {
           object.destroy();
@@ -105,15 +79,67 @@ class MidnightRide extends Phaser.Scene {
     this.input.keyboard.on("keydown-DOWN", () =>
       this.updateMovement(Phaser.Math.Vector2.DOWN)
     );
+
+    this.createLights();
+
+    // add UI at the very end so it's above everything
+    WebFont.load({
+      google: {
+        families: ["Press Start 2P"],
+      },
+      active: () => {
+        this.loadGameUI();
+      },
+    });
+
     // "hitbox" around player to visualize when close enough to house
     /*this.circle = this.add
       .circle(this.player.x, this.player.y, 80)
       .setStrokeStyle(2, Phaser.Display.Color.GetColor(255, 255, 0));*/
   }
 
+  createLights() {
+    /*const light = this.add
+      .pointlight(this.player.x, this.player.y, "0xffff00", 80, 0.05)
+    light.attenuation = 0.1;*/
+    const black = Phaser.Display.Color.GetColor(0, 0, 0);
+    const white = Phaser.Display.Color.GetColor(255, 255, 255);
+    const yellow = Phaser.Display.Color.GetColor(255, 255, 0);
+    const blue = Phaser.Display.Color.GetColor(0, 0, 255);
+    this.lights.enable().setAmbientColor(black);
+    this.children.getAll().forEach((object) => {
+      object.setPipeline("Light2D");
+    });
+
+    // add "delivered" property to all houses, to keep track if player delivered msg to them already
+    // also add a dim light to each house
+    this.houseLayer.forEachTile((tile) => {
+      if (tile.index != -1) {
+        tile.properties = {
+          delivered: false,
+          light: this.add.pointlight(
+            tile.getCenterX(),
+            tile.getCenterY(),
+            0xefcd99,
+            100,
+            0.01
+          ),
+        };
+      }
+    });
+
+    this.playerLight = this.lights.addLight(
+      this.player.x,
+      this.player.y,
+      600,
+      0xefcd99,
+      1.2
+    );
+  }
+
   update() {
     // the default tint is white for the houses
-    this.houseLayer.forEachTile((tile) => (tile.tint = 0xffffff));
+    //this.houseLayer.forEachTile((tile) => (tile.tint = 0xffffff));
 
     // update houses within player that they can deliver message to
     this.housesWithinRange = this.houseLayer.getTilesWithinShape(
@@ -123,13 +149,16 @@ class MidnightRide extends Phaser.Scene {
 
     // give them a yellow highlight so player knows they can deliver
     this.housesWithinRange.forEach((tile) => {
-      if (!tile.properties.delivered) tile.tint = 0xefcd00;
+      if (!tile.properties.delivered) tile.properties.light.intensity = 0.08;
     });
 
     // delivery is handled in deliverMessage function
     // player movement is handled in updateMovement function
 
     if (this.circle) this.circle.setPosition(this.player.x, this.player.y);
+
+    this.playerLight.x = this.player.x;
+    this.playerLight.y = this.player.y;
   }
 
   deliverMessage() {
@@ -141,7 +170,7 @@ class MidnightRide extends Phaser.Scene {
           const msg = this.add
             .sprite(this.player.x, this.player.y, "message")
             .setScale(1)
-            .setDepth(1);
+            .setPipeline("Light2D");
 
           // add animation of moving msg from player to house
           this.tweens.add({
@@ -166,7 +195,7 @@ class MidnightRide extends Phaser.Scene {
     }
   }
 
-  createTilemap() {
+  createMapAndPlayer() {
     const map = this.make.tilemap({ key: "map" });
     const groundLayer = map
       .createLayer("Ground", map.addTilesetImage("land", "landTileset"))
@@ -209,12 +238,13 @@ class MidnightRide extends Phaser.Scene {
         : tile.setCollision(true);
     });
 
-    this.physics.add.collider(this.player, groundLayer);
+    this.player = this.physics.add
+      .sprite(this.width / 2, this.height / 2 - 32, "player")
+      .setScale(4);
+    this.player.body.setSize(8, 8);
+    this.player.body.isCircle = true;
 
-    // add "delivered" property to all houses, to keep track if player delivered msg to them already
-    this.houseLayer.forEachTile((tile) => {
-      tile.properties = { delivered: false };
-    });
+    this.physics.add.collider(this.player, groundLayer);
 
     // get the number of houses on this map, to keep track
     this.numHousesLeft = this.houseLayer.getTilesWithin(
@@ -357,9 +387,9 @@ class CustomText extends Phaser.GameObjects.Text {
         align: "center",
         lineSpacing: 16,
       })
+      .setDepth(2)
       .setFontFamily('"Press Start 2P"')
       .setOrigin(align == "l" ? 0 : align == "c" ? 0.5 : 1, 0.5)
-      .setDepth(1)
       .setScrollFactor(0);
 
     // if callback is given, assume it's a button and add callback
