@@ -119,11 +119,9 @@ class MidnightRide extends Phaser.Scene {
     this.cameras.main.startFollow(this.player, true, 0.2, 0.2);
     this.physics.world.fixedStep = false;
 
-    const tiles = this.houseLayer.getTilesWithinShape(
-      new Phaser.Geom.Circle(this.player.x, this.player.y, 200),
-      { isNotEmpty: true }
-    );
-    console.log(tiles);
+    this.circle = this.add
+      .circle(this.player.x, this.player.y, 200)
+      .setStrokeStyle(2, Phaser.Display.Color.GetColor(255, 255, 0));
   }
 
   update() {
@@ -141,6 +139,8 @@ class MidnightRide extends Phaser.Scene {
       this.player.setRotation(Math.PI);
     }
 
+    this.houseLayer.forEachTile((tile) => tile.setAlpha(1));
+
     const tiles = this.houseLayer.getTilesWithinShape(
       new Phaser.Geom.Circle(this.player.x, this.player.y, 200),
       { isNotEmpty: true }
@@ -148,6 +148,8 @@ class MidnightRide extends Phaser.Scene {
     tiles.forEach((tile) => {
       tile.setAlpha(0.5);
     });
+
+    this.circle.setPosition(this.player.x, this.player.y);
   }
 
   loadGameUI() {
