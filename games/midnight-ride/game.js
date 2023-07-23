@@ -4,10 +4,10 @@ class MidnightRide extends Phaser.Scene {
   player;
   arrowKeys;
   houseLayer; // containing all house tiles
-  spaceKeyHeldDown; // checks if space key is being held down, which is not what we want
   numHousesLeft; // keeps track of how many houses have not been delivered to
-  housesRemainingText; // Ui that displays how many houses have not been delivered to
+  housesRemainingText; // UI that displays how many houses have not been delivered to
   gameWin; // boolean that checks if game has been won
+  housesWithinRange; // array of houses within range of player, that they can deliver to
 
   constructor(config) {
     super(config);
@@ -62,7 +62,7 @@ class MidnightRide extends Phaser.Scene {
 
     this.createTilemap();
 
-    this.arrowKeys = this.input.keyboard.createCursorKeys();
+    /*this.arrowKeys = this.input.keyboard.createCursorKeys();
     this.wasdKeys = this.input.keyboard.addKeys({
       up: Phaser.Input.Keyboard.KeyCodes.W,
       down: Phaser.Input.Keyboard.KeyCodes.S,
@@ -72,11 +72,39 @@ class MidnightRide extends Phaser.Scene {
 
     this.spaceKey = this.input.keyboard.addKey(
       Phaser.Input.Keyboard.KeyCodes.SPACE
-    );
+    );*/
 
     this.cameras.main.startFollow(this.player, true, 0.2, 0.2);
-    this.physics.world.fixedStep = false;
+    this.physics.world.fixedStep = false; // fixes startFollow stuttering bug
 
+    this.input.keyboard.on("keydown-SPACE", () => {
+      if (this.gameWin) {
+        this.gameWin = false;
+        this.children.getAll().forEach((object) => {
+          object.destroy();
+        });
+        this.player = undefined;
+        this.create();
+      } else {
+        this.deliverMessage();
+      }
+    });
+
+    this.input.keyboard.on("keydown-LEFT", () =>
+      this.updateMovement(Phaser.Math.Vector2.LEFT)
+    );
+
+    this.input.keyboard.on("keydown-RIGHT", () =>
+      this.updateMovement(Phaser.Math.Vector2.RIGHT)
+    );
+
+    this.input.keyboard.on("keydown-UP", () =>
+      this.updateMovement(Phaser.Math.Vector2.UP)
+    );
+
+    this.input.keyboard.on("keydown-DOWN", () =>
+      this.updateMovement(Phaser.Math.Vector2.DOWN)
+    );
     // "hitbox" around player to visualize when close enough to house
     /*this.circle = this.add
       .circle(this.player.x, this.player.y, 80)
@@ -84,37 +112,30 @@ class MidnightRide extends Phaser.Scene {
   }
 
   update() {
-    // if game is won and player presses space, restart game
-    if (this.gameWin && this.spaceKey.isDown && !this.spaceKeyHeldDown) {
-      this.gameWin = false;
-      this.children.getAll().forEach((object) => {
-        object.destroy();
-      });
-      this.player = undefined;
-      this.create();
-    }
-
-    this.updatePlayerMovement();
-
+    // the default tint is white for the houses
     this.houseLayer.forEachTile((tile) => (tile.tint = 0xffffff));
 
-    // houses within player that they can deliver message to
-    const tiles = this.houseLayer.getTilesWithinShape(
-      new Phaser.Geom.Circle(this.player.x, this.player.y, 80),
+    // update houses within player that they can deliver message to
+    this.housesWithinRange = this.houseLayer.getTilesWithinShape(
+      new Phaser.Geom.Circle(this.player.x, this.player.y, 90),
       { isNotEmpty: true }
     );
 
-    // give them a highlight so player knows they can deliver
-    tiles.forEach((tile) => {
+    // give them a yellow highlight so player knows they can deliver
+    this.housesWithinRange.forEach((tile) => {
       if (!tile.properties.delivered) tile.tint = 0xefcd00;
     });
 
-    // if there's a deliverable house nearby,
-    // and the space key is pressed,
-    // and the space key is not being held down (i.e. was just pressed),
-    // deliver message
-    if (tiles.length > 0 && this.spaceKey.isDown && !this.spaceKeyHeldDown) {
-      tiles.forEach((tile) => {
+    // delivery is handled in deliverMessage function
+    // player movement is handled in updateMovement function
+
+    if (this.circle) this.circle.setPosition(this.player.x, this.player.y);
+  }
+
+  deliverMessage() {
+    // if there's a deliverable house nearby, deliver message
+    if (this.housesWithinRange.length > 0) {
+      this.housesWithinRange.forEach((tile) => {
         // only deliver msg if player hasn't delivered to this house
         if (!tile.properties.delivered) {
           const msg = this.add
@@ -134,7 +155,6 @@ class MidnightRide extends Phaser.Scene {
 
           // house has been delivered to
           tile.properties.delivered = true;
-          // fire off event to the "houses left" text object
           this.numHousesLeft--;
           this.housesRemainingText.setText(
             `houses left: ${this.numHousesLeft}`
@@ -144,11 +164,6 @@ class MidnightRide extends Phaser.Scene {
         }
       });
     }
-
-    if (this.circle) this.circle.setPosition(this.player.x, this.player.y);
-
-    // if space key is being held down, we don't want to deliver message
-    this.spaceKeyHeldDown = this.spaceKey.isDown;
   }
 
   createTilemap() {
@@ -218,23 +233,35 @@ class MidnightRide extends Phaser.Scene {
     })*/
   }
 
-  updatePlayerMovement() {
+  updateMovement(direction) {
     if (this.gameWin) return; // game is over, don't move player any more
 
-    const speed = 300;
-    if (this.arrowKeys.left.isDown || this.wasdKeys.left.isDown) {
-      this.player.body.setVelocity(-speed, 0);
-      this.player.setRotation((Math.PI * 3) / 2);
-    } else if (this.arrowKeys.right.isDown || this.wasdKeys.right.isDown) {
-      this.player.body.setVelocity(speed, 0);
-      this.player.setRotation((Math.PI * 1) / 2);
-    } else if (this.arrowKeys.up.isDown || this.wasdKeys.up.isDown) {
-      this.player.body.setVelocity(0, -speed);
-      this.player.setRotation(0);
-    } else if (this.arrowKeys.down.isDown || this.wasdKeys.down.isDown) {
-      this.player.body.setVelocity(0, speed);
-      this.player.setRotation(Math.PI);
+    // direction is a Vector2. e.g. left is <-1, 0>. up would be <0, -1>
+
+    // plays by snake rules:
+    // when you press a key, you'll start building up to speed in that direction
+    // no need to hold down the key, you'll move automatically
+    // when you press another key, you'll transition to that speed in that direction
+    const maxSpeed = 250; // max speed of player
+    const duration = 1000; // how long it takes to turn and build up to speed
+    this.tweens.add({
+      targets: this.player.body.velocity,
+      x: direction.x * maxSpeed,
+      y: direction.y * maxSpeed,
+      duration: duration,
+    });
+
+    // fixes issue where player would rotate 270 degrees which looks silly
+    let newRotation = direction.angle();
+    if (direction.angle() - this.player.rotation > Math.PI) {
+      newRotation -= 2 * Math.PI;
     }
+
+    this.tweens.add({
+      targets: this.player,
+      rotation: newRotation,
+      duration: duration * 0.7, // finely tuned
+    });
   }
 
   loadGameUI() {

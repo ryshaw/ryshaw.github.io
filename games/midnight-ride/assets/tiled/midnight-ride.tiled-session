@@ -12,11 +12,11 @@
             "scaleInEditor": 4
         },
         "map.tmx": {
-            "scale": 4,
+            "scale": 1.5,
             "selectedLayer": 2,
             "viewCenter": {
-                "x": 392.75,
-                "y": 343.625
+                "x": 437.3333333333333,
+                "y": 493.66666666666663
             }
         },
         "map.tmx#buildings": {
