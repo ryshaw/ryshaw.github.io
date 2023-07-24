@@ -124,6 +124,7 @@ class MidnightRide extends Phaser.Scene {
             100,
             0.01
           ),
+          // this is a comment
         };
       }
     });
