@@ -1,0 +1,54 @@
+{
+    "Map/SizeTest": {
+        "height": 4300,
+        "width": 2
+    },
+    "activeFile": "map.tmx",
+    "expandedProjectPaths": [
+    ],
+    "file.lastUsedOpenFilter": "All Files (*)",
+    "fileStates": {
+        "": {
+            "scaleInEditor": 4
+        },
+        "map.tmx": {
+            "scale": 1.5,
+            "selectedLayer": 2,
+            "viewCenter": {
+                "x": 437.3333333333333,
+                "y": 493.66666666666663
+            }
+        },
+        "map.tmx#buildings": {
+            "scaleInDock": 1.5
+        },
+        "map.tmx#land": {
+            "scaleInDock": 1.5,
+            "scaleInEditor": 1
+        },
+        "map.tmx#roads": {
+            "scaleInDock": 1.5,
+            "scaleInEditor": 5.5
+        }
+    },
+    "last.exportedFilePath": "C:/Users/rshaw/Documents/projects/ryshaw.github.io/games/midnight-ride/assets/tiled",
+    "last.imagePath": "C:/Users/rshaw/Documents/projects/ryshaw.github.io/games/midnight-ride/assets/tiled/tilesets",
+    "map.height": 50,
+    "map.lastUsedExportFilter": "All Files (*)",
+    "map.lastUsedFormat": "tmx",
+    "map.tileHeight": 16,
+    "map.tileWidth": 16,
+    "map.width": 50,
+    "openFiles": [
+        "map.tmx"
+    ],
+    "project": "midnight-ride.tiled-project",
+    "recentFiles": [
+        "map.tmx"
+    ],
+    "tileset.embedInMap": true,
+    "tileset.tileSize": {
+        "height": 16,
+        "width": 16
+    }
+}
