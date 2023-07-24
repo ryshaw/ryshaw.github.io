@@ -24,20 +24,20 @@ class MidnightRide extends Phaser.Scene {
     // load the tilesets and the tilemap
     this.load.image(
       "landTileset",
-      "./assets/tiled/tilesets/GB-LandTileset.png"
+      "./testingAssets/tiled/tilesets/GB-LandTileset.png"
     );
     this.load.image(
       "houseTileset",
-      "./assets/tiled/tilesets/Universal-Buildings-and-walls.png"
+      "./testingAssets/tiled/tilesets/Universal-Buildings-and-walls.png"
     );
     this.load.image(
       "roadTileset",
-      "./assets/tiled/tilesets/Universal-Road-Tileset.png"
+      "./testingAssets/tiled/tilesets/Universal-Road-Tileset.png"
     );
-    this.load.tilemapTiledJSON("map", "./assets/tiled/map.json");
+    this.load.tilemapTiledJSON("map", "./testingAssets/tiled/map.json");
 
-    this.load.image("player", "./assets/player.png");
-    this.load.image("message", "./assets/message.png");
+    this.load.image("player", "./testingAssets/player.png");
+    this.load.image("message", "./testingAssets/message.png");
 
     this.width = game.config.width;
     this.height = game.config.height;
@@ -50,6 +50,29 @@ class MidnightRide extends Phaser.Scene {
     this.cameras.main.startFollow(this.player, true, 0.2, 0.2);
     this.physics.world.fixedStep = false; // fixes startFollow stuttering bug
 
+    this.createLights();
+
+    this.addKeyboardControls();
+
+    // add UI at the very end so it's above everything
+    WebFont.load({
+      google: {
+        families: ["Press Start 2P"],
+      },
+      active: () => {
+        this.loadGameUI();
+      },
+    });
+
+    this.cameras.main.setZoom(1);
+
+    // "hitbox" around player to visualize when close enough to house
+    /*this.circle = this.add
+      .circle(this.player.x, this.player.y, 80)
+      .setStrokeStyle(2, Phaser.Display.Color.GetColor(255, 255, 0));*/
+  }
+
+  addKeyboardControls() {
     this.input.keyboard.on("keydown-SPACE", () => {
       if (this.gameWin) {
         // restart game
@@ -57,6 +80,8 @@ class MidnightRide extends Phaser.Scene {
         this.children.getAll().forEach((object) => {
           object.destroy();
         });
+        this.lights.shutdown();
+        this.input.keyboard.removeAllListeners();
         this.player = undefined;
         this.create();
       } else {
@@ -80,28 +105,24 @@ class MidnightRide extends Phaser.Scene {
       this.updateMovement(Phaser.Math.Vector2.DOWN)
     );
 
-    this.createLights();
+    this.input.keyboard.on("keydown-A", () =>
+      this.updateMovement(Phaser.Math.Vector2.LEFT)
+    );
 
-    // add UI at the very end so it's above everything
-    WebFont.load({
-      google: {
-        families: ["Press Start 2P"],
-      },
-      active: () => {
-        this.loadGameUI();
-      },
-    });
+    this.input.keyboard.on("keydown-D", () =>
+      this.updateMovement(Phaser.Math.Vector2.RIGHT)
+    );
 
-    // "hitbox" around player to visualize when close enough to house
-    /*this.circle = this.add
-      .circle(this.player.x, this.player.y, 80)
-      .setStrokeStyle(2, Phaser.Display.Color.GetColor(255, 255, 0));*/
+    this.input.keyboard.on("keydown-W", () =>
+      this.updateMovement(Phaser.Math.Vector2.UP)
+    );
+
+    this.input.keyboard.on("keydown-S", () =>
+      this.updateMovement(Phaser.Math.Vector2.DOWN)
+    );
   }
 
   createLights() {
-    /*const light = this.add
-      .pointlight(this.player.x, this.player.y, "0xffff00", 80, 0.05)
-    light.attenuation = 0.1;*/
     const black = Phaser.Display.Color.GetColor(0, 0, 0);
     const white = Phaser.Display.Color.GetColor(255, 255, 255);
     const yellow = Phaser.Display.Color.GetColor(255, 255, 0);
@@ -111,20 +132,20 @@ class MidnightRide extends Phaser.Scene {
       object.setPipeline("Light2D");
     });
 
-    // add "delivered" property to all houses, to keep track if player delivered msg to them already
-    // also add a dim light to each house
+    // add "delivered" property to all houses, to keep track if player delivered msg to them already. also add a dim light to each house
     this.houseLayer.forEachTile((tile) => {
       if (tile.index != -1) {
         tile.properties = {
           delivered: false,
-          light: this.add.pointlight(
-            tile.getCenterX(),
-            tile.getCenterY(),
-            0xefcd99,
-            100,
-            0.01
-          ),
-          // this is a comment
+          light: this.add
+            .pointlight(
+              tile.getCenterX(),
+              tile.getCenterY(),
+              0xefcd99,
+              120,
+              0.02
+            )
+            .setDepth(1),
         };
       }
     });
@@ -139,8 +160,11 @@ class MidnightRide extends Phaser.Scene {
   }
 
   update() {
-    // the default tint is white for the houses
-    //this.houseLayer.forEachTile((tile) => (tile.tint = 0xffffff));
+    this.houseLayer.forEachTile((tile) => {
+      if (tile.index != -1 && !tile.properties.delivered) {
+        tile.properties.light.intensity = 0.01;
+      }
+    });
 
     // update houses within player that they can deliver message to
     this.housesWithinRange = this.houseLayer.getTilesWithinShape(
@@ -150,7 +174,7 @@ class MidnightRide extends Phaser.Scene {
 
     // give them a yellow highlight so player knows they can deliver
     this.housesWithinRange.forEach((tile) => {
-      if (!tile.properties.delivered) tile.properties.light.intensity = 0.08;
+      if (!tile.properties.delivered) tile.properties.light.intensity = 0.06;
     });
 
     // delivery is handled in deliverMessage function
@@ -185,6 +209,7 @@ class MidnightRide extends Phaser.Scene {
 
           // house has been delivered to
           tile.properties.delivered = true;
+          tile.properties.light.intensity = 0.1;
           this.numHousesLeft--;
           this.housesRemainingText.setText(
             `houses left: ${this.numHousesLeft}`
