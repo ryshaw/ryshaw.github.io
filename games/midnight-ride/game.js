@@ -202,9 +202,9 @@ class MidnightRide extends Phaser.Scene {
       redcoat.light = this.lights.addLight(
         redcoat.x,
         redcoat.y,
-        60,
+        70,
         0xefcd99,
-        0.4
+        0.5
       );
     });
 
