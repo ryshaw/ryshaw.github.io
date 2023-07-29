@@ -15,6 +15,12 @@ class MidnightRide extends Phaser.Scene {
   playerDirection; // checks player direction before updating it
   redcoatSpeed; // how fast the patrols move
   redcoatVisionCones; // if player hits one of these, game over
+  housesDelivered; // so it can track between lives
+  lives; // how many tries the player has (3 on normal, 1 on hardcore)
+  musicVolume; // sets volume for music
+  soundVolume; // sets volume for all sound effects
+  soundEffects; // object containing all sound effects to be played
+  playerSpeed; // max speed of player
 
   constructor(config) {
     super(config);
@@ -28,29 +34,52 @@ class MidnightRide extends Phaser.Scene {
     );
 
     // load the tilesets and the tilemap
-    this.load.image(
-      "landTileset",
-      "./testingAssets/tiled/tilesets/GB-LandTileset.png"
-    );
-    this.load.image(
-      "houseTileset",
-      "./testingAssets/tiled/tilesets/Universal-Buildings-and-walls.png"
-    );
-    this.load.image(
-      "roadTileset",
-      "./testingAssets/tiled/tilesets/Universal-Road-Tileset.png"
-    );
-    this.load.tilemapTiledJSON("map", "./testingAssets/tiled/map.json");
+    this.load.image("bush-tiles", "./assets/tilesets/bush-tiles.png");
+    this.load.image("grass-tiles", "./assets/tilesets/grass-tiles.png");
+    this.load.image("house-tiles", "./assets/tilesets/house-tiles.png");
+    this.load.image("road-tiles", "./assets/tilesets/road-tiles.png");
+    this.load.image("rock-tiles", "./assets/tilesets/rock-tiles.png");
+    this.load.image("tree-tiles", "./assets/tilesets/tree-tiles.png");
 
-    this.load.image("player", "./testingAssets/player.png");
-    this.load.image("message", "./testingAssets/message.png");
-    this.load.image("redcoat", "./testingAssets/redcoat.png");
+    this.load.tilemapTiledJSON("map", "./assets/tiled/actualMap.json");
+
+    this.load.image("player", "./assets/player.png");
+    this.load.image("message", "./assets/message.png");
+    this.load.image("redcoat", "./assets/redcoat.png");
+
+    this.load.audio("track1", [
+      "./assets/audio/ogg/track1.ogg",
+      "./assets/audio/mp3/track1.mp3",
+    ]);
+    this.load.audio("caught", [
+      "./assets/audio/ogg/caught.ogg",
+      "./assets/audio/mp3/caught.mp3",
+    ]);
+    this.load.audio("delivery", [
+      "./assets/audio/ogg/delivery.ogg",
+      "./assets/audio/mp3/delivery.mp3",
+    ]);
+    this.load.audio("horse", [
+      "./assets/audio/ogg/horse.ogg",
+      "./assets/audio/mp3/horse.mp3",
+    ]);
+    this.load.audio("win", [
+      "./assets/audio/ogg/win.ogg",
+      "./assets/audio/mp3/win.mp3",
+    ]);
 
     this.width = game.config.width;
     this.height = game.config.height;
     this.gameWin = false;
     this.gameOver = false;
-    this.redcoatSpeed = 20;
+    this.redcoatSpeed = 120;
+    this.playerSpeed = 350;
+    // housesDelivered is an array where each element is a Vector2
+    // the Vector2 is the coordinates of the houses that have already been delivered to
+    this.housesDelivered = [];
+    this.lives = 3;
+    this.musicVolume = 0.8;
+    this.soundVolume = 0.8;
   }
 
   create() {
@@ -59,10 +88,12 @@ class MidnightRide extends Phaser.Scene {
     this.cameras.main.startFollow(this.player, false, 0.2, 0.2);
     this.physics.world.fixedStep = false; // fixes startFollow stuttering bug
 
+    this.createAudio();
+
     this.createLights();
 
     this.addKeyboardControls();
-    // add UI at the very end so it's above everything
+    // add UI stuff at the very end so it's above everything
     this.UICamera = this.cameras.add(
       this.cameras.main.x,
       this.cameras.main.y,
@@ -73,6 +104,8 @@ class MidnightRide extends Phaser.Scene {
     this.children.getAll().forEach((object) => {
       this.UICamera.ignore(object);
     });
+
+    this.cameras.main.setZoom(0.7);
 
     WebFont.load({
       google: {
@@ -89,27 +122,37 @@ class MidnightRide extends Phaser.Scene {
       .setStrokeStyle(2, Phaser.Display.Color.GetColor(255, 255, 0));*/
   }
 
+  createAudio() {
+    const track1 = this.sound.add("track1");
+    track1.play({
+      volume: this.musicVolume,
+      loop: true,
+    });
+
+    this.soundEffects = {
+      caught: this.sound.add("caught"),
+      delivery: this.sound.add("delivery"),
+      horse: this.sound.add("horse"),
+      win: this.sound.add("win"),
+    };
+
+    this.sound.pauseOnBlur = true;
+  }
+
   addKeyboardControls() {
     this.input.keyboard.on("keydown-SPACE", () => {
       if (this.gameWin || this.gameOver) {
-        // restart game
-        this.gameWin = false;
-        this.gameOver = false;
-        this.children.getAll().forEach((object) => {
-          object.destroy();
-        });
-        this.lights.shutdown();
-        this.input.keyboard.removeAllListeners();
-        this.player = undefined;
-        this.redcoats = undefined;
-        this.redcoatVisionCones = undefined;
-        this.playerDirection = undefined;
-        this.cameras.remove(this.UICamera);
-        this.tweens.killAll();
-        this.time.removeAllEvents();
-        this.create();
+        this.restartGame();
       } else {
-        this.deliverMessage();
+        // if there's a deliverable house nearby, deliver message
+        if (this.housesWithinRange.length > 0) {
+          this.housesWithinRange.forEach((tile) => {
+            // only deliver msg if player hasn't delivered to this house
+            if (!tile.properties.delivered) {
+              this.deliverMessage(tile, true);
+            }
+          });
+        }
       }
     });
 
@@ -168,6 +211,40 @@ class MidnightRide extends Phaser.Scene {
         this.updateMovement(Phaser.Math.Vector2.DOWN);
       }
     });
+
+    this.input.keyboard.on("keydown-M", () => {
+      const track1 = this.sound.get("track1");
+      track1.isPlaying ? track1.pause() : track1.resume();
+    });
+
+    this.input.keyboard.on("keydown-N", () => {
+      this.soundVolume > 0 ? (this.soundVolume = 0) : (this.soundVolume = 0.8);
+      Object.values(this.soundEffects).forEach((sound) => sound.stop());
+    });
+  }
+
+  restartGame() {
+    if (this.lives <= 0 || this.gameWin) {
+      this.housesDelivered = [];
+      this.lives = 3;
+    }
+    this.gameWin = false;
+    this.gameOver = false;
+    this.children.getAll().forEach((object) => {
+      object.destroy();
+    });
+    this.lights.shutdown();
+    this.input.keyboard.removeAllListeners();
+    this.player = undefined;
+    this.redcoats = undefined;
+    this.redcoatVisionCones = undefined;
+    this.playerDirection = undefined;
+    this.cameras.remove(this.UICamera);
+    this.tweens.killAll();
+    this.time.removeAllEvents();
+    this.sound.stopAll();
+    this.sound.removeAll();
+    this.create();
   }
 
   createLights() {
@@ -190,11 +267,17 @@ class MidnightRide extends Phaser.Scene {
               tile.getCenterX(),
               tile.getCenterY(),
               0xefcd99,
-              30,
-              0.02
+              200,
+              0.2
             )
             .setDepth(1),
         };
+
+        this.housesDelivered.forEach((houseDelivered) => {
+          if (tile.x == houseDelivered.x && tile.y == houseDelivered.y) {
+            this.deliverMessage(tile, false);
+          }
+        });
       }
     });
 
@@ -202,31 +285,31 @@ class MidnightRide extends Phaser.Scene {
       redcoat.light = this.lights.addLight(
         redcoat.x,
         redcoat.y,
-        70,
+        300,
         0xefcd99,
-        0.5
+        1
       );
     });
 
     this.playerLight = this.lights.addLight(
       this.player.x,
       this.player.y,
-      140,
+      3000,
       0xefcd99,
-      0.6
+      2.5
     );
   }
 
   update() {
     this.houseLayer.forEachTile((tile) => {
       if (tile.index != -1 && !tile.properties.delivered) {
-        tile.properties.light.intensity = 0.01;
+        tile.properties.light.intensity = 0.02;
       }
     });
 
     // update houses within player that they can deliver message to
     this.housesWithinRange = this.houseLayer.getTilesWithinShape(
-      new Phaser.Geom.Circle(this.player.x, this.player.y, 25),
+      new Phaser.Geom.Circle(this.player.x, this.player.y, 120),
       { isNotEmpty: true }
     );
 
@@ -248,68 +331,80 @@ class MidnightRide extends Phaser.Scene {
       redcoat.light.x = redcoat.x;
       redcoat.light.y = redcoat.y;
     });
+
+    if (this.player.body.speed >= this.playerSpeed * 0.8) {
+      if (!this.soundEffects.horse.isPlaying) {
+        this.soundEffects.horse.play({ volume: this.soundVolume });
+      }
+    } else {
+      if (this.soundEffects.horse.isPlaying) {
+        this.soundEffects.horse.stop();
+      }
+    }
+
+    if (this.gameOver || this.gameWin) this.soundEffects.horse.stop();
   }
 
-  deliverMessage() {
+  deliverMessage(tile, playerDelivered) {
     // if there's a deliverable house nearby, deliver message
-    if (this.housesWithinRange.length > 0) {
-      this.housesWithinRange.forEach((tile) => {
-        // only deliver msg if player hasn't delivered to this house
-        if (!tile.properties.delivered) {
-          const msg = this.add
-            .sprite(this.player.x, this.player.y, "message")
-            .setScale(0.4)
-            .setPipeline("Light2D");
+    // if playerDelivered, player delivered the message
+    // if not playerDelivered, then we're just loading it from a game over state
+    const msg = this.add
+      .sprite(this.player.x, this.player.y, "message")
+      .setScale(1)
+      .setPipeline("Light2D");
 
-          // add animation of moving msg from player to house
-          this.tweens.add({
-            targets: msg,
-            x: tile.getCenterX() - 4, // offset to left
-            y: tile.getCenterY() + 4, // offset to  bottom
-            duration: 600,
-            ease: "Power1",
-            scale: 0.75,
-          });
+    // add animation of moving msg from player to house
+    this.tweens.add({
+      targets: msg,
+      x: tile.getCenterX() - 32, // offset to left
+      y: tile.getCenterY() + 32, // offset to  bottom
+      duration: 600,
+      ease: "Power1",
+      scale: 4,
+    });
 
-          this.UICamera.ignore(msg);
+    this.UICamera.ignore(msg);
 
-          // house has been delivered to
-          tile.properties.delivered = true;
-          tile.properties.light.intensity = 0.1;
-          this.numHousesLeft--;
-          this.housesRemainingText.setText(
-            `houses left: ${this.numHousesLeft}`
-          );
-
-          if (this.numHousesLeft <= 0) this.loadGameWin();
-        }
+    // house has been delivered to
+    tile.properties.delivered = true;
+    // if playerDelivered, it's not in housesDelivered yet, so add it
+    this.numHousesLeft--;
+    if (playerDelivered) {
+      this.housesDelivered.push(new Phaser.Math.Vector2(tile.x, tile.y));
+      this.housesRemainingText.setText(`houses left: ${this.numHousesLeft}`);
+      this.soundEffects.delivery.play({
+        volume: this.soundVolume,
       });
     }
+    tile.properties.light.intensity = 0.1;
+
+    if (this.numHousesLeft <= 0) this.loadGameWin();
   }
 
   createMapAndObjects() {
     const map = this.make.tilemap({ key: "map" });
     const groundLayer = map.createLayer(
       "Ground",
-      map.addTilesetImage("land", "landTileset")
+      map.addTilesetImage("grass-tiles", "grass-tiles")
     );
 
     const roadLayer = map.createLayer(
       "Road",
-      map.addTilesetImage("roads", "roadTileset")
+      map.addTilesetImage("road-tiles", "road-tiles")
     );
 
     this.houseLayer = map.createLayer(
-      "Houses",
-      map.addTilesetImage("buildings", "houseTileset")
+      "House",
+      map.addTilesetImage("house-tiles", "house-tiles")
     );
 
-    const decorLayer = map.createLayer(
-      "Decorations",
-      map.addTilesetImage("land", "landTileset")
-    );
+    const decorLayer = map.createLayer("Decor", [
+      map.addTilesetImage("tree-tiles", "tree-tiles"),
+      map.addTilesetImage("rock-tiles", "rock-tiles"),
+    ]);
 
-    // this next line sets up collision: if there is a road tile built on top of a ground tile,
+    // the next line sets up collision: if there is a road tile built on top of a ground tile,
     // set collision to false so the player can walk on it. otherwise, it's just grass,
     // so set collision to true. the player can only walk on road tiles
     groundLayer.forEachTile((tile) => {
@@ -336,14 +431,14 @@ class MidnightRide extends Phaser.Scene {
     map.objects[0].objects.forEach((object) => {
       if (object.name == "Redcoat") {
         const r = this.physics.add.sprite(object.x, object.y, "redcoat");
-        r.body.setSize(16, 16);
+        r.body.setSize(128, 128);
         r.body.isCircle = true;
         r.vision = this.add
-          .line(r.x, r.y, 30, 0, 90, 0, 0x9966ff)
-          .setLineWidth(4, 10)
+          .line(r.x, r.y, 230, 0, 640, 0, 0x9966ff)
+          .setLineWidth(20, 60)
           .setAlpha(0.4);
         this.physics.add.existing(r.vision);
-        r.vision.body.setSize(60, 10);
+        r.vision.body.setSize(210, 100);
         r.vision.body.setOffset(30, -4);
         this.redcoatVisionCones.add(r.vision);
 
@@ -360,7 +455,7 @@ class MidnightRide extends Phaser.Scene {
       }
       if (object.name == "Player") {
         this.player = this.physics.add.sprite(object.x, object.y, "player");
-        this.player.body.setSize(8, 8);
+        this.player.body.setSize(64, 64);
         this.player.body.isCircle = true;
         this.physics.add.collider(this.player, groundLayer);
       }
@@ -368,8 +463,8 @@ class MidnightRide extends Phaser.Scene {
         const rect = this.add.rectangle(
           object.x,
           object.y,
-          1,
-          1,
+          8,
+          8,
           "0xff0000",
           0
         );
@@ -400,7 +495,6 @@ class MidnightRide extends Phaser.Scene {
       collidingTileColor: new Phaser.Display.Color(243, 134, 48, 255),
       faceColor: new Phaser.Display.Color(40, 39, 37, 255),
     });*/
-    this.cameras.main.setZoom(4);
   }
 
   redcoatHitIntersection(redcoat, intersection) {
@@ -421,30 +515,31 @@ class MidnightRide extends Phaser.Scene {
     let a = 0;
     let r = Phaser.Math.Vector2.ZERO;
     let o = Phaser.Math.Vector2.ZERO;
+    let size = new Phaser.Math.Vector2(400, 80);
     switch (direction) {
-      case 1:
+      case 1: // CALIBRATED
         v = new Phaser.Math.Vector2(this.redcoatSpeed, 0);
         a = 0;
-        r = new Phaser.Math.Vector2(60, 10);
-        o = new Phaser.Math.Vector2(30, -5);
+        r = new Phaser.Math.Vector2(size.x, size.y);
+        o = new Phaser.Math.Vector2(240, -40);
         break;
-      case 2:
+      case 2: // CALIBRATED
         v = new Phaser.Math.Vector2(-this.redcoatSpeed, 0);
         a = 180;
-        r = new Phaser.Math.Vector2(60, 10);
-        o = new Phaser.Math.Vector2(-30, -4);
+        r = new Phaser.Math.Vector2(size.x, size.y);
+        o = new Phaser.Math.Vector2(-230, -38);
         break;
-      case 3:
+      case 3: // CALIBRATED
         v = new Phaser.Math.Vector2(0, this.redcoatSpeed);
         a = 90;
-        r = new Phaser.Math.Vector2(10, 60);
-        o = new Phaser.Math.Vector2(25, 2);
+        r = new Phaser.Math.Vector2(size.y, size.x);
+        o = new Phaser.Math.Vector2(166, 30);
         break;
-      case 4:
+      case 4: // CALIBRATED
         v = new Phaser.Math.Vector2(0, -this.redcoatSpeed);
         a = 270;
-        r = new Phaser.Math.Vector2(10, 60);
-        o = new Phaser.Math.Vector2(25, -60);
+        r = new Phaser.Math.Vector2(size.y, size.x);
+        o = new Phaser.Math.Vector2(166, -435);
       default:
         break;
     }
@@ -510,7 +605,7 @@ class MidnightRide extends Phaser.Scene {
     // when you press a key, you'll start building up to speed in that direction
     // no need to hold down the key, you'll move automatically
     // when you press another key, you'll transition to that speed in that direction
-    const maxSpeed = 60; // max speed of player
+    const maxSpeed = this.playerSpeed; // max speed of player
     const duration = 1000; // how long it takes to turn and build up to speed
     this.tweens.add({
       targets: this.player.body.velocity,
@@ -548,6 +643,17 @@ class MidnightRide extends Phaser.Scene {
       .setBackgroundColor("#000")
       .setPadding(5);
 
+    const t3 = new CustomText(
+      this,
+      this.width / 2,
+      this.height - 20,
+      "n to mute sfx, m to mute music",
+      "s",
+      "c"
+    )
+      .setBackgroundColor("#000")
+      .setPadding(5);
+
     this.housesRemainingText = new CustomText(
       this,
       this.width / 2,
@@ -558,9 +664,21 @@ class MidnightRide extends Phaser.Scene {
     )
       .setBackgroundColor("#000")
       .setPadding(5);
+
+    this.cameras.main.ignore([t1, t2, t3, this.housesRemainingText]);
   }
 
   loadGameWin() {
+    if (this.gameWin) return;
+
+    if (this.soundEffects.horse.isPlaying) {
+      this.soundEffects.horse.stop();
+    }
+
+    this.soundEffects.win.play({
+      volume: this.soundVolume,
+    });
+
     this.gameWin = true;
     this.player.body.moves = false;
     this.redcoats.forEach((redcoat) => {
@@ -588,12 +706,20 @@ class MidnightRide extends Phaser.Scene {
     )
       .setBackgroundColor("#000")
       .setPadding(10);
+
     this.cameras.main.ignore([t1, t2]);
   }
 
   loadGameOver() {
+    if (this.gameOver) return;
+
+    this.soundEffects.caught.play({
+      volume: this.soundVolume,
+    });
+
     this.gameOver = true;
     this.player.body.moves = false;
+    this.lives--;
     this.redcoats.forEach((redcoat) => {
       redcoat.body.moves = false;
     });
@@ -602,7 +728,7 @@ class MidnightRide extends Phaser.Scene {
       this,
       this.width / 2,
       this.height / 3,
-      "HALT! you have been\ncaptured by redcoats!!",
+      `HALT! you have been\ncaptured by redcoats!!\nlives left: ${this.lives}`,
       "l",
       "c"
     )
@@ -613,12 +739,15 @@ class MidnightRide extends Phaser.Scene {
       this,
       this.width / 2,
       (this.height * 2) / 3,
-      "press space\nto play again",
+      "press space\nto try again",
       "m",
       "c"
     )
       .setBackgroundColor("#000")
       .setPadding(10);
+    if (this.lives <= 0) {
+      t2.setText("game over!!\npress space to restart");
+    }
 
     this.cameras.main.ignore([t1, t2]);
   }
@@ -677,14 +806,6 @@ class CustomText extends Phaser.GameObjects.Text {
     }
 
     return cT;
-  }
-}
-
-class Redcoat extends Phaser.GameObjects.Sprite {
-  constructor(scene) {
-    super(scene);
-    this.setTexture("redcoat");
-    this.setScale(4);
   }
 }
 
