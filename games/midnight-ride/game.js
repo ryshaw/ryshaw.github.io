@@ -17,6 +17,10 @@ class MidnightRide extends Phaser.Scene {
   redcoatVisionCones; // if player hits one of these, game over
   housesDelivered; // so it can track between lives
   lives; // how many tries the player has (3 on normal, 1 on hardcore)
+  musicVolume; // sets volume for music
+  soundVolume; // sets volume for all sound effects
+  soundEffects; // object containing all sound effects to be played
+  playerSpeed; // max speed of player
 
   constructor(config) {
     super(config);
@@ -39,19 +43,43 @@ class MidnightRide extends Phaser.Scene {
 
     this.load.tilemapTiledJSON("map", "./assets/tiled/actualMap.json");
 
-    this.load.image("player", "./testingAssets/player.png");
-    this.load.image("message", "./testingAssets/message.png");
-    this.load.image("redcoat", "./testingAssets/redcoat.png");
+    this.load.image("player", "./assets/player.png");
+    this.load.image("message", "./assets/message.png");
+    this.load.image("redcoat", "./assets/redcoat.png");
+
+    this.load.audio("track1", [
+      "./assets/audio/ogg/track1.ogg",
+      "./assets/audio/mp3/track1.mp3",
+    ]);
+    this.load.audio("caught", [
+      "./assets/audio/ogg/caught.ogg",
+      "./assets/audio/mp3/caught.mp3",
+    ]);
+    this.load.audio("delivery", [
+      "./assets/audio/ogg/delivery.ogg",
+      "./assets/audio/mp3/delivery.mp3",
+    ]);
+    this.load.audio("horse", [
+      "./assets/audio/ogg/horse.ogg",
+      "./assets/audio/mp3/horse.mp3",
+    ]);
+    this.load.audio("win", [
+      "./assets/audio/ogg/win.ogg",
+      "./assets/audio/mp3/win.mp3",
+    ]);
 
     this.width = game.config.width;
     this.height = game.config.height;
     this.gameWin = false;
     this.gameOver = false;
     this.redcoatSpeed = 120;
+    this.playerSpeed = 350;
     // housesDelivered is an array where each element is a Vector2
     // the Vector2 is the coordinates of the houses that have already been delivered to
     this.housesDelivered = [];
     this.lives = 3;
+    this.musicVolume = 0.8;
+    this.soundVolume = 0.8;
   }
 
   create() {
@@ -59,6 +87,8 @@ class MidnightRide extends Phaser.Scene {
 
     this.cameras.main.startFollow(this.player, false, 0.2, 0.2);
     this.physics.world.fixedStep = false; // fixes startFollow stuttering bug
+
+    this.createAudio();
 
     this.createLights();
 
@@ -90,6 +120,23 @@ class MidnightRide extends Phaser.Scene {
     /*this.circle = this.add
       .circle(this.player.x, this.player.y, 80)
       .setStrokeStyle(2, Phaser.Display.Color.GetColor(255, 255, 0));*/
+  }
+
+  createAudio() {
+    const track1 = this.sound.add("track1");
+    track1.play({
+      volume: this.musicVolume,
+      loop: true,
+    });
+
+    this.soundEffects = {
+      caught: this.sound.add("caught"),
+      delivery: this.sound.add("delivery"),
+      horse: this.sound.add("horse"),
+      win: this.sound.add("win"),
+    };
+
+    this.sound.pauseOnBlur = true;
   }
 
   addKeyboardControls() {
@@ -164,6 +211,16 @@ class MidnightRide extends Phaser.Scene {
         this.updateMovement(Phaser.Math.Vector2.DOWN);
       }
     });
+
+    this.input.keyboard.on("keydown-M", () => {
+      const track1 = this.sound.get("track1");
+      track1.isPlaying ? track1.pause() : track1.resume();
+    });
+
+    this.input.keyboard.on("keydown-N", () => {
+      this.soundVolume > 0 ? (this.soundVolume = 0) : (this.soundVolume = 0.8);
+      Object.values(this.soundEffects).forEach((sound) => sound.stop());
+    });
   }
 
   restartGame() {
@@ -185,6 +242,8 @@ class MidnightRide extends Phaser.Scene {
     this.cameras.remove(this.UICamera);
     this.tweens.killAll();
     this.time.removeAllEvents();
+    this.sound.stopAll();
+    this.sound.removeAll();
     this.create();
   }
 
@@ -272,6 +331,18 @@ class MidnightRide extends Phaser.Scene {
       redcoat.light.x = redcoat.x;
       redcoat.light.y = redcoat.y;
     });
+
+    if (this.player.body.speed >= this.playerSpeed * 0.8) {
+      if (!this.soundEffects.horse.isPlaying) {
+        this.soundEffects.horse.play({ volume: this.soundVolume });
+      }
+    } else {
+      if (this.soundEffects.horse.isPlaying) {
+        this.soundEffects.horse.stop();
+      }
+    }
+
+    if (this.gameOver || this.gameWin) this.soundEffects.horse.stop();
   }
 
   deliverMessage(tile, playerDelivered) {
@@ -302,6 +373,9 @@ class MidnightRide extends Phaser.Scene {
     if (playerDelivered) {
       this.housesDelivered.push(new Phaser.Math.Vector2(tile.x, tile.y));
       this.housesRemainingText.setText(`houses left: ${this.numHousesLeft}`);
+      this.soundEffects.delivery.play({
+        volume: this.soundVolume,
+      });
     }
     tile.properties.light.intensity = 0.1;
 
@@ -531,7 +605,7 @@ class MidnightRide extends Phaser.Scene {
     // when you press a key, you'll start building up to speed in that direction
     // no need to hold down the key, you'll move automatically
     // when you press another key, you'll transition to that speed in that direction
-    const maxSpeed = 350; // max speed of player
+    const maxSpeed = this.playerSpeed; // max speed of player
     const duration = 1000; // how long it takes to turn and build up to speed
     this.tweens.add({
       targets: this.player.body.velocity,
@@ -569,6 +643,17 @@ class MidnightRide extends Phaser.Scene {
       .setBackgroundColor("#000")
       .setPadding(5);
 
+    const t3 = new CustomText(
+      this,
+      this.width / 2,
+      this.height - 20,
+      "n to mute sfx, m to mute music",
+      "s",
+      "c"
+    )
+      .setBackgroundColor("#000")
+      .setPadding(5);
+
     this.housesRemainingText = new CustomText(
       this,
       this.width / 2,
@@ -580,10 +665,20 @@ class MidnightRide extends Phaser.Scene {
       .setBackgroundColor("#000")
       .setPadding(5);
 
-    this.cameras.main.ignore([t1, t2, this.housesRemainingText]);
+    this.cameras.main.ignore([t1, t2, t3, this.housesRemainingText]);
   }
 
   loadGameWin() {
+    if (this.gameWin) return;
+
+    if (this.soundEffects.horse.isPlaying) {
+      this.soundEffects.horse.stop();
+    }
+
+    this.soundEffects.win.play({
+      volume: this.soundVolume,
+    });
+
     this.gameWin = true;
     this.player.body.moves = false;
     this.redcoats.forEach((redcoat) => {
@@ -617,6 +712,10 @@ class MidnightRide extends Phaser.Scene {
 
   loadGameOver() {
     if (this.gameOver) return;
+
+    this.soundEffects.caught.play({
+      volume: this.soundVolume,
+    });
 
     this.gameOver = true;
     this.player.body.moves = false;
