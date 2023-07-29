@@ -44,7 +44,7 @@ class MidnightRide extends Phaser.Scene {
     this.load.tilemapTiledJSON("map", "./assets/tiled/actualMap.json");
 
     this.load.image("player", "./assets/player.png");
-    this.load.image("message", "./assets/message.png");
+    this.load.image("message", "./assets/Scroll.png");
     this.load.image("redcoat", "./assets/redcoat.png");
     this.load.image("patrol1", "./assets/Patrols/patrol.png");
     this.load.image("patrol2", "./assets/Patrols/patrol2.png");
@@ -354,7 +354,7 @@ class MidnightRide extends Phaser.Scene {
     // if not playerDelivered, then we're just loading it from a game over state
     const msg = this.add
       .sprite(this.player.x, this.player.y, "message")
-      .setScale(1)
+      .setScale(0.1)
       .setPipeline("Light2D");
 
     // add animation of moving msg from player to house
@@ -364,7 +364,7 @@ class MidnightRide extends Phaser.Scene {
       y: tile.getCenterY() + 32, // offset to  bottom
       duration: 600,
       ease: "Power1",
-      scale: 4,
+      scale: 0.8,
     });
 
     this.UICamera.ignore(msg);

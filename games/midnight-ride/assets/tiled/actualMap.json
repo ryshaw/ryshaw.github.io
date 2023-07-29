@@ -682,30 +682,6 @@
                  "width":0,
                  "x":8190,
                  "y":5418
-                }, 
-                {
-                 "height":0,
-                 "id":25,
-                 "name":"Redcoat",
-                 "point":true,
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":0,
-                 "x":5922,
-                 "y":6174
-                }, 
-                {
-                 "height":0,
-                 "id":26,
-                 "name":"Redcoat",
-                 "point":true,
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":0,
-                 "x":6552,
-                 "y":6174
                 }],
          "opacity":1,
          "type":"objectgroup",

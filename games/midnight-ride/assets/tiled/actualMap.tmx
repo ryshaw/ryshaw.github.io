@@ -537,11 +537,5 @@
   <object id="22" name="Redcoat" x="8190" y="5418">
    <point/>
   </object>
-  <object id="25" name="Redcoat" x="5922" y="6174">
-   <point/>
-  </object>
-  <object id="26" name="Redcoat" x="6552" y="6174">
-   <point/>
-  </object>
  </objectgroup>
 </map>
