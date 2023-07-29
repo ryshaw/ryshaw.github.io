@@ -44,8 +44,11 @@ class MidnightRide extends Phaser.Scene {
     this.load.tilemapTiledJSON("map", "./assets/tiled/actualMap.json");
 
     this.load.image("player", "./assets/player.png");
-    this.load.image("message", "./assets/message.png");
+    this.load.image("message", "./assets/Scroll.png");
     this.load.image("redcoat", "./assets/redcoat.png");
+    this.load.image("patrol1", "./assets/Patrols/patrol.png");
+    this.load.image("patrol2", "./assets/Patrols/patrol2.png");
+    this.load.image("patrol3", "./assets/Patrols/patrol3.png");
 
     this.load.audio("track1", [
       "./assets/audio/ogg/track1.ogg",
@@ -78,8 +81,8 @@ class MidnightRide extends Phaser.Scene {
     // the Vector2 is the coordinates of the houses that have already been delivered to
     this.housesDelivered = [];
     this.lives = 3;
-    this.musicVolume = 0.8;
-    this.soundVolume = 0.8;
+    this.musicVolume = 0.2;
+    this.soundVolume = 0.2;
   }
 
   create() {
@@ -351,7 +354,7 @@ class MidnightRide extends Phaser.Scene {
     // if not playerDelivered, then we're just loading it from a game over state
     const msg = this.add
       .sprite(this.player.x, this.player.y, "message")
-      .setScale(1)
+      .setScale(0.1)
       .setPipeline("Light2D");
 
     // add animation of moving msg from player to house
@@ -361,7 +364,7 @@ class MidnightRide extends Phaser.Scene {
       y: tile.getCenterY() + 32, // offset to  bottom
       duration: 600,
       ease: "Power1",
-      scale: 4,
+      scale: 0.8,
     });
 
     this.UICamera.ignore(msg);
@@ -430,7 +433,9 @@ class MidnightRide extends Phaser.Scene {
 
     map.objects[0].objects.forEach((object) => {
       if (object.name == "Redcoat") {
-        const r = this.physics.add.sprite(object.x, object.y, "redcoat");
+        const num = Phaser.Math.Between(1, 3);
+        const key = "patrol" + num;
+        const r = this.physics.add.sprite(object.x, object.y, key);
         r.body.setSize(128, 128);
         r.body.isCircle = true;
         r.vision = this.add
@@ -545,14 +550,32 @@ class MidnightRide extends Phaser.Scene {
     }
 
     let newRotation = a;
-    if (Math.abs(a - redcoat.angle) > 180) {
+    if (Math.abs(a - redcoat.vision.angle) > 180) {
       newRotation -= 360;
+    }
+
+    switch (redcoat.texture.key) {
+      case "patrol1":
+      case "patrol3":
+        if ((a == 0 || a == 90) && !redcoat.flipX) {
+          redcoat.setFlipX(true);
+        } else if ((a == 180 || a == 270) && redcoat.flipX) {
+          redcoat.setFlipX(false);
+        }
+        break;
+      case "patrol2":
+        if ((a == 0 || a == 90) && redcoat.flipX) {
+          redcoat.setFlipX(false);
+        } else if ((a == 180 || a == 270) && !redcoat.flipX) {
+          redcoat.setFlipX(true);
+        }
+        break;
     }
 
     redcoat.vision.body.setSize(0, 0);
     redcoat.vision.body.setOffset(o.x, o.y);
     this.tweens.add({
-      targets: [redcoat, redcoat.vision],
+      targets: redcoat.vision,
       angle: newRotation,
       duration: 800,
     });
