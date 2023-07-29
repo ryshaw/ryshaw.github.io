@@ -22,11 +22,11 @@
             "scaleInEditor": 1
         },
         "actualMap.tmx": {
-            "scale": 0.0625,
-            "selectedLayer": 1,
+            "scale": 1,
+            "selectedLayer": 3,
             "viewCenter": {
-                "x": 6128,
-                "y": 6184
+                "x": 4150,
+                "y": 6032.5
             }
         },
         "actualMap.tmx#bush-tiles": {
@@ -47,9 +47,11 @@
             "scaleInEditor": 1.5
         },
         "actualMap.tmx#rock-tiles": {
+            "scaleInDock": 0.5,
             "scaleInEditor": 1
         },
         "actualMap.tmx#tree-tiles": {
+            "scaleInDock": 1,
             "scaleInEditor": 1
         },
         "map.tmx": {
