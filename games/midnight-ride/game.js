@@ -896,6 +896,8 @@ class Menu extends Phaser.Scene {
       .image(this.width * 0.52, this.height * 0.01, "right top")
       .setOrigin(1, 0);
 
+    // update
+
     const title = this.add.image(this.width * 0.6, this.height * 0.35, "title");
 
     const start = this.add
