@@ -382,7 +382,7 @@ class MidnightRide extends Phaser.Scene {
     this.numHousesLeft--;
     if (playerDelivered) {
       this.housesDelivered.push(new Phaser.Math.Vector2(tile.x, tile.y));
-      this.housesRemainingText.setText(`houses left: ${this.numHousesLeft}`);
+      //      this.housesRemainingText.setText(`houses left: ${this.numHousesLeft}`);
       this.soundEffects.delivery.play({
         volume: this.soundVolume,
       });
@@ -840,6 +840,7 @@ class Menu extends Phaser.Scene {
     this.load.image("options", "Options.png");
     this.load.image("credits", "Credits.png");
     this.load.image("frame", "UIFrame_title.png");
+    this.load.image("title", "Title.png");
 
     this.load.setPath("./");
     this.load.audio("proj1", ["assets/audio/mp3/proj1.mp3"]);
@@ -875,7 +876,7 @@ class Menu extends Phaser.Scene {
       16
     );
 
-    new CustomText(
+    /*new CustomText(
       this,
       this.width * 0.5,
       this.height * 0.3,
@@ -888,7 +889,9 @@ class Menu extends Phaser.Scene {
       .setFontSize(48)
       .setColor("#dad3d3")
       .setShadow(2, 2, "#000", 4, true, true)
-      .setFontStyle("bold italic");
+      .setFontStyle("bold italic");*/
+
+    const title = this.add.image(this.width * 0.5, this.height * 0.3, "title");
 
     const start = this.add
       .image(this.width * 0.5, this.height * 0.54, "start")
