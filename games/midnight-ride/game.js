@@ -839,6 +839,7 @@ class Menu extends Phaser.Scene {
     this.load.image("start", "Start.png");
     this.load.image("options", "Options.png");
     this.load.image("credits", "Credits.png");
+    this.load.image("frame", "UIFrame_title.png");
 
     this.load.setPath("./");
     this.load.audio("proj1", ["assets/audio/mp3/proj1.mp3"]);
@@ -867,17 +868,17 @@ class Menu extends Phaser.Scene {
 
     //  32px radius on the corners
     this.graphics.fillRoundedRect(
-      64,
-      32,
-      this.width - 64 * 2,
-      this.height - 32 * 2,
+      this.width * 0.1,
+      this.height * 0.1,
+      this.width * 0.8,
+      this.height * 0.8,
       16
     );
 
     new CustomText(
       this,
-      this.width / 2,
-      this.height * 0.15,
+      this.width * 0.5,
+      this.height * 0.3,
       "The Midnight Ride",
       "l",
       "c"
@@ -890,7 +891,7 @@ class Menu extends Phaser.Scene {
       .setFontStyle("bold italic");
 
     const start = this.add
-      .image(this.width / 2, this.height * 0.35, "start")
+      .image(this.width * 0.5, this.height * 0.54, "start")
       .setInteractive()
       .on("pointerover", () => start.setTint(0xffffcc))
       .on("pointerout", () => start.setTint(0xffffff))
@@ -901,7 +902,7 @@ class Menu extends Phaser.Scene {
         this.sound.removeAll();
       });
     const options = this.add
-      .image(this.width / 2, this.height * 0.5, "options")
+      .image(this.width * 0.5, this.height * 0.62, "options")
       .setInteractive()
       .on("pointerover", () => options.setTint(0xffffcc))
       .on("pointerout", () => options.setTint(0xffffff))
@@ -911,7 +912,7 @@ class Menu extends Phaser.Scene {
         this.optionsMenu.setVisible(true);
       });
     const credits = this.add
-      .image(this.width / 2, this.height * 0.65, "credits")
+      .image(this.width * 0.5, this.height * 0.7, "credits")
       .setInteractive()
       .on("pointerover", () => credits.setTint(0xffffcc))
       .on("pointerout", () => credits.setTint(0xffffff))
@@ -925,8 +926,8 @@ class Menu extends Phaser.Scene {
 
     const creditsText = new CustomText(
       this,
-      this.width / 2,
-      this.height * 0.4,
+      this.width * 0.5,
+      this.height * 0.5,
       "credits credits credits\nblah blah blah",
       "l",
       "c"
@@ -938,7 +939,7 @@ class Menu extends Phaser.Scene {
     const optionsText = new CustomText(
       this,
       this.width / 2,
-      this.height * 0.4,
+      this.height * 0.5,
       "options options options\nor maybe how to play",
       "l",
       "c"
@@ -950,7 +951,7 @@ class Menu extends Phaser.Scene {
     const creditsBackButton = new CustomText(
       this,
       this.width / 2,
-      this.height * 0.8,
+      this.height * 0.7,
       "Return",
       "l",
       "c"
@@ -971,7 +972,7 @@ class Menu extends Phaser.Scene {
     const optionsBackButton = new CustomText(
       this,
       this.width / 2,
-      this.height * 0.8,
+      this.height * 0.7,
       "Return",
       "l",
       "c"
@@ -1000,6 +1001,10 @@ class Menu extends Phaser.Scene {
 
     this.optionsMenu.setVisible(false);
     this.creditsMenu.setVisible(false);
+
+    const im1 = this.add
+      .image(this.cameras.main.centerX, this.cameras.main.centerY, "frame")
+      .setScale(this.width / 1707, this.height / 860);
   }
 
   update() {}
