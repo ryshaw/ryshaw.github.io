@@ -21,9 +21,10 @@ class MidnightRide extends Phaser.Scene {
   soundVolume; // sets volume for all sound effects
   soundEffects; // object containing all sound effects to be played
   playerSpeed; // max speed of player
+  playerAngle; // player's angle (using sprite angle would rotate the textures)
 
-  constructor(config) {
-    super(config);
+  constructor() {
+    super({ key: "MidnightRide" });
   }
 
   preload() {
@@ -49,6 +50,12 @@ class MidnightRide extends Phaser.Scene {
     this.load.image("patrol1", "./assets/Patrols/patrol.png");
     this.load.image("patrol2", "./assets/Patrols/patrol2.png");
     this.load.image("patrol3", "./assets/Patrols/patrol3.png");
+    this.load.image("paul_back", "./assets/Paulie/paul_back.png");
+    this.load.image("paul_front", "./assets/Paulie/paul_front.png");
+    this.load.image("paul_side", "./assets/Paulie/paul_side.png");
+
+    this.load.image("UIFrame_game", "./assets/User Interface/UIFrame_game.png");
+    this.load.image("UI_halt", "./assets/User Interface/UI_halt.png");
 
     this.load.audio("track1", [
       "./assets/audio/ogg/track1.ogg",
@@ -81,8 +88,8 @@ class MidnightRide extends Phaser.Scene {
     // the Vector2 is the coordinates of the houses that have already been delivered to
     this.housesDelivered = [];
     this.lives = 3;
-    this.musicVolume = 0.2;
-    this.soundVolume = 0.2;
+    this.musicVolume = 0.8;
+    this.soundVolume = 0.8;
   }
 
   create() {
@@ -459,10 +466,11 @@ class MidnightRide extends Phaser.Scene {
         );
       }
       if (object.name == "Player") {
-        this.player = this.physics.add.sprite(object.x, object.y, "player");
+        this.player = this.physics.add.sprite(object.x, object.y, "paul_side");
         this.player.body.setSize(64, 64);
         this.player.body.isCircle = true;
         this.physics.add.collider(this.player, groundLayer);
+        this.playerAngle = 0;
       }
       if (object.name == "Intersection") {
         const rect = this.add.rectangle(
@@ -637,20 +645,33 @@ class MidnightRide extends Phaser.Scene {
       duration: duration,
     });
 
-    // fixes issue where player would rotate 270 degrees which looks silly
-    let newRotation = direction.angle();
-    if (direction.angle() - this.player.rotation > Math.PI) {
-      newRotation -= 2 * Math.PI;
+    const a = (direction.angle() * 180) / Math.PI;
+    // I just like degrees better
+    switch (a) {
+      case 0:
+        this.player.setTexture("paul_side");
+        this.player.setFlipX(false);
+        break;
+      case 90:
+        this.player.setTexture("paul_front");
+        this.player.setFlipX(false);
+        break;
+      case 180:
+        this.player.setTexture("paul_side");
+        this.player.setFlipX(true);
+        break;
+      case 270:
+        this.player.setTexture("paul_back");
+        this.player.setFlipX(false);
+        break;
     }
-
-    this.tweens.add({
-      targets: this.player,
-      rotation: newRotation,
-      duration: duration * 0.7, // finely tuned
-    });
   }
 
   loadGameUI() {
+    const im1 = this.add
+      .image(this.UICamera.centerX, this.UICamera.centerY, "UIFrame_game")
+      .setScale(this.width / 1707, this.height / 860);
+    /*
     const t1 = new CustomText(this, 5, 15, "wasd/arrow keys to move", "m", "l")
       .setBackgroundColor("#000")
       .setPadding(5);
@@ -688,7 +709,8 @@ class MidnightRide extends Phaser.Scene {
       .setBackgroundColor("#000")
       .setPadding(5);
 
-    this.cameras.main.ignore([t1, t2, t3, this.housesRemainingText]);
+    this.cameras.main.ignore([t1, t2, t3, this.housesRemainingText]);*/
+    this.cameras.main.ignore([im1]);
   }
 
   loadGameWin() {
@@ -747,6 +769,26 @@ class MidnightRide extends Phaser.Scene {
       redcoat.body.moves = false;
     });
 
+    const im1 = this.add.image(
+      this.UICamera.centerX,
+      this.UICamera.centerY,
+      "UI_halt"
+    );
+    //.setScale(this.width / 1707, this.width / 1707);
+    //.setScale(this.width / 1707, this.height / 860);
+
+    console.log(
+      "resolution: " +
+        this.width +
+        " " +
+        this.height +
+        " scale: " +
+        this.width / 1707
+    );
+
+    this.cameras.main.ignore([im1]);
+
+    /*
     const t1 = new CustomText(
       this,
       this.width / 2,
@@ -772,8 +814,195 @@ class MidnightRide extends Phaser.Scene {
       t2.setText("game over!!\npress space to restart");
     }
 
-    this.cameras.main.ignore([t1, t2]);
+    this.cameras.main.ignore([t1, t2]);*/
   }
+}
+
+class Menu extends Phaser.Scene {
+  width;
+  height;
+  startMenu;
+  optionsMenu;
+  creditsMenu;
+  musicVolume; // sets volume for music
+  soundVolume; // sets volume for all sound effects
+
+  constructor() {
+    super({ key: "Menu" });
+  }
+
+  preload() {
+    this.width = game.config.width;
+    this.height = game.config.height;
+
+    this.load.setPath("./assets/User Interface/");
+    this.load.image("start", "Start.png");
+    this.load.image("options", "Options.png");
+    this.load.image("credits", "Credits.png");
+
+    this.load.setPath("./");
+    this.load.audio("proj1", ["assets/audio/mp3/proj1.mp3"]);
+    this.musicVolume = 0.4;
+    this.soundVolume = 0.4;
+  }
+
+  create() {
+    const proj1 = this.sound.add("proj1");
+    proj1.play({
+      volume: this.musicVolume,
+      loop: true,
+    });
+    // 925948
+    // #876055
+    this.cameras.main.setBackgroundColor(
+      new Phaser.Display.Color.HexStringToColor("#1f1a1b").color
+    );
+
+    this.graphics = this.add.graphics();
+
+    this.graphics.fillStyle(
+      new Phaser.Display.Color.HexStringToColor("#876055").color,
+      1
+    );
+
+    //  32px radius on the corners
+    this.graphics.fillRoundedRect(
+      64,
+      32,
+      this.width - 64 * 2,
+      this.height - 32 * 2,
+      16
+    );
+
+    new CustomText(
+      this,
+      this.width / 2,
+      this.height * 0.15,
+      "The Midnight Ride",
+      "l",
+      "c"
+    )
+      .setBackgroundColor("#1f1a1b")
+      .setPadding(40)
+      .setFontSize(48)
+      .setColor("#dad3d3")
+      .setShadow(2, 2, "#000", 4, true, true)
+      .setFontStyle("bold italic");
+
+    const start = this.add
+      .image(this.width / 2, this.height * 0.35, "start")
+      .setInteractive()
+      .on("pointerover", () => start.setTint(0xffffcc))
+      .on("pointerout", () => start.setTint(0xffffff))
+      .on("pointerdown", () => start.setTint(0xddddaa))
+      .on("pointerup", () => {
+        this.scene.start("MidnightRide");
+        this.sound.stopAll();
+        this.sound.removeAll();
+      });
+    const options = this.add
+      .image(this.width / 2, this.height * 0.5, "options")
+      .setInteractive()
+      .on("pointerover", () => options.setTint(0xffffcc))
+      .on("pointerout", () => options.setTint(0xffffff))
+      .on("pointerdown", () => options.setTint(0xddddaa))
+      .on("pointerup", () => {
+        this.startMenu.setVisible(false);
+        this.optionsMenu.setVisible(true);
+      });
+    const credits = this.add
+      .image(this.width / 2, this.height * 0.65, "credits")
+      .setInteractive()
+      .on("pointerover", () => credits.setTint(0xffffcc))
+      .on("pointerout", () => credits.setTint(0xffffff))
+      .on("pointerdown", () => credits.setTint(0xddddaa))
+      .on("pointerup", () => {
+        this.startMenu.setVisible(false);
+        this.creditsMenu.setVisible(true);
+      });
+
+    this.startMenu = this.add.container(0, 0, [start, options, credits]);
+
+    const creditsText = new CustomText(
+      this,
+      this.width / 2,
+      this.height * 0.4,
+      "credits credits credits\nblah blah blah",
+      "l",
+      "c"
+    )
+      .setBackgroundColor("#1f1a1b")
+      .setPadding(10)
+      .setColor("#dad3d3");
+
+    const optionsText = new CustomText(
+      this,
+      this.width / 2,
+      this.height * 0.4,
+      "options options options\nor maybe how to play",
+      "l",
+      "c"
+    )
+      .setBackgroundColor("#1f1a1b")
+      .setPadding(10)
+      .setColor("#dad3d3");
+
+    const creditsBackButton = new CustomText(
+      this,
+      this.width / 2,
+      this.height * 0.8,
+      "Return",
+      "l",
+      "c"
+    )
+      .setBackgroundColor("#1f1a1b")
+      .setPadding(10)
+      .setColor("#dad3d3")
+      .setInteractive()
+      .on("pointerover", () => creditsBackButton.setTint(0xffffcc))
+      .on("pointerout", () => creditsBackButton.setTint(0xffffff))
+      .on("pointerdown", () => creditsBackButton.setTint(0xddddaa))
+      .on("pointerup", () => {
+        this.startMenu.setVisible(true);
+        this.optionsMenu.setVisible(false);
+        this.creditsMenu.setVisible(false);
+      });
+
+    const optionsBackButton = new CustomText(
+      this,
+      this.width / 2,
+      this.height * 0.8,
+      "Return",
+      "l",
+      "c"
+    )
+      .setBackgroundColor("#1f1a1b")
+      .setPadding(10)
+      .setColor("#dad3d3")
+      .setInteractive()
+      .on("pointerover", () => optionsBackButton.setTint(0xffffcc))
+      .on("pointerout", () => optionsBackButton.setTint(0xffffff))
+      .on("pointerdown", () => optionsBackButton.setTint(0xddddaa))
+      .on("pointerup", () => {
+        this.startMenu.setVisible(true);
+        this.optionsMenu.setVisible(false);
+        this.creditsMenu.setVisible(false);
+      });
+
+    this.optionsMenu = this.add.container(0, 0, [
+      optionsText,
+      optionsBackButton,
+    ]);
+    this.creditsMenu = this.add.container(0, 0, [
+      creditsText,
+      creditsBackButton,
+    ]);
+
+    this.optionsMenu.setVisible(false);
+    this.creditsMenu.setVisible(false);
+  }
+
+  update() {}
 }
 
 const config = {
@@ -788,8 +1017,8 @@ const config = {
   },
   scaleMode: Phaser.Scale.FIT,
   pixelArt: true,
-  backgroundColor: "#fff",
-  scene: MidnightRide,
+  backgroundColor: "#000",
+  scene: [Menu, MidnightRide],
 };
 
 class CustomText extends Phaser.GameObjects.Text {
