@@ -668,9 +668,9 @@ class MidnightRide extends Phaser.Scene {
   }
 
   loadGameUI() {
-    const im1 = this.add
+    /*const im1 = this.add
       .image(this.UICamera.centerX, this.UICamera.centerY, "UIFrame_game")
-      .setScale(this.width / 1707, this.height / 860);
+      .setScale(this.width / 1707, this.height / 860);*/
     /*
     const t1 = new CustomText(this, 5, 15, "wasd/arrow keys to move", "m", "l")
       .setBackgroundColor("#000")
@@ -841,10 +841,17 @@ class Menu extends Phaser.Scene {
     this.load.image("credits", "Credits.png");
     this.load.image("frame", "UIFrame_title.png");
     this.load.image("title", "Title.png");
+    this.load.image("left upper", "Left Upper.png");
+    this.load.image("left lower", "Left_Lower.png");
+    this.load.image("right upper", "Right Upper.png");
+    this.load.image("right lower", "Right_Lower.png");
+    this.load.image("left top", "Left Top.png");
+    this.load.image("right top", "Right Top.png");
 
     this.load.setPath("./");
     this.load.audio("proj1", ["assets/audio/mp3/proj1.mp3"]);
-    this.musicVolume = 0.4;
+    this.load.image("painting", "assets/Midnight_Ride_of_Paul_Revere.jpg");
+    this.musicVolume = 0;
     this.soundVolume = 0.4;
   }
 
@@ -854,10 +861,9 @@ class Menu extends Phaser.Scene {
       volume: this.musicVolume,
       loop: true,
     });
-    // 925948
-    // #876055
+
     this.cameras.main.setBackgroundColor(
-      new Phaser.Display.Color.HexStringToColor("#1f1a1b").color
+      new Phaser.Display.Color.HexStringToColor("#4c4c4e").color
     );
 
     this.graphics = this.add.graphics();
@@ -867,34 +873,33 @@ class Menu extends Phaser.Scene {
       1
     );
 
-    //  32px radius on the corners
-    this.graphics.fillRoundedRect(
-      this.width * 0.1,
-      this.height * 0.1,
-      this.width * 0.8,
-      this.height * 0.8,
+    /*this.graphics.fillRoundedRect(
+      this.width * 0.05,
+      this.height * 0.05,
+      this.width * 0.9,
+      this.height * 0.9,
       16
-    );
+    );*/
 
-    /*new CustomText(
-      this,
-      this.width * 0.5,
-      this.height * 0.3,
-      "The Midnight Ride",
-      "l",
-      "c"
-    )
-      .setBackgroundColor("#1f1a1b")
-      .setPadding(40)
-      .setFontSize(48)
-      .setColor("#dad3d3")
-      .setShadow(2, 2, "#000", 4, true, true)
-      .setFontStyle("bold italic");*/
+    this.add
+      .image(this.width * 0.5, this.height * 0.5, "painting")
+      .setScale((this.width / 2632) * 0.95);
 
-    const title = this.add.image(this.width * 0.5, this.height * 0.3, "title");
+    this.add.image(0, 0, "left upper").setOrigin(0, 0);
+    this.add.image(0, this.height, "left lower").setOrigin(0, 1);
+    this.add.image(this.width, 0, "right upper").setOrigin(1, 0);
+    this.add.image(this.width, this.height, "right lower").setOrigin(1, 1);
+    this.add
+      .image(this.width * 0.01, this.height * 0.01, "left top")
+      .setOrigin(0, 0);
+    this.add
+      .image(this.width * 0.99, this.height * 0.01, "right top")
+      .setOrigin(1, 0);
+
+    const title = this.add.image(this.width * 0.6, this.height * 0.35, "title");
 
     const start = this.add
-      .image(this.width * 0.5, this.height * 0.54, "start")
+      .image(this.width * 0.6, this.height * 0.6, "start")
       .setInteractive()
       .on("pointerover", () => start.setTint(0xffffcc))
       .on("pointerout", () => start.setTint(0xffffff))
@@ -905,7 +910,7 @@ class Menu extends Phaser.Scene {
         this.sound.removeAll();
       });
     const options = this.add
-      .image(this.width * 0.5, this.height * 0.62, "options")
+      .image(this.width * 0.6, this.height * 0.66, "options")
       .setInteractive()
       .on("pointerover", () => options.setTint(0xffffcc))
       .on("pointerout", () => options.setTint(0xffffff))
@@ -915,7 +920,7 @@ class Menu extends Phaser.Scene {
         this.optionsMenu.setVisible(true);
       });
     const credits = this.add
-      .image(this.width * 0.5, this.height * 0.7, "credits")
+      .image(this.width * 0.6, this.height * 0.72, "credits")
       .setInteractive()
       .on("pointerover", () => credits.setTint(0xffffcc))
       .on("pointerout", () => credits.setTint(0xffffff))
@@ -1005,9 +1010,9 @@ class Menu extends Phaser.Scene {
     this.optionsMenu.setVisible(false);
     this.creditsMenu.setVisible(false);
 
-    const im1 = this.add
+    /*const im1 = this.add
       .image(this.cameras.main.centerX, this.cameras.main.centerY, "frame")
-      .setScale(this.width / 1707, this.height / 860);
+      .setScale(this.width / 1707, this.height / 860);*/
   }
 
   update() {}
