@@ -46,6 +46,7 @@ class MidnightRide extends Phaser.Scene {
     this.load.image("road-tiles", "./assets/tilesets/road-tiles.png");
     this.load.image("rock-tiles", "./assets/tilesets/rock-tiles.png");
     this.load.image("tree-tiles", "./assets/tilesets/tree-tiles.png");
+    this.load.image("test-tiles", "./assets/Houses/test/House_1.png");
 
     this.load.tilemapTiledJSON("map", "./assets/tiled/actualMap.json");
 
@@ -63,6 +64,7 @@ class MidnightRide extends Phaser.Scene {
 
     this.load.image("UIFrame_game", "./assets/User Interface/UIFrame_game.png");
     this.load.image("UI_halt", "./assets/User Interface/UI_halt.png");
+    this.load.image("UI_noLives", "./assets/User Interface/NoLives.png");
     this.load.image("housesLeft", "./assets/User Interface/HousesLeft2.png");
     this.load.image("livesLeft", "./assets/User Interface/Livesleft2.png");
     this.load.image("win", "./assets/User Interface/Screens/WinLoad.png");
@@ -497,6 +499,24 @@ class MidnightRide extends Phaser.Scene {
       map.addTilesetImage("rock-tiles", "rock-tiles"),
     ]);
 
+    /*const testLayer = map.createLayer(
+      "test",
+      map.addTilesetImage("House_1", "test-tiles")
+    );
+
+    let sumX = 0;
+    let sumY = 0;
+    testLayer.forEachTile((tile) => {
+      if (tile.index != -1) {
+        sumX += tile.x;
+        sumY += tile.y;
+      }
+    });
+
+    sumX /= 4;
+    sumY /= 4;*/
+
+    //this.add.pointlight(sumX, sumY, 0xefcd99, 200, 0.2).setDepth(1),
     // the next line sets up collision: if there is a road tile built on top of a ground tile,
     // set collision to false so the player can walk on it. otherwise, it's just grass,
     // so set collision to true. the player can only walk on road tiles
@@ -858,6 +878,9 @@ class MidnightRide extends Phaser.Scene {
       this.UICamera.centerY,
       "UI_halt"
     );
+    if (this.lives <= 0) {
+      im1.setTexture("UI_noLives");
+    }
     //.setScale(this.width / 1707, this.width / 1707);
     //.setScale(this.width / 1707, this.height / 860);
 
