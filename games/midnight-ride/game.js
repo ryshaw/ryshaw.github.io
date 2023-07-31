@@ -48,7 +48,7 @@ class MidnightRide extends Phaser.Scene {
     this.load.image("water-tiles", "./assets/tilesets/water-tiles.png");
     this.load.image("big-tiles", "./assets/tilesets/big-tiles.png");
 
-    this.load.tilemapTiledJSON("map", "./assets/tiled/actualMap.json");
+    this.load.tilemapTiledJSON("map", "./assets/tiled/actualMap2.json");
 
     this.load.image("message", "./assets/Scroll.png");
     this.load.image("patrol1", "./assets/Patrols/patrol.png");
@@ -778,7 +778,7 @@ class MidnightRide extends Phaser.Scene {
     // no need to hold down the key, you'll move automatically
     // when you press another key, you'll transition to that speed in that direction
     const maxSpeed = this.playerSpeed; // max speed of player
-    const duration = 1000; // how long it takes to turn and build up to speed
+    const duration = 800; // how long it takes to turn and build up to speed
     this.tweens.add({
       targets: this.player.body.velocity,
       x: direction.x * maxSpeed,

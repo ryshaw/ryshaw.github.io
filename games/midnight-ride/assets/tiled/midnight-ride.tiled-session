@@ -3,7 +3,7 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "actualMap.tmx",
+    "activeFile": "actualMapV2.tmx",
     "expandedProjectPaths": [
     ],
     "file.lastUsedOpenFilter": "All Files (*)",
@@ -22,11 +22,11 @@
             "scaleInEditor": 1
         },
         "actualMap.tmx": {
-            "scale": 0.25,
+            "scale": 0.125,
             "selectedLayer": 7,
             "viewCenter": {
-                "x": 6312,
-                "y": 10160
+                "x": 7608,
+                "y": 8432
             }
         },
         "actualMap.tmx#big-tiles": {
@@ -72,6 +72,38 @@
             "scaleInDock": 0.5,
             "scaleInEditor": 2
         },
+        "actualMapV2.tmx": {
+            "scale": 0.33,
+            "selectedLayer": 6,
+            "viewCenter": {
+                "x": 9309.090909090908,
+                "y": 14615.151515151516
+            }
+        },
+        "actualMapV2.tmx#big-tiles": {
+            "scaleInDock": 1
+        },
+        "actualMapV2.tmx#church-tiles": {
+            "scaleInDock": 1
+        },
+        "actualMapV2.tmx#decor-tiles": {
+            "scaleInDock": 1
+        },
+        "actualMapV2.tmx#grass-tiles": {
+            "scaleInDock": 1
+        },
+        "actualMapV2.tmx#house-tiles": {
+            "scaleInDock": 1
+        },
+        "actualMapV2.tmx#road-tiles": {
+            "scaleInDock": 1
+        },
+        "actualMapV2.tmx#tree-tiles": {
+            "scaleInDock": 1
+        },
+        "actualMapV2.tmx#water-tiles": {
+            "scaleInDock": 1
+        },
         "map.tmx": {
             "scale": 3,
             "selectedLayer": 4,
@@ -101,12 +133,14 @@
     "map.tileWidth": 126,
     "map.width": 100,
     "openFiles": [
-        "actualMap.tmx"
+        "actualMap.tmx",
+        "actualMapV2.tmx"
     ],
     "project": "midnight-ride.tiled-project",
     "property.type": "object",
     "recentFiles": [
         "actualMap.tmx",
+        "actualMapV2.tmx",
         "map.tmx"
     ],
     "tileset.embedInMap": true,
