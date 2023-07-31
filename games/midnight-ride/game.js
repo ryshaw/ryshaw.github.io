@@ -872,7 +872,7 @@ class Menu extends Phaser.Scene {
     this.load.setPath("./");
     this.load.audio("proj1", ["assets/audio/mp3/proj1.mp3"]);
     this.load.image("painting", "assets/Midnight_Ride_of_Paul_Revere.jpg");
-    this.musicVolume = 0;
+    this.musicVolume = 0.4;
     this.soundVolume = 0.4;
     this.fadingOut = false;
   }
