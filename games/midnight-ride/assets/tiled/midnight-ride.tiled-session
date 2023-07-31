@@ -22,21 +22,32 @@
             "scaleInEditor": 1
         },
         "actualMap.tmx": {
-            "scale": 0.33,
-            "selectedLayer": 4,
+            "scale": 0.0625,
+            "selectedLayer": 1,
             "viewCenter": {
-                "x": 6051.515151515152,
-                "y": 6243.939393939394
+                "x": 10672,
+                "y": 10688
             }
         },
         "actualMap.tmx#bush-tiles": {
+            "scaleInDock": 1,
             "scaleInEditor": 1
+        },
+        "actualMap.tmx#church-tiles": {
+            "scaleInDock": 1
+        },
+        "actualMap.tmx#decor-tiles": {
+            "scaleInDock": 0.25,
+            "scaleInEditor": 1
+        },
+        "actualMap.tmx#fence-tiles": {
+            "scaleInDock": 1
         },
         "actualMap.tmx#grass-tiles": {
             "scaleInDock": 1
         },
         "actualMap.tmx#house-tiles": {
-            "scaleInDock": 1,
+            "scaleInDock": 0.75,
             "scaleInEditor": 1
         },
         "actualMap.tmx#road": {
@@ -51,8 +62,12 @@
             "scaleInEditor": 1
         },
         "actualMap.tmx#tree-tiles": {
-            "scaleInDock": 1,
+            "scaleInDock": 0.75,
             "scaleInEditor": 1
+        },
+        "actualMap.tmx#water-tiles": {
+            "scaleInDock": 0.5,
+            "scaleInEditor": 2
         },
         "map.tmx": {
             "scale": 3,

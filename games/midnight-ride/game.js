@@ -17,11 +17,14 @@ class MidnightRide extends Phaser.Scene {
   redcoatVisionCones; // if player hits one of these, game over
   housesDelivered; // so it can track between lives
   lives; // how many tries the player has (3 on normal, 1 on hardcore)
+  livesLeftText;
   musicVolume; // sets volume for music
   soundVolume; // sets volume for all sound effects
   soundEffects; // object containing all sound effects to be played
   playerSpeed; // max speed of player
   playerAngle; // player's angle (using sprite angle would rotate the textures)
+  paused;
+  firstTime; // first time starting from menu, or restarting game
 
   constructor() {
     super({ key: "MidnightRide" });
@@ -35,12 +38,14 @@ class MidnightRide extends Phaser.Scene {
     );
 
     // load the tilesets and the tilemap
-    this.load.image("bush-tiles", "./assets/tilesets/bush-tiles.png");
+    this.load.image("decor-tiles", "./assets/tilesets/decor-tiles.png");
     this.load.image("grass-tiles", "./assets/tilesets/grass-tiles.png");
     this.load.image("house-tiles", "./assets/tilesets/house-tiles.png");
     this.load.image("road-tiles", "./assets/tilesets/road-tiles.png");
-    this.load.image("rock-tiles", "./assets/tilesets/rock-tiles.png");
+    this.load.image("church-tiles", "./assets/tilesets/church-tiles.png");
     this.load.image("tree-tiles", "./assets/tilesets/tree-tiles.png");
+    this.load.image("water-tiles", "./assets/tilesets/water-tiles.png");
+    this.load.image("big-tiles", "./assets/tilesets/big-tiles.png");
 
     this.load.tilemapTiledJSON("map", "./assets/tiled/actualMap.json");
 
@@ -54,8 +59,14 @@ class MidnightRide extends Phaser.Scene {
     this.load.image("paul_front", "./assets/Paulie/paul_front.png");
     this.load.image("paul_side", "./assets/Paulie/paul_side.png");
 
+    this.load.image("poem1", "./assets/User Interface/Screens/Loading.png");
+
     this.load.image("UIFrame_game", "./assets/User Interface/UIFrame_game.png");
     this.load.image("UI_halt", "./assets/User Interface/UI_halt.png");
+    this.load.image("UI_noLives", "./assets/User Interface/NoLives.png");
+    this.load.image("housesLeft", "./assets/User Interface/HousesLeft2.png");
+    this.load.image("livesLeft", "./assets/User Interface/Livesleft2.png");
+    this.load.image("win", "./assets/User Interface/Screens/WinLoad.png");
 
     this.load.audio("track1", [
       "./assets/audio/ogg/track1.ogg",
@@ -83,17 +94,29 @@ class MidnightRide extends Phaser.Scene {
     this.gameWin = false;
     this.gameOver = false;
     this.redcoatSpeed = 120;
-    this.playerSpeed = 350;
+    this.playerSpeed = 400;
     // housesDelivered is an array where each element is a Vector2
     // the Vector2 is the coordinates of the houses that have already been delivered to
     this.housesDelivered = [];
-    this.lives = 3;
+    switch (sessionStorage.getItem("difficulty")) {
+      case "easy":
+        this.lives = 5;
+        break;
+      case "medium":
+        this.lives = 3;
+        break;
+      case "hard":
+        this.lives = 1;
+        break;
+    }
     this.musicVolume = 0.8;
     this.soundVolume = 0.8;
+    this.paused = true;
+    this.physics.pause();
   }
 
   create() {
-    this.cameras.main.fadeIn(2000, 0, 0, 0);
+    const p = this.add.image(this.width * 0.5, this.height * 0.5, "poem1");
 
     this.createMapAndObjects();
 
@@ -117,7 +140,7 @@ class MidnightRide extends Phaser.Scene {
       this.UICamera.ignore(object);
     });
 
-    this.cameras.main.setZoom(0.7);
+    this.cameras.main.setZoom(0.6);
 
     WebFont.load({
       google: {
@@ -128,19 +151,44 @@ class MidnightRide extends Phaser.Scene {
       },
     });
 
-    // "hitbox" around player to visualize when close enough to house
-    /*this.circle = this.add
-      .circle(this.player.x, this.player.y, 80)
-      .setStrokeStyle(2, Phaser.Display.Color.GetColor(255, 255, 0));*/
+    const d = sessionStorage.getItem("difficulty");
+    this.firstTime =
+      (d == "easy" && this.lives == 5) ||
+      (d == "medium" && this.lives == 3) ||
+      (d == "hard" && this.lives == 1);
+
+    if (this.firstTime) {
+      //this.UICamera.fadeIn(220000, 0, 0, 0);
+    }
+
+    if (this.firstTime) {
+      this.cameras.main.fadeIn(22000, 0, 0, 0);
+
+      const p = this.add
+        .image(this.width * 0.5, this.height * 0.5, "poem1")
+        .setAlpha(0);
+      this.tweens.add({
+        targets: p,
+        alpha: 1,
+        duration: 400,
+        completeDelay: 12000,
+        onComplete: () => {
+          this.paused = false;
+          this.physics.resume();
+          this.tweens.add({
+            targets: p,
+            alpha: 0,
+            duration: 1500,
+          });
+        },
+      });
+    } else {
+      this.paused = false;
+      this.physics.resume();
+    }
   }
 
   createAudio() {
-    const track1 = this.sound.add("track1");
-    track1.play({
-      volume: this.musicVolume,
-      loop: true,
-    });
-
     this.soundEffects = {
       caught: this.sound.add("caught"),
       delivery: this.sound.add("delivery"),
@@ -149,6 +197,31 @@ class MidnightRide extends Phaser.Scene {
     };
 
     this.sound.pauseOnBlur = true;
+    const d = sessionStorage.getItem("difficulty");
+    const firstTime =
+      (d == "easy" && this.lives == 5) ||
+      (d == "medium" && this.lives == 3) ||
+      (d == "hard" && this.lives == 1);
+
+    const track1 = this.sound.add("track1");
+
+    if (firstTime) {
+      track1.play({
+        volume: 0,
+        loop: true,
+      });
+      this.tweens.add({
+        targets: track1,
+        volume: this.musicVolume,
+        delay: 6000,
+        duration: 9000,
+      });
+    } else {
+      track1.play({
+        volume: this.musicVolume,
+        loop: true,
+      });
+    }
   }
 
   addKeyboardControls() {
@@ -160,7 +233,7 @@ class MidnightRide extends Phaser.Scene {
         if (this.housesWithinRange.length > 0) {
           this.housesWithinRange.forEach((tile) => {
             // only deliver msg if player hasn't delivered to this house
-            if (!tile.properties.delivered) {
+            if (!tile.properties.delivered && tile.index % 4 == 0) {
               this.deliverMessage(tile, true);
             }
           });
@@ -237,8 +310,10 @@ class MidnightRide extends Phaser.Scene {
 
   restartGame() {
     if (this.lives <= 0 || this.gameWin) {
-      this.housesDelivered = [];
-      this.lives = 3;
+      this.sound.stopAll();
+      this.sound.removeAll();
+      this.scene.start("Menu");
+      return;
     }
     this.gameWin = false;
     this.gameOver = false;
@@ -271,13 +346,13 @@ class MidnightRide extends Phaser.Scene {
 
     // add "delivered" property to all houses, to keep track if player delivered msg to them already. also add a dim light to each house
     this.houseLayer.forEachTile((tile) => {
-      if (tile.index != -1) {
+      if (tile.index != -1 && tile.index % 4 == 0) {
         tile.properties = {
           delivered: false,
           light: this.add
             .pointlight(
-              tile.getCenterX(),
-              tile.getCenterY(),
+              tile.getCenterX() + 63,
+              tile.getCenterY() + 94,
               0xefcd99,
               200,
               0.2
@@ -307,26 +382,33 @@ class MidnightRide extends Phaser.Scene {
       this.player.y,
       3000,
       0xefcd99,
-      2.5
+      2.6
     );
   }
 
   update() {
+    if (this.paused) return;
+
     this.houseLayer.forEachTile((tile) => {
-      if (tile.index != -1 && !tile.properties.delivered) {
+      if (
+        tile.index != -1 &&
+        tile.index % 4 == 0 &&
+        !tile.properties.delivered
+      ) {
         tile.properties.light.intensity = 0.02;
       }
     });
 
     // update houses within player that they can deliver message to
     this.housesWithinRange = this.houseLayer.getTilesWithinShape(
-      new Phaser.Geom.Circle(this.player.x, this.player.y, 120),
+      new Phaser.Geom.Circle(this.player.x, this.player.y, 260),
       { isNotEmpty: true }
     );
 
     // give them a yellow highlight so player knows they can deliver
     this.housesWithinRange.forEach((tile) => {
-      if (!tile.properties.delivered) tile.properties.light.intensity = 0.06;
+      if (!tile.properties.delivered && tile.index % 4 == 0)
+        tile.properties.light.intensity = 0.06;
     });
 
     // delivery is handled in deliverMessage function
@@ -368,8 +450,8 @@ class MidnightRide extends Phaser.Scene {
     // add animation of moving msg from player to house
     this.tweens.add({
       targets: msg,
-      x: tile.getCenterX() - 32, // offset to left
-      y: tile.getCenterY() + 32, // offset to  bottom
+      x: tile.getCenterX() + 32, // offset to left
+      y: tile.getCenterY() + 126, // offset to  bottom
       duration: 600,
       ease: "Power1",
       scale: 0.8,
@@ -383,7 +465,7 @@ class MidnightRide extends Phaser.Scene {
     this.numHousesLeft--;
     if (playerDelivered) {
       this.housesDelivered.push(new Phaser.Math.Vector2(tile.x, tile.y));
-      //      this.housesRemainingText.setText(`houses left: ${this.numHousesLeft}`);
+      this.housesRemainingText.setText(this.numHousesLeft);
       this.soundEffects.delivery.play({
         volume: this.soundVolume,
       });
@@ -400,20 +482,31 @@ class MidnightRide extends Phaser.Scene {
       map.addTilesetImage("grass-tiles", "grass-tiles")
     );
 
+    const decorLayer = map.createLayer(
+      "Decor",
+      map.addTilesetImage("decor-tiles", "decor-tiles")
+    );
+    const waterLayer = map.createLayer(
+      "Water",
+      map.addTilesetImage("water-tiles", "water-tiles")
+    );
+    const churchLayer = map.createLayer(
+      "Church",
+      map.addTilesetImage("church-tiles", "church-tiles")
+    );
     const roadLayer = map.createLayer(
       "Road",
       map.addTilesetImage("road-tiles", "road-tiles")
     );
 
+    const treeLayer = map.createLayer(
+      "Trees",
+      map.addTilesetImage("tree-tiles", "tree-tiles")
+    );
     this.houseLayer = map.createLayer(
       "House",
       map.addTilesetImage("house-tiles", "house-tiles")
     );
-
-    const decorLayer = map.createLayer("Decor", [
-      map.addTilesetImage("tree-tiles", "tree-tiles"),
-      map.addTilesetImage("rock-tiles", "rock-tiles"),
-    ]);
 
     // the next line sets up collision: if there is a road tile built on top of a ground tile,
     // set collision to false so the player can walk on it. otherwise, it's just grass,
@@ -425,13 +518,14 @@ class MidnightRide extends Phaser.Scene {
     });
 
     // get the number of houses on this map, to keep track
-    this.numHousesLeft = this.houseLayer.getTilesWithin(
-      0,
-      0,
-      this.houseLayer.width,
-      this.houseLayer.height,
-      { isNotEmpty: true }
-    ).length;
+    this.numHousesLeft =
+      this.houseLayer.getTilesWithin(
+        0,
+        0,
+        this.houseLayer.width,
+        this.houseLayer.height,
+        { isNotEmpty: true }
+      ).length / 4;
 
     this.redcoats = [];
 
@@ -441,30 +535,59 @@ class MidnightRide extends Phaser.Scene {
 
     map.objects[0].objects.forEach((object) => {
       if (object.name == "Redcoat") {
-        const num = Phaser.Math.Between(1, 3);
-        const key = "patrol" + num;
-        const r = this.physics.add.sprite(object.x, object.y, key);
-        r.body.setSize(128, 128);
-        r.body.isCircle = true;
-        r.vision = this.add
-          .line(r.x, r.y, 230, 0, 640, 0, 0x9966ff)
-          .setLineWidth(20, 60)
-          .setAlpha(0.4);
-        this.physics.add.existing(r.vision);
-        r.vision.body.setSize(210, 100);
-        r.vision.body.setOffset(30, -4);
-        this.redcoatVisionCones.add(r.vision);
+        if (sessionStorage.getItem("difficulty") == "easy") {
+          if (Phaser.Math.Between(1, 2) == 2) {
+            const num = Phaser.Math.Between(1, 3);
+            const key = "patrol" + num;
+            const r = this.physics.add.sprite(object.x, object.y, key);
+            r.body.setSize(128, 128);
+            r.body.isCircle = true;
+            r.vision = this.add
+              .line(r.x, r.y, 230, 0, 640, 0, 0x9966ff)
+              .setLineWidth(20, 60)
+              .setAlpha(0.4);
+            this.physics.add.existing(r.vision);
+            r.vision.body.setSize(210, 100);
+            r.vision.body.setOffset(30, -4);
+            this.redcoatVisionCones.add(r.vision);
 
-        this.turnRedcoat(r, Phaser.Math.Between(1, 4));
+            this.turnRedcoat(r, Phaser.Math.Between(1, 4));
 
-        this.redcoats.push(r);
-        this.physics.add.collider(
-          r,
-          groundLayer,
-          this.redcoatHitWall,
-          null,
-          this
-        );
+            this.redcoats.push(r);
+            this.physics.add.collider(
+              r,
+              groundLayer,
+              this.redcoatHitWall,
+              null,
+              this
+            );
+          }
+        } else {
+          const num = Phaser.Math.Between(1, 3);
+          const key = "patrol" + num;
+          const r = this.physics.add.sprite(object.x, object.y, key);
+          r.body.setSize(128, 128);
+          r.body.isCircle = true;
+          r.vision = this.add
+            .line(r.x, r.y, 230, 0, 640, 0, 0x9966ff)
+            .setLineWidth(20, 60)
+            .setAlpha(0.4);
+          this.physics.add.existing(r.vision);
+          r.vision.body.setSize(210, 100);
+          r.vision.body.setOffset(30, -4);
+          this.redcoatVisionCones.add(r.vision);
+
+          this.turnRedcoat(r, Phaser.Math.Between(1, 4));
+
+          this.redcoats.push(r);
+          this.physics.add.collider(
+            r,
+            groundLayer,
+            this.redcoatHitWall,
+            null,
+            this
+          );
+        }
       }
       if (object.name == "Player") {
         this.player = this.physics.add.sprite(object.x, object.y, "paul_side");
@@ -669,49 +792,62 @@ class MidnightRide extends Phaser.Scene {
   }
 
   loadGameUI() {
-    /*const im1 = this.add
-      .image(this.UICamera.centerX, this.UICamera.centerY, "UIFrame_game")
-      .setScale(this.width / 1707, this.height / 860);*/
-    /*
-    const t1 = new CustomText(this, 5, 15, "wasd/arrow keys to move", "m", "l")
-      .setBackgroundColor("#000")
-      .setPadding(5);
-
-    const t2 = new CustomText(
-      this,
-      this.width - 5,
-      15,
-      "space to warn house",
-      "m",
-      "r"
-    )
-      .setBackgroundColor("#000")
-      .setPadding(5);
-
-    const t3 = new CustomText(
-      this,
-      this.width / 2,
-      this.height - 20,
-      "n to mute sfx, m to mute music",
-      "s",
-      "c"
-    )
-      .setBackgroundColor("#000")
-      .setPadding(5);
+    const housesLeft = this.add
+      .image(5, 5, "housesLeft")
+      .setOrigin(0, 0)
+      .setScale(1);
+    const livesLeft = this.add
+      .image(this.width - 5, 5, "livesLeft")
+      .setOrigin(1, 0)
+      .setScale(1);
 
     this.housesRemainingText = new CustomText(
       this,
-      this.width / 2,
-      15,
-      `houses left: ${this.numHousesLeft}`,
-      "m",
-      "c"
+      housesLeft.getCenter().x + 65,
+      housesLeft.getCenter().y,
+      this.numHousesLeft,
+      "l",
+      "r"
     )
-      .setBackgroundColor("#000")
-      .setPadding(5);
+      .setPadding(2)
+      .setFontSize("26px")
+      .setFontStyle("italic");
 
-    this.cameras.main.ignore([t1, t2, t3, this.housesRemainingText]);*/
-    //this.cameras.main.ignore([im1]);
+    this.livesLeftText = new CustomText(
+      this,
+      livesLeft.getCenter().x + 45,
+      livesLeft.getCenter().y,
+      this.lives,
+      "l",
+      "r"
+    )
+      .setPadding(2)
+      .setFontSize("26px")
+      .setFontStyle("italic");
+    this.cameras.main.ignore([
+      housesLeft,
+      livesLeft,
+      this.housesRemainingText,
+      this.livesLeftText,
+    ]);
+
+    if (this.firstTime) {
+      this.housesRemainingText.setAlpha(0);
+      this.livesLeftText.setAlpha(0);
+      housesLeft.setAlpha(0);
+      livesLeft.setAlpha(0);
+      this.tweens.add({
+        targets: [
+          this.housesRemainingText,
+          this.livesLeftText,
+          housesLeft,
+          livesLeft,
+        ],
+        alpha: 1,
+        delay: 14000,
+        duration: 1000,
+      });
+    }
   }
 
   loadGameWin() {
@@ -731,29 +867,17 @@ class MidnightRide extends Phaser.Scene {
       redcoat.body.moves = false;
     });
 
-    const t1 = new CustomText(
-      this,
-      this.width / 2,
-      this.height / 3,
-      "you win!!",
-      "l",
-      "c"
-    )
-      .setBackgroundColor("#000")
-      .setPadding(10);
+    const im1 = this.add
+      .image(this.width * 0.5, this.height * 0.5 + 20, "win")
+      .setAlpha(0);
 
-    const t2 = new CustomText(
-      this,
-      this.width / 2,
-      (this.height * 2) / 3,
-      "press space\nto play again",
-      "m",
-      "c"
-    )
-      .setBackgroundColor("#000")
-      .setPadding(10);
+    this.tweens.add({
+      targets: im1,
+      alpha: 1,
+      duration: 800,
+    });
 
-    this.cameras.main.ignore([t1, t2]);
+    this.cameras.main.ignore(im1);
   }
 
   loadGameOver() {
@@ -775,38 +899,11 @@ class MidnightRide extends Phaser.Scene {
       this.UICamera.centerY,
       "UI_halt"
     );
-    //.setScale(this.width / 1707, this.width / 1707);
-    //.setScale(this.width / 1707, this.height / 860);
-
-    this.cameras.main.ignore([im1]);
-
-    /*
-    const t1 = new CustomText(
-      this,
-      this.width / 2,
-      this.height / 3,
-      `HALT! you have been\ncaptured by redcoats!!\nlives left: ${this.lives}`,
-      "l",
-      "c"
-    )
-      .setBackgroundColor("#000")
-      .setPadding(10);
-
-    const t2 = new CustomText(
-      this,
-      this.width / 2,
-      (this.height * 2) / 3,
-      "press space\nto try again",
-      "m",
-      "c"
-    )
-      .setBackgroundColor("#000")
-      .setPadding(10);
     if (this.lives <= 0) {
-      t2.setText("game over!!\npress space to restart");
+      im1.setTexture("UI_noLives");
     }
 
-    this.cameras.main.ignore([t1, t2]);*/
+    this.cameras.main.ignore([im1]);
   }
 }
 
@@ -954,6 +1051,7 @@ class Menu extends Phaser.Scene {
       this.soundVolume > 0 ? (this.soundVolume = 0) : (this.soundVolume = 0.8);
     });
   }
+
   loadText() {
     this.loadCredits();
     this.loadStory();
@@ -983,16 +1081,14 @@ class Menu extends Phaser.Scene {
   }
 
   loadStory() {
-    const im1 = this.add.image(
-      this.width * 0.5,
-      this.height * 0.09,
-      "historyTitle"
-    );
     const im2 = this.add.image(
       this.width * 0.5,
       this.height * 0.53,
       "historyPanel"
     );
+    const im1 = this.add
+      .image(this.width * 0.5, im2.getTopCenter().y - 2, "historyTitle")
+      .setOrigin(0.5, 1);
 
     const nextButton = new CustomButton(
       this,
@@ -1010,13 +1106,11 @@ class Menu extends Phaser.Scene {
   }
 
   loadTutorial() {
-    const im1 = this.add.image(
-      this.width * 0.5,
-      this.height * 0.09,
-      "howTitle"
-    );
-
     const im2 = this.add.image(this.width * 0.5, this.height * 0.53, "play");
+
+    const im1 = this.add
+      .image(this.width * 0.5, im2.getTopCenter().y - 2, "howTitle")
+      .setOrigin(0.5, 1);
 
     const nextButton = new CustomButton(
       this,
@@ -1034,13 +1128,11 @@ class Menu extends Phaser.Scene {
   }
 
   loadDifficulty() {
-    const im1 = this.add.image(
-      this.width * 0.5,
-      this.height * 0.09,
-      "difficulty"
-    );
-
     const im5 = this.add.image(this.width * 0.5, this.height * 0.53, "modes");
+
+    const im1 = this.add
+      .image(this.width * 0.5, im5.getTopCenter().y - 2, "difficulty")
+      .setOrigin(0.5, 1);
 
     const selected = this.add
       .image(this.width * 0.5, im1.getBottomLeft().y + 100, "button")
@@ -1123,12 +1215,8 @@ class Menu extends Phaser.Scene {
           this.cameras.main.fadeOut(2000, 0, 0, 0);
           this.cameras.main.once(
             Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE,
-            (cam, effect) => {
-              this.scene.start("MidnightRide");
-            }
+            (cam, effect) => this.scene.start("MidnightRide")
           );
-        } else {
-          imDesc.setTexture("");
         }
       }
     );
