@@ -49,9 +49,7 @@ class MidnightRide extends Phaser.Scene {
 
     this.load.tilemapTiledJSON("map", "./assets/tiled/actualMap.json");
 
-    this.load.image("player", "./assets/player.png");
     this.load.image("message", "./assets/Scroll.png");
-    this.load.image("redcoat", "./assets/redcoat.png");
     this.load.image("patrol1", "./assets/Patrols/patrol.png");
     this.load.image("patrol2", "./assets/Patrols/patrol2.png");
     this.load.image("patrol3", "./assets/Patrols/patrol3.png");
@@ -918,6 +916,7 @@ class Menu extends Phaser.Scene {
   musicVolume; // sets volume for music
   soundVolume; // sets volume for all sound effects
   fadingOut; // if camera is fading out to gameplay
+  proj1; // music track
 
   constructor() {
     super({ key: "Menu" });
@@ -945,6 +944,8 @@ class Menu extends Phaser.Scene {
     this.load.image("left top", "Left Top.png");
     this.load.image("right top", "Right Top.png");
     this.load.image("button", "Button.png");
+    this.load.image("select", "Select.png");
+
     this.load.setPath("./assets/User Interface/Screens/");
     this.load.image("creditsTitle", "Credits.png");
     this.load.image("creditsPanel", "CreditsPanel.png");
@@ -984,8 +985,8 @@ class Menu extends Phaser.Scene {
       },
     });
 
-    const proj1 = this.sound.add("proj1");
-    proj1.play({
+    this.proj1 = this.sound.add("proj1");
+    this.proj1.play({
       volume: this.musicVolume,
       loop: true,
     });
@@ -1135,8 +1136,8 @@ class Menu extends Phaser.Scene {
       .setOrigin(0.5, 1);
 
     const selected = this.add
-      .image(this.width * 0.5, im1.getBottomLeft().y + 100, "button")
-      .setScale(0.15)
+      .image(this.width * 0.5, im1.getBottomLeft().y + 100, "select")
+      //.setScale(0.8)
       .setVisible(false);
 
     const im3 = new CustomButton(
@@ -1164,7 +1165,7 @@ class Menu extends Phaser.Scene {
         imDesc.setTexture("easyDesc");
         selected
           .setPosition(
-            im3.getBottomCenter().x - 180,
+            im3.getBottomCenter().x - 160,
             im5.getTopCenter().y + 200
           )
           .setVisible(true)
@@ -1210,9 +1211,17 @@ class Menu extends Phaser.Scene {
         if (sessionStorage.getItem("difficulty")) {
           if (this.fadingOut) return;
           this.fadingOut = true;
-          this.sound.stopAll();
-          this.sound.removeAll();
+          this.tweens.add({
+            targets: this.proj1,
+            volume: 0,
+            duration: 1000,
+            onComplete: () => {
+              this.sound.stopAll();
+              this.sound.removeAll();
+            },
+          });
           this.cameras.main.fadeOut(2000, 0, 0, 0);
+
           this.cameras.main.once(
             Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE,
             (cam, effect) => this.scene.start("MidnightRide")
