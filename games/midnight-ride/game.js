@@ -40,13 +40,13 @@ class MidnightRide extends Phaser.Scene {
     );
 
     // load the tilesets and the tilemap
-    this.load.image("bush-tiles", "./assets/tilesets/bush-tiles.png");
+    this.load.image("decor-tiles", "./assets/tilesets/decor-tiles.png");
     this.load.image("grass-tiles", "./assets/tilesets/grass-tiles.png");
     this.load.image("house-tiles", "./assets/tilesets/house-tiles.png");
     this.load.image("road-tiles", "./assets/tilesets/road-tiles.png");
-    this.load.image("rock-tiles", "./assets/tilesets/rock-tiles.png");
+    this.load.image("church-tiles", "./assets/tilesets/church-tiles.png");
     this.load.image("tree-tiles", "./assets/tilesets/tree-tiles.png");
-    this.load.image("test-tiles", "./assets/Houses/test/House_1.png");
+    this.load.image("water-tiles", "./assets/tilesets/water-tiles.png");
 
     this.load.tilemapTiledJSON("map", "./assets/tiled/actualMap.json");
 
@@ -484,20 +484,31 @@ class MidnightRide extends Phaser.Scene {
       map.addTilesetImage("grass-tiles", "grass-tiles")
     );
 
+    const decorLayer = map.createLayer(
+      "Decor",
+      map.addTilesetImage("decor-tiles", "decor-tiles")
+    );
+    const waterLayer = map.createLayer(
+      "Water",
+      map.addTilesetImage("water-tiles", "water-tiles")
+    );
+    const churchLayer = map.createLayer(
+      "Church",
+      map.addTilesetImage("church-tiles", "church-tiles")
+    );
     const roadLayer = map.createLayer(
       "Road",
       map.addTilesetImage("road-tiles", "road-tiles")
     );
 
+    const treeLayer = map.createLayer(
+      "Trees",
+      map.addTilesetImage("tree-tiles", "tree-tiles")
+    );
     this.houseLayer = map.createLayer(
       "House",
       map.addTilesetImage("house-tiles", "house-tiles")
     );
-
-    const decorLayer = map.createLayer("Decor", [
-      map.addTilesetImage("tree-tiles", "tree-tiles"),
-      map.addTilesetImage("rock-tiles", "rock-tiles"),
-    ]);
 
     /*const testLayer = map.createLayer(
       "test",
@@ -527,13 +538,14 @@ class MidnightRide extends Phaser.Scene {
     });
 
     // get the number of houses on this map, to keep track
-    this.numHousesLeft = this.houseLayer.getTilesWithin(
-      0,
-      0,
-      this.houseLayer.width,
-      this.houseLayer.height,
-      { isNotEmpty: true }
-    ).length;
+    this.numHousesLeft =
+      this.houseLayer.getTilesWithin(
+        0,
+        0,
+        this.houseLayer.width,
+        this.houseLayer.height,
+        { isNotEmpty: true }
+      ).length / 4;
 
     this.redcoats = [];
 
@@ -881,38 +893,8 @@ class MidnightRide extends Phaser.Scene {
     if (this.lives <= 0) {
       im1.setTexture("UI_noLives");
     }
-    //.setScale(this.width / 1707, this.width / 1707);
-    //.setScale(this.width / 1707, this.height / 860);
 
     this.cameras.main.ignore([im1]);
-
-    /*
-    const t1 = new CustomText(
-      this,
-      this.width / 2,
-      this.height / 3,
-      `HALT! you have been\ncaptured by redcoats!!\nlives left: ${this.lives}`,
-      "l",
-      "c"
-    )
-      .setBackgroundColor("#000")
-      .setPadding(10);
-
-    const t2 = new CustomText(
-      this,
-      this.width / 2,
-      (this.height * 2) / 3,
-      "press space\nto try again",
-      "m",
-      "c"
-    )
-      .setBackgroundColor("#000")
-      .setPadding(10);
-    if (this.lives <= 0) {
-      t2.setText("game over!!\npress space to restart");
-    }
-
-    this.cameras.main.ignore([t1, t2]);*/
   }
 }
 

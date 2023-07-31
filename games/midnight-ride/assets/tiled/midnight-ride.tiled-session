@@ -9,7 +9,7 @@
     "file.lastUsedOpenFilter": "All Files (*)",
     "fileStates": {
         "": {
-            "scaleInDock": 1,
+            "scaleInDock": 0.5,
             "scaleInEditor": 1
         },
         "#Grass_2": {
@@ -22,15 +22,22 @@
             "scaleInEditor": 1
         },
         "actualMap.tmx": {
-            "scale": 0.33,
+            "scale": 0.0625,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 9869.69696969697,
-                "y": 24010.606060606064
+                "x": 10672,
+                "y": 10688
             }
         },
         "actualMap.tmx#bush-tiles": {
             "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "actualMap.tmx#church-tiles": {
+            "scaleInDock": 1
+        },
+        "actualMap.tmx#decor-tiles": {
+            "scaleInDock": 0.25,
             "scaleInEditor": 1
         },
         "actualMap.tmx#fence-tiles": {
@@ -55,12 +62,12 @@
             "scaleInEditor": 1
         },
         "actualMap.tmx#tree-tiles": {
-            "scaleInDock": 1,
+            "scaleInDock": 0.75,
             "scaleInEditor": 1
         },
         "actualMap.tmx#water-tiles": {
             "scaleInDock": 0.5,
-            "scaleInEditor": 1
+            "scaleInEditor": 2
         },
         "map.tmx": {
             "scale": 3,
@@ -100,8 +107,8 @@
         "map.tmx"
     ],
     "tileset.embedInMap": true,
-    "tileset.margin": 1,
-    "tileset.spacing": 2,
+    "tileset.margin": 0,
+    "tileset.spacing": 0,
     "tileset.tileSize": {
         "height": 126,
         "width": 126
