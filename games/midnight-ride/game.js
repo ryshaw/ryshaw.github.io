@@ -284,7 +284,6 @@ class MidnightRide extends Phaser.Scene {
             )
             .setDepth(1),
         };
-
         this.housesDelivered.forEach((houseDelivered) => {
           if (tile.x == houseDelivered.x && tile.y == houseDelivered.y) {
             this.deliverMessage(tile, false);
