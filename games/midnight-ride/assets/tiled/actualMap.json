@@ -1127,6 +1127,7 @@
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
          "height":150,
          "id":4,
+         "locked":true,
          "name":"House",
          "opacity":1,
          "type":"tilelayer",
@@ -1138,7 +1139,6 @@
         {
          "draworder":"topdown",
          "id":5,
-         "locked":true,
          "name":"Object",
          "objects":[
                 {
@@ -1896,6 +1896,18 @@
                  "width":0,
                  "x":5418,
                  "y":14238
+                }, 
+                {
+                 "height":0,
+                 "id":90,
+                 "name":"Lights",
+                 "point":true,
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":0,
+                 "x":4914,
+                 "y":10332
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -1904,7 +1916,7 @@
          "y":0
         }],
  "nextlayerid":10,
- "nextobjectid":90,
+ "nextobjectid":91,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.10.1",
