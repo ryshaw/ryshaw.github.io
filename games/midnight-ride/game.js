@@ -927,7 +927,7 @@ class Menu extends Phaser.Scene {
     this.load.setPath("./");
     this.load.audio("proj1", ["assets/audio/mp3/proj1.mp3"]);
     this.load.image("painting", "assets/Midnight_Ride_of_Paul_Revere.jpg");
-    this.musicVolume = 0.2;
+    this.musicVolume = 0;
     this.soundVolume = 0.4;
     this.fadingOut = false;
   }
@@ -1009,6 +1009,7 @@ class Menu extends Phaser.Scene {
       this.soundVolume > 0 ? (this.soundVolume = 0) : (this.soundVolume = 0.8);
     });
   }
+
   loadText() {
     this.loadCredits();
     this.loadStory();
@@ -1038,16 +1039,14 @@ class Menu extends Phaser.Scene {
   }
 
   loadStory() {
-    const im1 = this.add.image(
-      this.width * 0.5,
-      this.height * 0.09,
-      "historyTitle"
-    );
     const im2 = this.add.image(
       this.width * 0.5,
       this.height * 0.53,
       "historyPanel"
     );
+    const im1 = this.add
+      .image(this.width * 0.5, im2.getTopCenter().y - 2, "historyTitle")
+      .setOrigin(0.5, 1);
 
     const nextButton = new CustomButton(
       this,
@@ -1065,13 +1064,11 @@ class Menu extends Phaser.Scene {
   }
 
   loadTutorial() {
-    const im1 = this.add.image(
-      this.width * 0.5,
-      this.height * 0.09,
-      "howTitle"
-    );
-
     const im2 = this.add.image(this.width * 0.5, this.height * 0.53, "play");
+
+    const im1 = this.add
+      .image(this.width * 0.5, im2.getTopCenter().y - 2, "howTitle")
+      .setOrigin(0.5, 1);
 
     const nextButton = new CustomButton(
       this,
@@ -1089,13 +1086,11 @@ class Menu extends Phaser.Scene {
   }
 
   loadDifficulty() {
-    const im1 = this.add.image(
-      this.width * 0.5,
-      this.height * 0.09,
-      "difficulty"
-    );
-
     const im5 = this.add.image(this.width * 0.5, this.height * 0.53, "modes");
+
+    const im1 = this.add
+      .image(this.width * 0.5, im5.getTopCenter().y - 2, "difficulty")
+      .setOrigin(0.5, 1);
 
     const selected = this.add
       .image(this.width * 0.5, im1.getBottomLeft().y + 100, "button")
