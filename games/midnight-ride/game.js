@@ -820,6 +820,7 @@ class Menu extends Phaser.Scene {
   difficultyMenu;
   musicVolume; // sets volume for music
   soundVolume; // sets volume for all sound effects
+  fadingOut; // if camera is fading out to gameplay
 
   constructor() {
     super({ key: "Menu" });
@@ -846,12 +847,32 @@ class Menu extends Phaser.Scene {
     this.load.image("right lower", "Right_Lower.png");
     this.load.image("left top", "Left Top.png");
     this.load.image("right top", "Right Top.png");
+    this.load.image("creditsTitle", "Credits.png");
+    this.load.image("credits", "CreditsPanel.png");
+    this.load.image("hardDesc", "DeathDescription.png");
+    this.load.image("easy", "Easy.png");
+    this.load.image("easyDesc", "EasyDescription.png");
+    this.load.image("GetReady", "GetReadytoRide.png");
+    this.load.image("hard", "GiveMeDeath.png");
+    this.load.image("medium", "GiveMeLiberty.png");
+    this.load.image("historyTitle", "Historical_Background_Panel.png");
+    this.load.image("historyPanel", "HistoryPanel.png");
+    this.load.image("hover", "HoverDescription.png");
+    this.load.image("howTitle", "How_to_Play.png");
+    this.load.image("mediumDesc", "LibertyDescription.png");
+    this.load.image("modes", "Modes.png");
+    this.load.image("next", "Next.png");
+    this.load.image("panel", "Panel.png");
+    this.load.image("play", "Play_panel.png");
+    this.load.image("return", "Return.png");
+    this.load.image("difficulty", "Select A Difficulty.png");
 
     this.load.setPath("./");
     this.load.audio("proj1", ["assets/audio/mp3/proj1.mp3"]);
     this.load.image("painting", "assets/Midnight_Ride_of_Paul_Revere.jpg");
-    this.musicVolume = 0.2;
+    this.musicVolume = 0;
     this.soundVolume = 0.4;
+    this.fadingOut = false;
   }
 
   create() {
@@ -1267,6 +1288,8 @@ class Menu extends Phaser.Scene {
       "c",
       () => {
         if (sessionStorage.getItem("difficulty")) {
+          if (this.fadingOut) return;
+          this.fadingOut = true;
           this.sound.stopAll();
           this.sound.removeAll();
           this.cameras.main.fadeOut(2000, 0, 0, 0);
