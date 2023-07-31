@@ -872,7 +872,7 @@ class Menu extends Phaser.Scene {
     this.load.setPath("./");
     this.load.audio("proj1", ["assets/audio/mp3/proj1.mp3"]);
     this.load.image("painting", "assets/Midnight_Ride_of_Paul_Revere.jpg");
-    this.musicVolume = 0.4;
+    this.musicVolume = 0.2;
     this.soundVolume = 0.4;
     this.fadingOut = false;
   }
@@ -1052,13 +1052,13 @@ class Menu extends Phaser.Scene {
     const im3 = new CustomButton(
       this,
       this.width * 0.5,
-      im1.getBottomLeft().y + 160,
+      im5.getTopCenter().y + 160,
       "medium",
       () => {
         sessionStorage.setItem("difficulty", "medium");
         imDesc.setTexture("mediumDesc");
         selected
-          .setPosition(this.width * 0.5, im1.getBottomLeft().y + 200)
+          .setPosition(this.width * 0.5, im5.getTopCenter().y + 200)
           .setVisible(true)
           .setOrigin(0.5, 0.5);
       }
@@ -1067,7 +1067,7 @@ class Menu extends Phaser.Scene {
     const im2 = new CustomButton(
       this,
       im3.getBottomCenter().x - 180,
-      im1.getBottomLeft().y + 160,
+      im5.getTopCenter().y + 160,
       "easy",
       () => {
         sessionStorage.setItem("difficulty", "easy");
@@ -1075,7 +1075,7 @@ class Menu extends Phaser.Scene {
         selected
           .setPosition(
             im3.getBottomCenter().x - 180,
-            im1.getBottomLeft().y + 200
+            im5.getTopCenter().y + 200
           )
           .setVisible(true)
           .setOrigin(1, 0.5);
@@ -1087,7 +1087,7 @@ class Menu extends Phaser.Scene {
     const im4 = new CustomButton(
       this,
       im3.getBottomCenter().x + 170,
-      im1.getBottomLeft().y + 156,
+      im5.getTopCenter().y + 156,
       "hard",
       () => {
         sessionStorage.setItem("difficulty", "hard");
@@ -1095,7 +1095,7 @@ class Menu extends Phaser.Scene {
         selected
           .setPosition(
             im3.getBottomCenter().x + 180,
-            im1.getBottomLeft().y + 196
+            im5.getTopCenter().y + 196
           )
           .setVisible(true)
           .setOrigin(0, 0.5);
