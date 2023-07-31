@@ -1042,21 +1042,23 @@ class Menu extends Phaser.Scene {
       "difficulty"
     );
 
+    const im5 = this.add.image(this.width * 0.5, this.height * 0.53, "modes");
+
     const selected = this.add
       .image(this.width * 0.5, im1.getBottomLeft().y + 100, "button")
-      .setScale(0.5)
+      .setScale(0.15)
       .setVisible(false);
 
     const im3 = new CustomButton(
       this,
       this.width * 0.5,
-      im1.getBottomLeft().y + 100,
+      im1.getBottomLeft().y + 160,
       "medium",
       () => {
         sessionStorage.setItem("difficulty", "medium");
         imDesc.setTexture("mediumDesc");
         selected
-          .setPosition(this.width * 0.5, im1.getBottomLeft().y + 100)
+          .setPosition(this.width * 0.5, im1.getBottomLeft().y + 200)
           .setVisible(true)
           .setOrigin(0.5, 0.5);
       }
@@ -1064,19 +1066,19 @@ class Menu extends Phaser.Scene {
 
     const im2 = new CustomButton(
       this,
-      im3.getBottomCenter().x - 240,
-      im1.getBottomLeft().y + 100,
+      im3.getBottomCenter().x - 180,
+      im1.getBottomLeft().y + 160,
       "easy",
       () => {
         sessionStorage.setItem("difficulty", "easy");
         imDesc.setTexture("easyDesc");
         selected
           .setPosition(
-            im3.getBottomCenter().x - 240,
-            im1.getBottomLeft().y + 100
+            im3.getBottomCenter().x - 180,
+            im1.getBottomLeft().y + 200
           )
           .setVisible(true)
-          .setOrigin(0.75, 0.5);
+          .setOrigin(1, 0.5);
       }
     )
       .setOrigin(1, 0.5)
@@ -1084,19 +1086,19 @@ class Menu extends Phaser.Scene {
 
     const im4 = new CustomButton(
       this,
-      im3.getBottomCenter().x + 240,
-      im1.getBottomLeft().y + 96,
+      im3.getBottomCenter().x + 170,
+      im1.getBottomLeft().y + 156,
       "hard",
       () => {
         sessionStorage.setItem("difficulty", "hard");
         imDesc.setTexture("hardDesc");
         selected
           .setPosition(
-            im3.getBottomCenter().x + 240,
-            im1.getBottomLeft().y + 96
+            im3.getBottomCenter().x + 180,
+            im1.getBottomLeft().y + 196
           )
           .setVisible(true)
-          .setOrigin(0.2, 0.5);
+          .setOrigin(0, 0.5);
       }
     )
       .setOrigin(0, 0.5)
@@ -1105,38 +1107,14 @@ class Menu extends Phaser.Scene {
     const imDesc = new CustomButton(
       this,
       this.width * 0.5,
-      im4.getBottomLeft().y + 100,
+      im3.getBottomLeft().y + 60,
       "hover"
     );
-
-    /*
-    const t6 = new CustomButton(
-      this,
-      this.width * 0.5,
-      t5.getBottomLeft().y + 160,
-      "Controls:",
-      "l",
-      "c"
-    )
-      .setOrigin(0.5, 0)
-      .setWordWrapWidth(730, true);
-
-    const t7 = new CustomText(
-      this,
-      this.width * 0.5,
-      t6.getBottomLeft().y,
-      "WASD/arrow keys to move, Space to alert house\nM to mute music, N to mute sound effects",
-      "l",
-      "c"
-    )
-      .setOrigin(0.5, 0)
-      .setWordWrapWidth(730, true);
-*/
 
     const startButton = new CustomButton(
       this,
       this.width * 0.5,
-      this.height * 0.92,
+      im5.getBottomCenter().y - 70,
       "GetReady",
       () => {
         if (sessionStorage.getItem("difficulty")) {
@@ -1158,14 +1136,13 @@ class Menu extends Phaser.Scene {
     );
 
     this.difficultyMenu = this.add.container(0, 0, [
+      im5,
       im1,
       im2,
       im3,
       im4,
-      imDesc /*
-      im5,
-      im6,
-      im7,*/,
+      imDesc,
+      selected,
       startButton,
     ]);
     this.difficultyMenu.setVisible(false);
@@ -1250,7 +1227,7 @@ class CustomButton extends Phaser.GameObjects.Image {
   ) {
     super(scene);
 
-    const cT = scene.add.image(x, y, key);
+    const cT = scene.add.image(x, y, key).setDepth(2);
 
     // if callback is given, assume it's a button and add callback
     if (callback) {
