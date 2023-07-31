@@ -25,6 +25,7 @@ class MidnightRide extends Phaser.Scene {
   playerAngle; // player's angle (using sprite angle would rotate the textures)
   paused;
   firstTime; // first time starting from menu, or restarting game
+  churchLights;
 
   constructor() {
     super({ key: "MidnightRide" });
@@ -382,6 +383,22 @@ class MidnightRide extends Phaser.Scene {
       0xefcd99,
       2.6
     );
+
+    console.log(this.churchLights);
+    this.lights.addLight(
+      this.churchLights.x - 30,
+      this.churchLights.y,
+      50,
+      0xffffff,
+      1
+    );
+    this.lights.addLight(
+      this.churchLights.x + 30,
+      this.churchLights.y,
+      50,
+      0xffffff,
+      1
+    );
   }
 
   update() {
@@ -605,6 +622,9 @@ class MidnightRide extends Phaser.Scene {
         );
         this.physics.add.existing(rect);
         intersections.push(rect);
+      }
+      if (object.name == "Lights") {
+        this.churchLights = new Phaser.Math.Vector2(object.x, object.y);
       }
     });
 
@@ -1259,7 +1279,7 @@ const config = {
   scaleMode: Phaser.Scale.FIT,
   pixelArt: true,
   backgroundColor: "#000",
-  scene: [Menu, MidnightRide],
+  scene: [MidnightRide],
 };
 
 class CustomText extends Phaser.GameObjects.Text {
