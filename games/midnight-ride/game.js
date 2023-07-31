@@ -31,8 +31,6 @@ class MidnightRide extends Phaser.Scene {
   }
 
   preload() {
-    sessionStorage.setItem("difficulty", "easy");
-
     // load google's library for the font, Press Start 2P
     this.load.script(
       "webfont",
@@ -47,6 +45,7 @@ class MidnightRide extends Phaser.Scene {
     this.load.image("church-tiles", "./assets/tilesets/church-tiles.png");
     this.load.image("tree-tiles", "./assets/tilesets/tree-tiles.png");
     this.load.image("water-tiles", "./assets/tilesets/water-tiles.png");
+    this.load.image("big-tiles", "./assets/tilesets/big-tiles.png");
 
     this.load.tilemapTiledJSON("map", "./assets/tiled/actualMap.json");
 
@@ -95,7 +94,7 @@ class MidnightRide extends Phaser.Scene {
     this.gameWin = false;
     this.gameOver = false;
     this.redcoatSpeed = 120;
-    this.playerSpeed = 380;
+    this.playerSpeed = 400;
     // housesDelivered is an array where each element is a Vector2
     // the Vector2 is the coordinates of the houses that have already been delivered to
     this.housesDelivered = [];
@@ -110,7 +109,6 @@ class MidnightRide extends Phaser.Scene {
         this.lives = 1;
         break;
     }
-    this.lives = 2;
     this.musicVolume = 0.8;
     this.soundVolume = 0.8;
     this.paused = true;
@@ -142,7 +140,7 @@ class MidnightRide extends Phaser.Scene {
       this.UICamera.ignore(object);
     });
 
-    this.cameras.main.setZoom(0.65);
+    this.cameras.main.setZoom(0.6);
 
     WebFont.load({
       google: {
@@ -188,11 +186,6 @@ class MidnightRide extends Phaser.Scene {
       this.paused = false;
       this.physics.resume();
     }
-
-    // "hitbox" around player to visualize when close enough to house
-    /*this.circle = this.add
-      .circle(this.player.x, this.player.y, 80)
-      .setStrokeStyle(2, Phaser.Display.Color.GetColor(255, 255, 0));*/
   }
 
   createAudio() {
@@ -387,7 +380,7 @@ class MidnightRide extends Phaser.Scene {
     this.playerLight = this.lights.addLight(
       this.player.x,
       this.player.y,
-      2000,
+      3000,
       0xefcd99,
       2.6
     );
@@ -408,7 +401,7 @@ class MidnightRide extends Phaser.Scene {
 
     // update houses within player that they can deliver message to
     this.housesWithinRange = this.houseLayer.getTilesWithinShape(
-      new Phaser.Geom.Circle(this.player.x, this.player.y, 250),
+      new Phaser.Geom.Circle(this.player.x, this.player.y, 260),
       { isNotEmpty: true }
     );
 
@@ -515,24 +508,6 @@ class MidnightRide extends Phaser.Scene {
       map.addTilesetImage("house-tiles", "house-tiles")
     );
 
-    /*const testLayer = map.createLayer(
-      "test",
-      map.addTilesetImage("House_1", "test-tiles")
-    );
-
-    let sumX = 0;
-    let sumY = 0;
-    testLayer.forEachTile((tile) => {
-      if (tile.index != -1) {
-        sumX += tile.x;
-        sumY += tile.y;
-      }
-    });
-
-    sumX /= 4;
-    sumY /= 4;*/
-
-    //this.add.pointlight(sumX, sumY, 0xefcd99, 200, 0.2).setDepth(1),
     // the next line sets up collision: if there is a road tile built on top of a ground tile,
     // set collision to false so the player can walk on it. otherwise, it's just grass,
     // so set collision to true. the player can only walk on road tiles
@@ -1275,7 +1250,7 @@ const config = {
   scaleMode: Phaser.Scale.FIT,
   pixelArt: true,
   backgroundColor: "#000",
-  scene: [MidnightRide, Menu],
+  scene: [Menu, MidnightRide],
 };
 
 class CustomText extends Phaser.GameObjects.Text {
