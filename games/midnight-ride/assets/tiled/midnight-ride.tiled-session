@@ -23,10 +23,10 @@
         },
         "actualMap.tmx": {
             "scale": 0.25,
-            "selectedLayer": 5,
+            "selectedLayer": 7,
             "viewCenter": {
-                "x": 6316,
-                "y": 10164
+                "x": 6312,
+                "y": 10160
             }
         },
         "actualMap.tmx#big-tiles": {
