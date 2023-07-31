@@ -384,20 +384,19 @@ class MidnightRide extends Phaser.Scene {
       2.6
     );
 
-    console.log(this.churchLights);
     this.lights.addLight(
       this.churchLights.x - 30,
       this.churchLights.y,
-      50,
+      55,
       0xffffff,
-      1
+      1.5
     );
     this.lights.addLight(
       this.churchLights.x + 30,
       this.churchLights.y,
-      50,
+      55,
       0xffffff,
-      1
+      1.5
     );
   }
 
@@ -1279,7 +1278,7 @@ const config = {
   scaleMode: Phaser.Scale.FIT,
   pixelArt: true,
   backgroundColor: "#000",
-  scene: [MidnightRide],
+  scene: [Menu, MidnightRide],
 };
 
 class CustomText extends Phaser.GameObjects.Text {
