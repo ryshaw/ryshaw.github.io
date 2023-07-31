@@ -963,7 +963,7 @@ class Menu extends Phaser.Scene {
     this.load.image("modes", "Modes.png");
     this.load.image("next", "Next.png");
     this.load.image("panel", "Panel.png");
-    this.load.image("play", "Play_panel.png");
+    this.load.image("play", "PlayPanel.png");
     this.load.image("return", "Return.png");
     this.load.image("difficulty", "Select A Difficulty.png");
 
