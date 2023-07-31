@@ -34,3 +34,15 @@
            
             "Give Me Liberty",
 "Three lives. Normal amount of British patrols."
+
+      "You'll be playing as Paul Revere on his famous adventure through the town and countryside.",
+
+            "Use the WASD or arrow keys to move, and press the space bar near a house " +
+        "to alert the citizens of incoming British troops.",
+
+              "The houses will light up as you approach them, " +
+        "and a scroll will show you have delivered the message.",
+
+        
+      "Be discreet, and avoid capture by British patrols! " +
+        "Deliver messages to every house in the town to win.",
