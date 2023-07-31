@@ -17,18 +17,22 @@ class MidnightRide extends Phaser.Scene {
   redcoatVisionCones; // if player hits one of these, game over
   housesDelivered; // so it can track between lives
   lives; // how many tries the player has (3 on normal, 1 on hardcore)
+  livesLeftText;
   musicVolume; // sets volume for music
   soundVolume; // sets volume for all sound effects
   soundEffects; // object containing all sound effects to be played
   playerSpeed; // max speed of player
   playerAngle; // player's angle (using sprite angle would rotate the textures)
   paused;
+  firstTime; // first time starting from menu, or restarting game
 
   constructor() {
     super({ key: "MidnightRide" });
   }
 
   preload() {
+    sessionStorage.setItem("difficulty", "medium");
+
     // load google's library for the font, Press Start 2P
     this.load.script(
       "webfont",
@@ -59,6 +63,9 @@ class MidnightRide extends Phaser.Scene {
 
     this.load.image("UIFrame_game", "./assets/User Interface/UIFrame_game.png");
     this.load.image("UI_halt", "./assets/User Interface/UI_halt.png");
+    this.load.image("housesLeft", "./assets/User Interface/HousesLeft2.png");
+    this.load.image("livesLeft", "./assets/User Interface/Livesleft2.png");
+    this.load.image("win", "./assets/User Interface/Screens/WinLoad.png");
 
     this.load.audio("track1", [
       "./assets/audio/ogg/track1.ogg",
@@ -90,7 +97,18 @@ class MidnightRide extends Phaser.Scene {
     // housesDelivered is an array where each element is a Vector2
     // the Vector2 is the coordinates of the houses that have already been delivered to
     this.housesDelivered = [];
-    this.lives = 3;
+    switch (sessionStorage.getItem("difficulty")) {
+      case "easy":
+        this.lives = 5;
+        break;
+      case "medium":
+        this.lives = 3;
+        break;
+      case "hard":
+        this.lives = 1;
+        break;
+    }
+    this.lives = 2;
     this.musicVolume = 0.8;
     this.soundVolume = 0.8;
     this.paused = true;
@@ -98,7 +116,7 @@ class MidnightRide extends Phaser.Scene {
   }
 
   create() {
-    this.add.image(this.width * 0.5, this.height * 0.5, "poem1");
+    const p = this.add.image(this.width * 0.5, this.height * 0.5, "poem1");
 
     this.createMapAndObjects();
 
@@ -134,12 +152,16 @@ class MidnightRide extends Phaser.Scene {
     });
 
     const d = sessionStorage.getItem("difficulty");
-    const firstTime =
+    this.firstTime =
       (d == "easy" && this.lives == 5) ||
       (d == "medium" && this.lives == 3) ||
       (d == "hard" && this.lives == 1);
 
-    if (firstTime) {
+    if (this.firstTime) {
+      //this.UICamera.fadeIn(220000, 0, 0, 0);
+    }
+
+    if (this.firstTime) {
       this.cameras.main.fadeIn(22000, 0, 0, 0);
 
       const p = this.add
@@ -160,6 +182,9 @@ class MidnightRide extends Phaser.Scene {
           });
         },
       });
+    } else {
+      this.paused = false;
+      this.physics.resume();
     }
 
     // "hitbox" around player to visualize when close enough to house
@@ -290,8 +315,10 @@ class MidnightRide extends Phaser.Scene {
 
   restartGame() {
     if (this.lives <= 0 || this.gameWin) {
-      this.housesDelivered = [];
-      this.lives = 3;
+      this.sound.stopAll();
+      this.sound.removeAll();
+      this.scene.start("Menu");
+      return;
     }
     this.gameWin = false;
     this.gameOver = false;
@@ -438,7 +465,7 @@ class MidnightRide extends Phaser.Scene {
     this.numHousesLeft--;
     if (playerDelivered) {
       this.housesDelivered.push(new Phaser.Math.Vector2(tile.x, tile.y));
-      //      this.housesRemainingText.setText(`houses left: ${this.numHousesLeft}`);
+      this.housesRemainingText.setText(this.numHousesLeft);
       this.soundEffects.delivery.play({
         volume: this.soundVolume,
       });
@@ -724,49 +751,62 @@ class MidnightRide extends Phaser.Scene {
   }
 
   loadGameUI() {
-    /*const im1 = this.add
-      .image(this.UICamera.centerX, this.UICamera.centerY, "UIFrame_game")
-      .setScale(this.width / 1707, this.height / 860);*/
-    /*
-    const t1 = new CustomText(this, 5, 15, "wasd/arrow keys to move", "m", "l")
-      .setBackgroundColor("#000")
-      .setPadding(5);
-
-    const t2 = new CustomText(
-      this,
-      this.width - 5,
-      15,
-      "space to warn house",
-      "m",
-      "r"
-    )
-      .setBackgroundColor("#000")
-      .setPadding(5);
-
-    const t3 = new CustomText(
-      this,
-      this.width / 2,
-      this.height - 20,
-      "n to mute sfx, m to mute music",
-      "s",
-      "c"
-    )
-      .setBackgroundColor("#000")
-      .setPadding(5);
+    const housesLeft = this.add
+      .image(5, 5, "housesLeft")
+      .setOrigin(0, 0)
+      .setScale(1);
+    const livesLeft = this.add
+      .image(this.width - 5, 5, "livesLeft")
+      .setOrigin(1, 0)
+      .setScale(1);
 
     this.housesRemainingText = new CustomText(
       this,
-      this.width / 2,
-      15,
-      `houses left: ${this.numHousesLeft}`,
-      "m",
-      "c"
+      housesLeft.getCenter().x + 65,
+      housesLeft.getCenter().y,
+      this.numHousesLeft,
+      "l",
+      "r"
     )
-      .setBackgroundColor("#000")
-      .setPadding(5);
+      .setPadding(2)
+      .setFontSize("26px")
+      .setFontStyle("italic");
 
-    this.cameras.main.ignore([t1, t2, t3, this.housesRemainingText]);*/
-    //this.cameras.main.ignore([im1]);
+    this.livesLeftText = new CustomText(
+      this,
+      livesLeft.getCenter().x + 45,
+      livesLeft.getCenter().y,
+      this.lives,
+      "l",
+      "r"
+    )
+      .setPadding(2)
+      .setFontSize("26px")
+      .setFontStyle("italic");
+    this.cameras.main.ignore([
+      housesLeft,
+      livesLeft,
+      this.housesRemainingText,
+      this.livesLeftText,
+    ]);
+
+    if (this.firstTime) {
+      this.housesRemainingText.setAlpha(0);
+      this.livesLeftText.setAlpha(0);
+      housesLeft.setAlpha(0);
+      livesLeft.setAlpha(0);
+      this.tweens.add({
+        targets: [
+          this.housesRemainingText,
+          this.livesLeftText,
+          housesLeft,
+          livesLeft,
+        ],
+        alpha: 1,
+        delay: 14000,
+        duration: 1000,
+      });
+    }
   }
 
   loadGameWin() {
@@ -786,29 +826,17 @@ class MidnightRide extends Phaser.Scene {
       redcoat.body.moves = false;
     });
 
-    const t1 = new CustomText(
-      this,
-      this.width / 2,
-      this.height / 3,
-      "you win!!",
-      "l",
-      "c"
-    )
-      .setBackgroundColor("#000")
-      .setPadding(10);
+    const im1 = this.add
+      .image(this.width * 0.5, this.height * 0.5 + 20, "win")
+      .setAlpha(0);
 
-    const t2 = new CustomText(
-      this,
-      this.width / 2,
-      (this.height * 2) / 3,
-      "press space\nto play again",
-      "m",
-      "c"
-    )
-      .setBackgroundColor("#000")
-      .setPadding(10);
+    this.tweens.add({
+      targets: im1,
+      alpha: 1,
+      duration: 800,
+    });
 
-    this.cameras.main.ignore([t1, t2]);
+    this.cameras.main.ignore(im1);
   }
 
   loadGameOver() {
@@ -927,7 +955,7 @@ class Menu extends Phaser.Scene {
     this.load.setPath("./");
     this.load.audio("proj1", ["assets/audio/mp3/proj1.mp3"]);
     this.load.image("painting", "assets/Midnight_Ride_of_Paul_Revere.jpg");
-    this.musicVolume = 0;
+    this.musicVolume = 0.2;
     this.soundVolume = 0.4;
     this.fadingOut = false;
   }
@@ -1175,8 +1203,6 @@ class Menu extends Phaser.Scene {
             Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE,
             (cam, effect) => this.scene.start("MidnightRide")
           );
-        } else {
-          imDesc.setTexture("");
         }
       }
     );
@@ -1210,7 +1236,7 @@ const config = {
   scaleMode: Phaser.Scale.FIT,
   pixelArt: true,
   backgroundColor: "#000",
-  scene: [Menu, MidnightRide],
+  scene: [MidnightRide, Menu],
 };
 
 class CustomText extends Phaser.GameObjects.Text {
