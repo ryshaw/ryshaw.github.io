@@ -847,8 +847,10 @@ class Menu extends Phaser.Scene {
     this.load.image("right lower", "Right_Lower.png");
     this.load.image("left top", "Left Top.png");
     this.load.image("right top", "Right Top.png");
+    this.load.image("button", "Button.png");
+    this.load.setPath("./assets/User Interface/Screens/");
     this.load.image("creditsTitle", "Credits.png");
-    this.load.image("credits", "CreditsPanel.png");
+    this.load.image("creditsPanel", "CreditsPanel.png");
     this.load.image("hardDesc", "DeathDescription.png");
     this.load.image("easy", "Easy.png");
     this.load.image("easyDesc", "EasyDescription.png");
@@ -960,304 +962,155 @@ class Menu extends Phaser.Scene {
   }
 
   loadCredits() {
-    const t1 = new CustomText(
-      this,
+    const im1 = this.add.image(
       this.width * 0.5,
-      this.height * 0.45,
-      "Developed by ryshaw\nArt by HelloCrystxl\nMusic by Gabyyu",
-      "g",
-      "c"
-    ).setPadding(20);
-
-    const t2 = new CustomText(
-      this,
-      this.width * 0.5,
-      this.height * 0.7,
-      "Painting: The Midnight Ride of Paul Revere (1931) by Grant Wood",
-      "l",
-      "c"
+      this.height * 0.5,
+      "creditsPanel"
     );
 
-    const t3 = new CustomText(
+    const returnButton = new CustomButton(
       this,
-      this.width * 0.5,
-      this.height * 0.8,
-      "Historical references: paulreverehouse.org & en.wikipedia.org",
-      "l",
-      "c"
-    );
-
-    const returnButton = new CustomText(
-      this,
-      this.width * 0.5,
-      this.height * 0.92,
-      "Return",
-      "l",
-      "c",
+      im1.getBottomRight().x - 100,
+      im1.getBottomRight().y - 100,
+      "return",
       () => {
         this.startMenu.setVisible(true);
         this.creditsMenu.setVisible(false);
       }
-    );
+    ).setOrigin(1, 1);
 
-    this.creditsMenu = this.add.container(0, 0, [t1, t2, t3, returnButton]);
+    this.creditsMenu = this.add.container(0, 0, [im1, returnButton]);
 
     this.creditsMenu.setVisible(false);
   }
 
   loadStory() {
-    const t1 = new CustomText(
-      this,
+    const im1 = this.add.image(
       this.width * 0.5,
-      this.height * 0.12,
-      "Historical Background",
-      "g",
-      "c"
+      this.height * 0.09,
+      "historyTitle"
+    );
+    const im2 = this.add.image(
+      this.width * 0.5,
+      this.height * 0.53,
+      "historyPanel"
     );
 
-    const t2 = new CustomText(
+    const nextButton = new CustomButton(
       this,
-      this.width * 0.5,
-      this.height * 0.2,
-      this.getStoryText1(),
-      "m",
-      "c"
-    )
-      .setOrigin(0.5, 0)
-      .setWordWrapWidth(730, true);
-
-    const t3 = new CustomText(
-      this,
-      this.width * 0.5,
-      t2.getBottomLeft().y + 20,
-      this.getStoryText2(),
-      "m",
-      "c"
-    )
-      .setOrigin(0.5, 0)
-      .setWordWrapWidth(730, true);
-
-    const t4 = new CustomText(
-      this,
-      this.width * 0.5,
-      t3.getBottomLeft().y + 20,
-      this.getStoryText3(),
-      "m",
-      "c"
-    )
-      .setOrigin(0.5, 0)
-      .setWordWrapWidth(730, true);
-
-    const nextButton = new CustomText(
-      this,
-      this.width * 0.5,
-      this.height * 0.92,
-      "Next",
-      "l",
-      "c",
+      im2.getBottomRight().x - 150,
+      im2.getBottomRight().y - 50,
+      "next",
       () => {
         this.tutorialMenu.setVisible(true);
         this.storyMenu.setVisible(false);
       }
     );
 
-    this.storyMenu = this.add.container(0, 0, [t1, t2, t3, t4, nextButton]);
+    this.storyMenu = this.add.container(0, 0, [im1, im2, nextButton]);
     this.storyMenu.setVisible(false);
   }
 
-  //separate functions so we can easily collapse it and not have it clutter up
-  getStoryText1() {
-    const str =
-      "The British colony of Massachusetts. The night of April 18, 1775. " +
-      "Tensions were at a boiling point, and British soldiers were preparing to take action. " +
-      "Paul Revere, a member of the Sons of Liberty, was informed of British plans to arrest " +
-      "John Hancock and Samuel Adams in Lexington as well as seize the military stores stockpiled in Concord. " +
-      "While the rumor of arrest was not accurate, British troops were about to embark from Boston.";
-    return str;
-  }
-
-  getStoryText2() {
-    const str =
-      "Revere contacted a friend to light up two lanterns in a church tower, to indicate to the " +
-      "other Sons of Liberty that the British planned to travel by sea, not by land. He then " +
-      "departed and rowed across the river under cover of darkness, borrowing a horse and setting off to " +
-      "alert as many militia and Patriots as he could from Boston until Lexington.";
-    return str;
-  }
-
-  getStoryText3() {
-    const str =
-      "History tells us the rest of the story. The early morning of April 19, 1775, Patriot militias had " +
-      "gathered in Lexington to oppose the British army. Gunshots were fired, " +
-      "in what Ralph Waldo Emerson calls 'the shot heard round the world', " +
-      "and the American Revolutionary War had erupted. The United States of America as we know it  " +
-      "would be established in Philadelphia a year later, and it all started with a midnight ride.";
-    return str;
-  }
-
   loadTutorial() {
-    const t1 = new CustomText(
-      this,
+    const im1 = this.add.image(
       this.width * 0.5,
-      this.height * 0.12,
-      "How to Play",
-      "g",
-      "c"
+      this.height * 0.09,
+      "howTitle"
     );
 
-    const t2 = new CustomText(
-      this,
-      this.width * 0.5,
-      this.height * 0.2,
-      "You'll be playing as Paul Revere on his famous adventure through the town and countryside.",
-      "l",
-      "c"
-    )
-      .setOrigin(0.5, 0)
-      .setWordWrapWidth(730, true);
+    const im2 = this.add.image(this.width * 0.5, this.height * 0.53, "play");
 
-    const t3 = new CustomText(
+    const nextButton = new CustomButton(
       this,
-      this.width * 0.5,
-      t2.getBottomLeft().y + 20,
-      "Use the WASD or arrow keys to move, and press the space bar near a house " +
-        "to alert the citizens of incoming British troops.",
-      "l",
-      "c"
-    )
-      .setOrigin(0.5, 0)
-      .setWordWrapWidth(730, true);
-
-    const t4 = new CustomText(
-      this,
-      this.width * 0.5,
-      t3.getBottomLeft().y + 20,
-      "The houses will light up as you approach them, " +
-        "and a scroll will show you have delivered the message.",
-      "l",
-      "c"
-    )
-      .setOrigin(0.5, 0)
-      .setWordWrapWidth(730, true);
-
-    const t5 = new CustomText(
-      this,
-      this.width * 0.5,
-      t4.getBottomLeft().y + 20,
-      "Be discreet, and avoid capture by British patrols! " +
-        "Deliver messages to every house in the town to win.",
-      "l",
-      "c"
-    )
-      .setOrigin(0.5, 0)
-      .setWordWrapWidth(730, true);
-
-    const nextButton = new CustomText(
-      this,
-      this.width * 0.5,
-      this.height * 0.92,
-      "Next",
-      "l",
-      "c",
+      im2.getBottomRight().x - 150,
+      im2.getBottomRight().y - 50,
+      "next",
       () => {
         this.tutorialMenu.setVisible(false);
         this.difficultyMenu.setVisible(true);
       }
     );
 
-    this.tutorialMenu = this.add.container(0, 0, [
-      t1,
-      t2,
-      t3,
-      t4,
-      t5,
-      nextButton,
-    ]);
+    this.tutorialMenu = this.add.container(0, 0, [im1, im2, nextButton]);
     this.tutorialMenu.setVisible(false);
   }
 
   loadDifficulty() {
-    const t1 = new CustomText(
-      this,
+    const im1 = this.add.image(
       this.width * 0.5,
-      this.height * 0.12,
-      "Select a Difficulty",
-      "g",
-      "c"
+      this.height * 0.09,
+      "difficulty"
     );
 
-    const t3 = new CustomText(
+    const selected = this.add
+      .image(this.width * 0.5, im1.getBottomLeft().y + 100, "button")
+      .setScale(0.5)
+      .setVisible(false);
+
+    const im3 = new CustomButton(
       this,
       this.width * 0.5,
-      t1.getBottomLeft().y + 100,
-      "Give Me Liberty",
-      "l",
-      "c",
+      im1.getBottomLeft().y + 100,
+      "medium",
       () => {
-        t2.setFontSize("30px");
-        t3.setFontSize("38px");
-        t4.setFontSize("30px");
         sessionStorage.setItem("difficulty", "medium");
-        t5.setText("Three lives. Normal amount of British patrols.");
+        imDesc.setTexture("mediumDesc");
+        selected
+          .setPosition(this.width * 0.5, im1.getBottomLeft().y + 100)
+          .setVisible(true)
+          .setOrigin(0.5, 0.5);
       }
-    )
-      .setOrigin(0.5, 0.5)
-      .on("pointerover", function () {
-        t5.setText("Three lives. Normal amount of British patrols.");
-      });
+    ).on("pointerover", () => imDesc.setTexture("mediumDesc"));
 
-    const t2 = new CustomText(
+    const im2 = new CustomButton(
       this,
-      t3.getBottomCenter().x - 190,
-      t1.getBottomLeft().y + 100,
-      "Easy Mode",
-      "l",
-      "c",
+      im3.getBottomCenter().x - 240,
+      im1.getBottomLeft().y + 100,
+      "easy",
       () => {
-        t2.setFontSize("38px");
-        t3.setFontSize("30px");
-        t4.setFontSize("30px");
         sessionStorage.setItem("difficulty", "easy");
-        t5.setText("Five lives. Fewer British patrols around the town.");
+        imDesc.setTexture("easyDesc");
+        selected
+          .setPosition(
+            im3.getBottomCenter().x - 240,
+            im1.getBottomLeft().y + 100
+          )
+          .setVisible(true)
+          .setOrigin(0.75, 0.5);
       }
     )
       .setOrigin(1, 0.5)
-      .on("pointerover", function () {
-        t5.setText("Five lives. Fewer British patrols around the town.");
-      });
+      .on("pointerover", () => imDesc.setTexture("easyDesc"));
 
-    const t4 = new CustomText(
+    const im4 = new CustomButton(
       this,
-      t3.getBottomCenter().x + 180,
-      t1.getBottomLeft().y + 100,
-      "Give Me Death!",
-      "l",
-      "c",
+      im3.getBottomCenter().x + 240,
+      im1.getBottomLeft().y + 96,
+      "hard",
       () => {
-        t2.setFontSize("30px");
-        t3.setFontSize("30px");
-        t4.setFontSize("38px");
         sessionStorage.setItem("difficulty", "hard");
-        t5.setText("One life to live. Normal amount of British patrols.");
+        imDesc.setTexture("hardDesc");
+        selected
+          .setPosition(
+            im3.getBottomCenter().x + 240,
+            im1.getBottomLeft().y + 96
+          )
+          .setVisible(true)
+          .setOrigin(0.2, 0.5);
       }
     )
       .setOrigin(0, 0.5)
-      .on("pointerover", function () {
-        t5.setText("One life to live. Normal amount of British patrols.");
-      });
+      .on("pointerover", () => imDesc.setTexture("hardDesc"));
 
-    const t5 = new CustomText(
+    const imDesc = new CustomButton(
       this,
       this.width * 0.5,
-      t4.getBottomLeft().y + 100,
-      "Hover over an option to see details",
-      "l",
-      "c"
-    )
-      .setOrigin(0.5, 0)
-      .setWordWrapWidth(730, true);
+      im4.getBottomLeft().y + 100,
+      "hover"
+    );
 
-    const t6 = new CustomText(
+    /*
+    const t6 = new CustomButton(
       this,
       this.width * 0.5,
       t5.getBottomLeft().y + 160,
@@ -1278,14 +1131,13 @@ class Menu extends Phaser.Scene {
     )
       .setOrigin(0.5, 0)
       .setWordWrapWidth(730, true);
+*/
 
-    const startButton = new CustomText(
+    const startButton = new CustomButton(
       this,
       this.width * 0.5,
       this.height * 0.92,
-      "Start!",
-      "l",
-      "c",
+      "GetReady",
       () => {
         if (sessionStorage.getItem("difficulty")) {
           if (this.fadingOut) return;
@@ -1300,19 +1152,20 @@ class Menu extends Phaser.Scene {
             }
           );
         } else {
-          t5.setText("Select a difficulty option before starting game");
+          imDesc.setTexture("");
         }
       }
     );
 
     this.difficultyMenu = this.add.container(0, 0, [
-      t1,
-      t2,
-      t3,
-      t4,
-      t5,
-      t6,
-      t7,
+      im1,
+      im2,
+      im3,
+      im4,
+      imDesc /*
+      im5,
+      im6,
+      im7,*/,
       startButton,
     ]);
     this.difficultyMenu.setVisible(false);
@@ -1387,4 +1240,31 @@ class CustomText extends Phaser.GameObjects.Text {
   }
 }
 
+class CustomButton extends Phaser.GameObjects.Image {
+  constructor(
+    scene, // always "this" in the scene class
+    x,
+    y,
+    key,
+    callback = null // provided only for buttons
+  ) {
+    super(scene);
+
+    const cT = scene.add.image(x, y, key);
+
+    // if callback is given, assume it's a button and add callback
+    if (callback) {
+      cT.setInteractive()
+        .on("pointerover", function () {
+          this.setTint(0xffffcc);
+        })
+        .on("pointerout", function () {
+          this.setTint(0xffffff);
+        })
+        .on("pointerdown", callback, scene);
+    }
+
+    return cT;
+  }
+}
 const game = new Phaser.Game(config);
