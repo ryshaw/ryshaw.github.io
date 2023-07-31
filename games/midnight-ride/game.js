@@ -962,11 +962,9 @@ class Menu extends Phaser.Scene {
   }
 
   loadCredits() {
-    const im1 = this.add.image(
-      this.width * 0.5,
-      this.height * 0.5,
-      "creditsPanel"
-    );
+    const im1 = this.add
+      .image(this.width * 0.5, this.height - 50, "creditsPanel")
+      .setOrigin(0.5, 1);
 
     const returnButton = new CustomButton(
       this,
