@@ -139,7 +139,7 @@ class MidnightRide extends Phaser.Scene {
       this.UICamera.ignore(object);
     });
 
-    this.cameras.main.setZoom(0.6);
+    this.cameras.main.setZoom(0.56);
 
     WebFont.load({
       google: {
@@ -387,16 +387,16 @@ class MidnightRide extends Phaser.Scene {
     this.lights.addLight(
       this.churchLights.x - 30,
       this.churchLights.y,
-      55,
+      80,
       0xffffff,
-      1.5
+      1.8
     );
     this.lights.addLight(
       this.churchLights.x + 30,
       this.churchLights.y,
-      55,
+      80,
       0xffffff,
-      1.5
+      1.8
     );
   }
 
