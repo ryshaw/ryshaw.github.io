@@ -93,6 +93,8 @@ class MidnightRide extends Phaser.Scene {
   }
 
   create() {
+    this.cameras.main.fadeIn(2000, 0, 0, 0);
+
     this.createMapAndObjects();
 
     this.cameras.main.startFollow(this.player, false, 0.2, 0.2);
@@ -814,6 +816,9 @@ class Menu extends Phaser.Scene {
   height;
   startMenu;
   creditsMenu;
+  storyMenu;
+  tutorialMenu;
+  difficultyMenu;
   musicVolume; // sets volume for music
   soundVolume; // sets volume for all sound effects
 
@@ -846,8 +851,8 @@ class Menu extends Phaser.Scene {
     this.load.setPath("./");
     this.load.audio("proj1", ["assets/audio/mp3/proj1.mp3"]);
     this.load.image("painting", "assets/Midnight_Ride_of_Paul_Revere.jpg");
-    this.musicVolume = 0.1;
-    this.soundVolume = 0.2;
+    this.musicVolume = 0.2;
+    this.soundVolume = 0.4;
   }
 
   create() {
@@ -866,28 +871,16 @@ class Menu extends Phaser.Scene {
       loop: true,
     });
 
-    this.cameras.main.setBackgroundColor(
-      new Phaser.Display.Color.HexStringToColor("#4c4c4e").color
+    const painting = this.add.image(
+      this.width * 0.5,
+      this.height * 0.5,
+      "painting"
     );
-
-    this.graphics = this.add.graphics();
-
-    this.graphics.fillStyle(
-      new Phaser.Display.Color.HexStringToColor("#876055").color,
-      1
-    );
-
-    /*this.graphics.fillRoundedRect(
-      this.width * 0.05,
-      this.height * 0.05,
-      this.width * 0.9,
-      this.height * 0.9,
-      16
-    );*/
-
-    this.add
-      .image(this.width * 0.5, this.height * 0.5, "painting")
-      .setScale((this.width / 2632) * 0.95);
+    if (this.width / this.height > 2632 / 1954) {
+      painting.setScale((this.width / 2632) * 1.008);
+    } else {
+      painting.setScale((this.height / 1954) * 1.008);
+    }
 
     this.add.image(0, 0, "left upper").setOrigin(0, 0);
     this.add.image(0, this.height, "left lower").setOrigin(0, 1);
@@ -900,8 +893,6 @@ class Menu extends Phaser.Scene {
       .image(this.width * 0.52, this.height * 0.01, "right top")
       .setOrigin(1, 0);
 
-    // update
-
     const title = this.add.image(this.width * 0.6, this.height * 0.35, "title");
 
     const start = this.add
@@ -911,13 +902,12 @@ class Menu extends Phaser.Scene {
       .on("pointerout", () => start.setTint(0xffffff))
       .on("pointerdown", () => start.setTint(0xddddaa))
       .on("pointerup", () => {
-        this.scene.start("MidnightRide");
-        this.sound.stopAll();
-        this.sound.removeAll();
+        this.startMenu.setVisible(false);
+        this.storyMenu.setVisible(true);
       });
 
     const credits = this.add
-      .image(this.width * 0.6, this.height * 0.7, "credits")
+      .image(this.width * 0.6, this.height * 0.71, "credits")
       .setInteractive()
       .on("pointerover", () => credits.setTint(0xffffcc))
       .on("pointerout", () => credits.setTint(0xffffff))
@@ -927,61 +917,383 @@ class Menu extends Phaser.Scene {
         this.creditsMenu.setVisible(true);
       });
 
-    this.startMenu = this.add.container(0, 0, [start, credits]);
+    this.startMenu = this.add.container(0, 0, [title, start, credits]);
+
+    this.addKeyboardControls();
   }
 
+  addKeyboardControls() {
+    this.input.keyboard.on("keydown-M", () => {
+      const proj1 = this.sound.get("proj1");
+      proj1.isPlaying ? proj1.pause() : proj1.resume();
+    });
+
+    this.input.keyboard.on("keydown-N", () => {
+      this.soundVolume > 0 ? (this.soundVolume = 0) : (this.soundVolume = 0.8);
+    });
+  }
   loadText() {
-    const creditsText1 = new CustomText(
+    this.loadCredits();
+    this.loadStory();
+    this.loadTutorial();
+    this.loadDifficulty();
+  }
+
+  loadCredits() {
+    const t1 = new CustomText(
       this,
-      this.width * 0.6,
-      this.height * 0.62,
-      "Developed by ryshaw in Phaser 3\nArt by HelloCrystxl\nMusic by Gabyyu",
+      this.width * 0.5,
+      this.height * 0.45,
+      "Developed by ryshaw\nArt by HelloCrystxl\nMusic by Gabyyu",
+      "g",
+      "c"
+    ).setPadding(20);
+
+    const t2 = new CustomText(
+      this,
+      this.width * 0.5,
+      this.height * 0.7,
+      "Painting: The Midnight Ride of Paul Revere (1931) by Grant Wood",
       "l",
       "c"
-    )
-      .setBackgroundColor("#1f1a1b")
-      .setPadding(20)
-      .setColor("#dad3d3");
+    );
 
-    const creditsText2 = new CustomText(
+    const t3 = new CustomText(
       this,
-      this.width * 0.6,
-      this.height * 0.75,
-      "Painting is 'The Midnight Ride of Paul Revere' (1931) by Grant Wood",
+      this.width * 0.5,
+      this.height * 0.8,
+      "Historical references: paulreverehouse.org & en.wikipedia.org",
+      "l",
+      "c"
+    );
+
+    const returnButton = new CustomText(
+      this,
+      this.width * 0.5,
+      this.height * 0.92,
+      "Return",
+      "l",
+      "c",
+      () => {
+        this.startMenu.setVisible(true);
+        this.creditsMenu.setVisible(false);
+      }
+    );
+
+    this.creditsMenu = this.add.container(0, 0, [t1, t2, t3, returnButton]);
+
+    this.creditsMenu.setVisible(false);
+  }
+
+  loadStory() {
+    const t1 = new CustomText(
+      this,
+      this.width * 0.5,
+      this.height * 0.12,
+      "Historical Background",
+      "g",
+      "c"
+    );
+
+    const t2 = new CustomText(
+      this,
+      this.width * 0.5,
+      this.height * 0.2,
+      this.getStoryText1(),
       "m",
       "c"
     )
-      .setBackgroundColor("#1f1a1b")
-      .setPadding(20)
-      .setColor("#dad3d3");
+      .setOrigin(0.5, 0)
+      .setWordWrapWidth(730, true);
 
-    const creditsButton = new CustomText(
+    const t3 = new CustomText(
       this,
-      this.width * 0.6,
-      this.height * 0.85,
-      "Return",
+      this.width * 0.5,
+      t2.getBottomLeft().y + 20,
+      this.getStoryText2(),
+      "m",
+      "c"
+    )
+      .setOrigin(0.5, 0)
+      .setWordWrapWidth(730, true);
+
+    const t4 = new CustomText(
+      this,
+      this.width * 0.5,
+      t3.getBottomLeft().y + 20,
+      this.getStoryText3(),
+      "m",
+      "c"
+    )
+      .setOrigin(0.5, 0)
+      .setWordWrapWidth(730, true);
+
+    const nextButton = new CustomText(
+      this,
+      this.width * 0.5,
+      this.height * 0.92,
+      "Next",
+      "l",
+      "c",
+      () => {
+        this.tutorialMenu.setVisible(true);
+        this.storyMenu.setVisible(false);
+      }
+    );
+
+    this.storyMenu = this.add.container(0, 0, [t1, t2, t3, t4, nextButton]);
+    this.storyMenu.setVisible(false);
+  }
+
+  //separate functions so we can easily collapse it and not have it clutter up
+  getStoryText1() {
+    const str =
+      "The British colony of Massachusetts. The night of April 18, 1775. " +
+      "Tensions were at a boiling point, and British soldiers were preparing to take action. " +
+      "Paul Revere, a member of the Sons of Liberty, was informed of British plans to arrest " +
+      "John Hancock and Samuel Adams in Lexington as well as seize the military stores stockpiled in Concord. " +
+      "While the rumor of arrest was not accurate, British troops were about to embark from Boston.";
+    return str;
+  }
+
+  getStoryText2() {
+    const str =
+      "Revere contacted a friend to light up two lanterns in a church tower, to indicate to the " +
+      "other Sons of Liberty that the British planned to travel by sea, not by land. He then " +
+      "departed and rowed across the river under cover of darkness, borrowing a horse and setting off to " +
+      "alert as many militia and Patriots as he could from Boston until Lexington.";
+    return str;
+  }
+
+  getStoryText3() {
+    const str =
+      "History tells us the rest of the story. The early morning of April 19, 1775, Patriot militias had " +
+      "gathered in Lexington to oppose the British army. Gunshots were fired, " +
+      "in what Ralph Waldo Emerson calls 'the shot heard round the world', " +
+      "and the American Revolutionary War had erupted. The United States of America as we know it  " +
+      "would be established in Philadelphia a year later, and it all started with a midnight ride.";
+    return str;
+  }
+
+  loadTutorial() {
+    const t1 = new CustomText(
+      this,
+      this.width * 0.5,
+      this.height * 0.12,
+      "How to Play",
+      "g",
+      "c"
+    );
+
+    const t2 = new CustomText(
+      this,
+      this.width * 0.5,
+      this.height * 0.2,
+      "You'll be playing as Paul Revere on his famous adventure through the town and countryside.",
       "l",
       "c"
     )
-      .setBackgroundColor("#1f1a1b")
-      .setPadding(10)
-      .setColor("#dad3d3")
-      .setInteractive()
-      .on("pointerover", () => creditsButton.setTint(0xffffcc))
-      .on("pointerout", () => creditsButton.setTint(0xffffff))
-      .on("pointerdown", () => creditsButton.setTint(0xddddaa))
-      .on("pointerup", () => {
-        this.startMenu.setVisible(true);
-        this.creditsMenu.setVisible(false);
+      .setOrigin(0.5, 0)
+      .setWordWrapWidth(730, true);
+
+    const t3 = new CustomText(
+      this,
+      this.width * 0.5,
+      t2.getBottomLeft().y + 20,
+      "Use the WASD or arrow keys to move, and press the space bar near a house " +
+        "to alert the citizens of incoming British troops.",
+      "l",
+      "c"
+    )
+      .setOrigin(0.5, 0)
+      .setWordWrapWidth(730, true);
+
+    const t4 = new CustomText(
+      this,
+      this.width * 0.5,
+      t3.getBottomLeft().y + 20,
+      "The houses will light up as you approach them, " +
+        "and a scroll will show you have delivered the message.",
+      "l",
+      "c"
+    )
+      .setOrigin(0.5, 0)
+      .setWordWrapWidth(730, true);
+
+    const t5 = new CustomText(
+      this,
+      this.width * 0.5,
+      t4.getBottomLeft().y + 20,
+      "Be discreet, and avoid capture by British patrols! " +
+        "Deliver messages to every house in the town to win.",
+      "l",
+      "c"
+    )
+      .setOrigin(0.5, 0)
+      .setWordWrapWidth(730, true);
+
+    const nextButton = new CustomText(
+      this,
+      this.width * 0.5,
+      this.height * 0.92,
+      "Next",
+      "l",
+      "c",
+      () => {
+        this.tutorialMenu.setVisible(false);
+        this.difficultyMenu.setVisible(true);
+      }
+    );
+
+    this.tutorialMenu = this.add.container(0, 0, [
+      t1,
+      t2,
+      t3,
+      t4,
+      t5,
+      nextButton,
+    ]);
+    this.tutorialMenu.setVisible(false);
+  }
+
+  loadDifficulty() {
+    const t1 = new CustomText(
+      this,
+      this.width * 0.5,
+      this.height * 0.12,
+      "Select a Difficulty",
+      "g",
+      "c"
+    );
+
+    const t3 = new CustomText(
+      this,
+      this.width * 0.5,
+      t1.getBottomLeft().y + 100,
+      "Give Me Liberty",
+      "l",
+      "c",
+      () => {
+        t2.setFontSize("30px");
+        t3.setFontSize("38px");
+        t4.setFontSize("30px");
+        sessionStorage.setItem("difficulty", "medium");
+        t5.setText("Three lives. Normal amount of British patrols.");
+      }
+    )
+      .setOrigin(0.5, 0.5)
+      .on("pointerover", function () {
+        t5.setText("Three lives. Normal amount of British patrols.");
       });
 
-    this.creditsMenu = this.add.container(0, 0, [
-      creditsText1,
-      creditsText2,
-      creditsButton,
-    ]);
+    const t2 = new CustomText(
+      this,
+      t3.getBottomCenter().x - 190,
+      t1.getBottomLeft().y + 100,
+      "Easy Mode",
+      "l",
+      "c",
+      () => {
+        t2.setFontSize("38px");
+        t3.setFontSize("30px");
+        t4.setFontSize("30px");
+        sessionStorage.setItem("difficulty", "easy");
+        t5.setText("Five lives. Fewer British patrols around the town.");
+      }
+    )
+      .setOrigin(1, 0.5)
+      .on("pointerover", function () {
+        t5.setText("Five lives. Fewer British patrols around the town.");
+      });
 
-    this.creditsMenu.setVisible(false);
+    const t4 = new CustomText(
+      this,
+      t3.getBottomCenter().x + 180,
+      t1.getBottomLeft().y + 100,
+      "Give Me Death!",
+      "l",
+      "c",
+      () => {
+        t2.setFontSize("30px");
+        t3.setFontSize("30px");
+        t4.setFontSize("38px");
+        sessionStorage.setItem("difficulty", "hard");
+        t5.setText("One life to live. Normal amount of British patrols.");
+      }
+    )
+      .setOrigin(0, 0.5)
+      .on("pointerover", function () {
+        t5.setText("One life to live. Normal amount of British patrols.");
+      });
+
+    const t5 = new CustomText(
+      this,
+      this.width * 0.5,
+      t4.getBottomLeft().y + 100,
+      "Hover over an option to see details",
+      "l",
+      "c"
+    )
+      .setOrigin(0.5, 0)
+      .setWordWrapWidth(730, true);
+
+    const t6 = new CustomText(
+      this,
+      this.width * 0.5,
+      t5.getBottomLeft().y + 160,
+      "Controls:",
+      "l",
+      "c"
+    )
+      .setOrigin(0.5, 0)
+      .setWordWrapWidth(730, true);
+
+    const t7 = new CustomText(
+      this,
+      this.width * 0.5,
+      t6.getBottomLeft().y,
+      "WASD/arrow keys to move, Space to alert house\nM to mute music, N to mute sound effects",
+      "l",
+      "c"
+    )
+      .setOrigin(0.5, 0)
+      .setWordWrapWidth(730, true);
+
+    const startButton = new CustomText(
+      this,
+      this.width * 0.5,
+      this.height * 0.92,
+      "Start!",
+      "l",
+      "c",
+      () => {
+        if (sessionStorage.getItem("difficulty")) {
+          this.sound.stopAll();
+          this.sound.removeAll();
+          this.cameras.main.fadeOut(2000, 0, 0, 0);
+          this.cameras.main.once(
+            Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE,
+            (cam, effect) => {
+              this.scene.start("MidnightRide");
+            }
+          );
+        } else {
+          t5.setText("Select a difficulty option before starting game");
+        }
+      }
+    );
+
+    this.difficultyMenu = this.add.container(0, 0, [
+      t1,
+      t2,
+      t3,
+      t4,
+      t5,
+      t6,
+      t7,
+      startButton,
+    ]);
+    this.difficultyMenu.setVisible(false);
   }
 
   update() {}
@@ -1017,7 +1329,14 @@ class CustomText extends Phaser.GameObjects.Text {
 
     const cT = scene.add
       .text(x, y, text, {
-        font: size == "l" ? "30px" : size == "m" ? "18px" : "12px",
+        font:
+          size == "g"
+            ? "48px"
+            : size == "l"
+            ? "30px"
+            : size == "m"
+            ? "18px"
+            : "12px",
         fill: "#fff",
         align: "center",
         lineSpacing: 16,
@@ -1025,16 +1344,19 @@ class CustomText extends Phaser.GameObjects.Text {
       .setDepth(2)
       .setFontFamily('"GFS Didot"')
       .setOrigin(align == "l" ? 0 : align == "c" ? 0.5 : 1, 0.5)
-      .setScrollFactor(0);
+      .setScrollFactor(0)
+      .setBackgroundColor("#1f1a1b")
+      .setPadding(10)
+      .setColor("#dad3d3");
 
     // if callback is given, assume it's a button and add callback
     if (callback) {
       cT.setInteractive()
         .on("pointerover", function () {
-          this.setFill("#00ff00");
+          this.setTint(0xffffcc);
         })
         .on("pointerout", function () {
-          this.setFill("#fff");
+          this.setTint(0xffffff);
         })
         .on("pointerdown", callback, scene);
     }
