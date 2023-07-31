@@ -31,7 +31,7 @@ class MidnightRide extends Phaser.Scene {
   }
 
   preload() {
-    sessionStorage.setItem("difficulty", "medium");
+    sessionStorage.setItem("difficulty", "easy");
 
     // load google's library for the font, Press Start 2P
     this.load.script(
@@ -95,7 +95,7 @@ class MidnightRide extends Phaser.Scene {
     this.gameWin = false;
     this.gameOver = false;
     this.redcoatSpeed = 120;
-    this.playerSpeed = 350;
+    this.playerSpeed = 380;
     // housesDelivered is an array where each element is a Vector2
     // the Vector2 is the coordinates of the houses that have already been delivered to
     this.housesDelivered = [];
@@ -142,7 +142,7 @@ class MidnightRide extends Phaser.Scene {
       this.UICamera.ignore(object);
     });
 
-    this.cameras.main.setZoom(0.7);
+    this.cameras.main.setZoom(0.65);
 
     WebFont.load({
       google: {
@@ -240,7 +240,7 @@ class MidnightRide extends Phaser.Scene {
         if (this.housesWithinRange.length > 0) {
           this.housesWithinRange.forEach((tile) => {
             // only deliver msg if player hasn't delivered to this house
-            if (!tile.properties.delivered) {
+            if (!tile.properties.delivered && tile.index % 4 == 0) {
               this.deliverMessage(tile, true);
             }
           });
@@ -353,13 +353,13 @@ class MidnightRide extends Phaser.Scene {
 
     // add "delivered" property to all houses, to keep track if player delivered msg to them already. also add a dim light to each house
     this.houseLayer.forEachTile((tile) => {
-      if (tile.index != -1) {
+      if (tile.index != -1 && tile.index % 4 == 0) {
         tile.properties = {
           delivered: false,
           light: this.add
             .pointlight(
-              tile.getCenterX(),
-              tile.getCenterY(),
+              tile.getCenterX() + 63,
+              tile.getCenterY() + 94,
               0xefcd99,
               200,
               0.2
@@ -387,9 +387,9 @@ class MidnightRide extends Phaser.Scene {
     this.playerLight = this.lights.addLight(
       this.player.x,
       this.player.y,
-      3000,
+      2000,
       0xefcd99,
-      2.5
+      2.6
     );
   }
 
@@ -397,20 +397,25 @@ class MidnightRide extends Phaser.Scene {
     if (this.paused) return;
 
     this.houseLayer.forEachTile((tile) => {
-      if (tile.index != -1 && !tile.properties.delivered) {
+      if (
+        tile.index != -1 &&
+        tile.index % 4 == 0 &&
+        !tile.properties.delivered
+      ) {
         tile.properties.light.intensity = 0.02;
       }
     });
 
     // update houses within player that they can deliver message to
     this.housesWithinRange = this.houseLayer.getTilesWithinShape(
-      new Phaser.Geom.Circle(this.player.x, this.player.y, 120),
+      new Phaser.Geom.Circle(this.player.x, this.player.y, 250),
       { isNotEmpty: true }
     );
 
     // give them a yellow highlight so player knows they can deliver
     this.housesWithinRange.forEach((tile) => {
-      if (!tile.properties.delivered) tile.properties.light.intensity = 0.06;
+      if (!tile.properties.delivered && tile.index % 4 == 0)
+        tile.properties.light.intensity = 0.06;
     });
 
     // delivery is handled in deliverMessage function
@@ -452,8 +457,8 @@ class MidnightRide extends Phaser.Scene {
     // add animation of moving msg from player to house
     this.tweens.add({
       targets: msg,
-      x: tile.getCenterX() - 32, // offset to left
-      y: tile.getCenterY() + 32, // offset to  bottom
+      x: tile.getCenterX() + 32, // offset to left
+      y: tile.getCenterY() + 126, // offset to  bottom
       duration: 600,
       ease: "Power1",
       scale: 0.8,
@@ -555,30 +560,59 @@ class MidnightRide extends Phaser.Scene {
 
     map.objects[0].objects.forEach((object) => {
       if (object.name == "Redcoat") {
-        const num = Phaser.Math.Between(1, 3);
-        const key = "patrol" + num;
-        const r = this.physics.add.sprite(object.x, object.y, key);
-        r.body.setSize(128, 128);
-        r.body.isCircle = true;
-        r.vision = this.add
-          .line(r.x, r.y, 230, 0, 640, 0, 0x9966ff)
-          .setLineWidth(20, 60)
-          .setAlpha(0.4);
-        this.physics.add.existing(r.vision);
-        r.vision.body.setSize(210, 100);
-        r.vision.body.setOffset(30, -4);
-        this.redcoatVisionCones.add(r.vision);
+        if (sessionStorage.getItem("difficulty") == "easy") {
+          if (Phaser.Math.Between(1, 2) == 2) {
+            const num = Phaser.Math.Between(1, 3);
+            const key = "patrol" + num;
+            const r = this.physics.add.sprite(object.x, object.y, key);
+            r.body.setSize(128, 128);
+            r.body.isCircle = true;
+            r.vision = this.add
+              .line(r.x, r.y, 230, 0, 640, 0, 0x9966ff)
+              .setLineWidth(20, 60)
+              .setAlpha(0.4);
+            this.physics.add.existing(r.vision);
+            r.vision.body.setSize(210, 100);
+            r.vision.body.setOffset(30, -4);
+            this.redcoatVisionCones.add(r.vision);
 
-        this.turnRedcoat(r, Phaser.Math.Between(1, 4));
+            this.turnRedcoat(r, Phaser.Math.Between(1, 4));
 
-        this.redcoats.push(r);
-        this.physics.add.collider(
-          r,
-          groundLayer,
-          this.redcoatHitWall,
-          null,
-          this
-        );
+            this.redcoats.push(r);
+            this.physics.add.collider(
+              r,
+              groundLayer,
+              this.redcoatHitWall,
+              null,
+              this
+            );
+          }
+        } else {
+          const num = Phaser.Math.Between(1, 3);
+          const key = "patrol" + num;
+          const r = this.physics.add.sprite(object.x, object.y, key);
+          r.body.setSize(128, 128);
+          r.body.isCircle = true;
+          r.vision = this.add
+            .line(r.x, r.y, 230, 0, 640, 0, 0x9966ff)
+            .setLineWidth(20, 60)
+            .setAlpha(0.4);
+          this.physics.add.existing(r.vision);
+          r.vision.body.setSize(210, 100);
+          r.vision.body.setOffset(30, -4);
+          this.redcoatVisionCones.add(r.vision);
+
+          this.turnRedcoat(r, Phaser.Math.Between(1, 4));
+
+          this.redcoats.push(r);
+          this.physics.add.collider(
+            r,
+            groundLayer,
+            this.redcoatHitWall,
+            null,
+            this
+          );
+        }
       }
       if (object.name == "Player") {
         this.player = this.physics.add.sprite(object.x, object.y, "paul_side");
