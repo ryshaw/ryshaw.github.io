@@ -22,6 +22,7 @@ class MidnightRide extends Phaser.Scene {
   soundEffects; // object containing all sound effects to be played
   playerSpeed; // max speed of player
   playerAngle; // player's angle (using sprite angle would rotate the textures)
+  paused;
 
   constructor() {
     super({ key: "MidnightRide" });
@@ -53,6 +54,8 @@ class MidnightRide extends Phaser.Scene {
     this.load.image("paul_back", "./assets/Paulie/paul_back.png");
     this.load.image("paul_front", "./assets/Paulie/paul_front.png");
     this.load.image("paul_side", "./assets/Paulie/paul_side.png");
+
+    this.load.image("poem1", "./assets/User Interface/Screens/Loading.png");
 
     this.load.image("UIFrame_game", "./assets/User Interface/UIFrame_game.png");
     this.load.image("UI_halt", "./assets/User Interface/UI_halt.png");
@@ -90,10 +93,12 @@ class MidnightRide extends Phaser.Scene {
     this.lives = 3;
     this.musicVolume = 0.8;
     this.soundVolume = 0.8;
+    this.paused = true;
+    this.physics.pause();
   }
 
   create() {
-    this.cameras.main.fadeIn(2000, 0, 0, 0);
+    this.add.image(this.width * 0.5, this.height * 0.5, "poem1");
 
     this.createMapAndObjects();
 
@@ -128,6 +133,35 @@ class MidnightRide extends Phaser.Scene {
       },
     });
 
+    const d = sessionStorage.getItem("difficulty");
+    const firstTime =
+      (d == "easy" && this.lives == 5) ||
+      (d == "medium" && this.lives == 3) ||
+      (d == "hard" && this.lives == 1);
+
+    if (firstTime) {
+      this.cameras.main.fadeIn(22000, 0, 0, 0);
+
+      const p = this.add
+        .image(this.width * 0.5, this.height * 0.5, "poem1")
+        .setAlpha(0);
+      this.tweens.add({
+        targets: p,
+        alpha: 1,
+        duration: 400,
+        completeDelay: 12000,
+        onComplete: () => {
+          this.paused = false;
+          this.physics.resume();
+          this.tweens.add({
+            targets: p,
+            alpha: 0,
+            duration: 1500,
+          });
+        },
+      });
+    }
+
     // "hitbox" around player to visualize when close enough to house
     /*this.circle = this.add
       .circle(this.player.x, this.player.y, 80)
@@ -135,12 +169,6 @@ class MidnightRide extends Phaser.Scene {
   }
 
   createAudio() {
-    const track1 = this.sound.add("track1");
-    track1.play({
-      volume: this.musicVolume,
-      loop: true,
-    });
-
     this.soundEffects = {
       caught: this.sound.add("caught"),
       delivery: this.sound.add("delivery"),
@@ -149,6 +177,31 @@ class MidnightRide extends Phaser.Scene {
     };
 
     this.sound.pauseOnBlur = true;
+    const d = sessionStorage.getItem("difficulty");
+    const firstTime =
+      (d == "easy" && this.lives == 5) ||
+      (d == "medium" && this.lives == 3) ||
+      (d == "hard" && this.lives == 1);
+
+    const track1 = this.sound.add("track1");
+
+    if (firstTime) {
+      track1.play({
+        volume: 0,
+        loop: true,
+      });
+      this.tweens.add({
+        targets: track1,
+        volume: this.musicVolume,
+        delay: 6000,
+        duration: 9000,
+      });
+    } else {
+      track1.play({
+        volume: this.musicVolume,
+        loop: true,
+      });
+    }
   }
 
   addKeyboardControls() {
@@ -312,6 +365,8 @@ class MidnightRide extends Phaser.Scene {
   }
 
   update() {
+    if (this.paused) return;
+
     this.houseLayer.forEachTile((tile) => {
       if (tile.index != -1 && !tile.properties.delivered) {
         tile.properties.light.intensity = 0.02;
@@ -1123,9 +1178,7 @@ class Menu extends Phaser.Scene {
           this.cameras.main.fadeOut(2000, 0, 0, 0);
           this.cameras.main.once(
             Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE,
-            (cam, effect) => {
-              this.scene.start("MidnightRide");
-            }
+            (cam, effect) => this.scene.start("MidnightRide")
           );
         } else {
           imDesc.setTexture("");
