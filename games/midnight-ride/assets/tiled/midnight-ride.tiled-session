@@ -3,7 +3,7 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "actualMapV2.tmx",
+    "activeFile": "",
     "expandedProjectPaths": [
     ],
     "file.lastUsedOpenFilter": "All Files (*)",
@@ -25,8 +25,8 @@
             "scale": 0.125,
             "selectedLayer": 7,
             "viewCenter": {
-                "x": 7608,
-                "y": 8432
+                "x": 15760,
+                "y": 10280
             }
         },
         "actualMap.tmx#big-tiles": {
@@ -76,8 +76,8 @@
             "scale": 0.33,
             "selectedLayer": 6,
             "viewCenter": {
-                "x": 9309.090909090908,
-                "y": 14615.151515151516
+                "x": 9306.060606060606,
+                "y": 14612.121212121212
             }
         },
         "actualMapV2.tmx#big-tiles": {
@@ -133,8 +133,6 @@
     "map.tileWidth": 126,
     "map.width": 100,
     "openFiles": [
-        "actualMap.tmx",
-        "actualMapV2.tmx"
     ],
     "project": "midnight-ride.tiled-project",
     "property.type": "object",

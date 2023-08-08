@@ -1,0 +1,34 @@
+{
+    "Map/SizeTest": {
+        "height": 4300,
+        "width": 2
+    },
+    "activeFile": "",
+    "expandedProjectPaths": [
+    ],
+    "fileStates": {
+        "": {
+            "scaleInDock": 4
+        }
+    },
+    "last.exportedFilePath": "C:/Users/rshaw/Documents/projects/ryshaw.github.io/games/mine-mine-mine/assets/tiled",
+    "last.imagePath": "C:/Users/rshaw/Documents/projects/ryshaw.github.io/games/mine-mine-mine/assets/tiled/tilesets",
+    "map.height": 50,
+    "map.lastUsedExportFilter": "All Files (*)",
+    "map.lastUsedFormat": "tmx",
+    "map.tileHeight": 16,
+    "map.tileWidth": 16,
+    "map.width": 50,
+    "openFiles": [
+    ],
+    "project": "mine-mine-mine.tiled-project",
+    "recentFiles": [
+    ],
+    "tileset.embedInMap": true,
+    "tileset.margin": 0,
+    "tileset.spacing": 0,
+    "tileset.tileSize": {
+        "height": 16,
+        "width": 16
+    }
+}
