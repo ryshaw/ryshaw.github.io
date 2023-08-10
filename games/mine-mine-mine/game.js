@@ -61,6 +61,8 @@ class Game extends Phaser.Scene {
 
     //const gemsLayer = map.createLayer("Gems");
 
+    this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+
     map.objects[0].objects.forEach((object) => {
       if (object.name == "Player") {
         this.player = this.physics.add.sprite(
