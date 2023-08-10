@@ -3,6 +3,7 @@ class Game extends Phaser.Scene {
   height; // height of game
   player;
   arrowKeys;
+  playerSpeed;
 
   constructor() {
     super({ key: "Game" });
@@ -15,15 +16,16 @@ class Game extends Phaser.Scene {
       "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
     );
 
-    // load the tilesets and the tilemap
     this.load.image("dirt-tiles", "./assets/tiled/tilesets/dirt-tiles.png");
+    this.load.image("player", "./assets/player.png");
 
     this.load.tilemapTiledJSON("map", "./assets/tiled/map.json");
+    this.width = game.config.width;
+    this.height = game.config.height;
+    this.playerSpeed = 50;
   }
 
   create() {
-    this.addKeyboardControls();
-
     this.createMapAndObjects();
 
     // add UI stuff at the very end so it's above everything
@@ -38,7 +40,7 @@ class Game extends Phaser.Scene {
       this.UICamera.ignore(object);
     });
 
-    this.cameras.main.setZoom(4);
+    this.addKeyboardControls();
 
     WebFont.load({
       google: {
@@ -61,13 +63,24 @@ class Game extends Phaser.Scene {
 
     map.objects[0].objects.forEach((object) => {
       if (object.name == "Player") {
-        this.player = this.physics.add.sprite(object.x, object.y, "paul_side");
-        this.player.body.setSize(64, 64);
-        this.player.body.isCircle = true;
-        this.physics.add.collider(this.player, groundLayer);
-        this.playerAngle = 0;
+        this.player = this.physics.add.sprite(
+          object.x + 8,
+          object.y + 8,
+          "player"
+        );
+        this.player.body.setVelocity(this.playerSpeed, 0);
+        this.player.body.setCollideWorldBounds(true);
+        this.player.body.setSize(16);
+        //this.physics.add.collider(this.player, groundLayer);
       }
     });
+
+    if (this.height < this.width) {
+      this.cameras.main.setZoom(this.height / map.heightInPixels);
+    } else {
+      this.cameras.main.setZoom(this.width / map.widthInPixels);
+    }
+    this.cameras.main.centerOn(map.widthInPixels / 2, map.heightInPixels / 2);
 
     /*const debugGraphics = this.add.graphics().setAlpha(0.75);
     groundLayer.renderDebug(debugGraphics, {
@@ -81,60 +94,45 @@ class Game extends Phaser.Scene {
     this.input.keyboard.on("keydown-SPACE", () => {});
 
     this.input.keyboard.on("keydown-LEFT", () => {
-      if (this.playerDirection != Phaser.Math.Vector2.LEFT) {
-        this.playerDirection = Phaser.Math.Vector2.LEFT;
-        this.updateMovement(Phaser.Math.Vector2.LEFT);
-      }
+      this.player.body.setVelocity(-this.playerSpeed, 0);
+      this.player.angle = 180;
     });
 
     this.input.keyboard.on("keydown-RIGHT", () => {
-      if (this.playerDirection != Phaser.Math.Vector2.RIGHT) {
-        this.playerDirection = Phaser.Math.Vector2.RIGHT;
-        this.updateMovement(Phaser.Math.Vector2.RIGHT);
-      }
+      this.player.body.setVelocity(this.playerSpeed, 0);
+      this.player.angle = 0;
     });
 
     this.input.keyboard.on("keydown-UP", () => {
-      if (this.playerDirection != Phaser.Math.Vector2.UP) {
-        this.playerDirection = Phaser.Math.Vector2.UP;
-        this.updateMovement(Phaser.Math.Vector2.UP);
-      }
+      this.player.body.setVelocity(0, -this.playerSpeed);
+      this.player.angle = 270;
     });
 
     this.input.keyboard.on("keydown-DOWN", () => {
-      if (this.playerDirection != Phaser.Math.Vector2.DOWN) {
-        this.playerDirection = Phaser.Math.Vector2.DOWN;
-        this.updateMovement(Phaser.Math.Vector2.DOWN);
-      }
+      this.player.body.setVelocity(0, this.playerSpeed);
+      this.player.angle = 90;
     });
 
     this.input.keyboard.on("keydown-A", () => {
-      if (this.playerDirection != Phaser.Math.Vector2.LEFT) {
-        this.playerDirection = Phaser.Math.Vector2.LEFT;
-        this.updateMovement(Phaser.Math.Vector2.LEFT);
-      }
+      this.player.body.setVelocity(-this.playerSpeed, 0);
+      this.player.angle = 180;
     });
 
     this.input.keyboard.on("keydown-D", () => {
-      if (this.playerDirection != Phaser.Math.Vector2.RIGHT) {
-        this.playerDirection = Phaser.Math.Vector2.RIGHT;
-        this.updateMovement(Phaser.Math.Vector2.RIGHT);
-      }
+      this.player.body.setVelocity(this.playerSpeed, 0);
+      this.player.angle = 0;
     });
 
     this.input.keyboard.on("keydown-W", () => {
-      if (this.playerDirection != Phaser.Math.Vector2.UP) {
-        this.playerDirection = Phaser.Math.Vector2.UP;
-        this.updateMovement(Phaser.Math.Vector2.UP);
-      }
+      this.player.body.setVelocity(0, -this.playerSpeed);
+      this.player.angle = 270;
     });
 
     this.input.keyboard.on("keydown-S", () => {
-      if (this.playerDirection != Phaser.Math.Vector2.DOWN) {
-        this.playerDirection = Phaser.Math.Vector2.DOWN;
-        this.updateMovement(Phaser.Math.Vector2.DOWN);
-      }
+      this.player.body.setVelocity(0, this.playerSpeed);
+      this.player.angle = 90;
     });
+
     /*
     this.input.keyboard.on("keydown-M", () => {
       const track1 = this.sound.get("track1");
@@ -147,7 +145,6 @@ class Game extends Phaser.Scene {
     });*/
   }
 
-  /*
   restartGame() {
     this.children.getAll().forEach((object) => {
       object.destroy();
@@ -160,7 +157,7 @@ class Game extends Phaser.Scene {
     this.sound.stopAll();
     this.sound.removeAll();
     this.create();
-  }*/
+  }
 
   update() {}
 }
@@ -172,7 +169,7 @@ const config = {
   physics: {
     default: "arcade",
     arcade: {
-      debug: false,
+      debug: true,
     },
   },
   scaleMode: Phaser.Scale.FIT,
