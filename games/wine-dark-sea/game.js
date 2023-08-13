@@ -17,7 +17,10 @@ class Game extends Phaser.Scene {
     );
 
     this.load.image("ship", "assets/ship.png");
-    //this.load.image("player", "./assets/player.png");
+    this.load.spritesheet("sun", "assets/sun.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
 
     //this.load.tilemapTiledJSON("map", "./assets/tiled/map.json");
     this.width = game.config.width;
@@ -58,10 +61,32 @@ class Game extends Phaser.Scene {
     graphics.fillRect(0, 0, this.width, this.height / 2);
     graphics.fillStyle(0x000000, 1);
     graphics.fillRect(0, this.height / 2, this.width, this.height);
+
     this.player = this.physics.add
-      .sprite(this.width / 2, this.height / 2 - 16, "ship")
+      .sprite(this.width / 2, this.height / 2 - 20, "ship")
       .setScale(2);
     this.player.body.isCircle = true;
+
+    this.tweens.add({
+      targets: this.player,
+      y: this.height / 2 - 14,
+      yoyo: true,
+      duration: 1600,
+      loop: -1,
+      ease: "sine.inout",
+    });
+
+    this.anims.create({
+      key: "sun_anim",
+      repeat: -1,
+      frames: this.anims.generateFrameNumbers("sun", { frames: [0, 1] }),
+      duration: 3000,
+    });
+
+    this.add
+      .sprite(this.width / 2, 100, "sun", 0)
+      .play("sun_anim")
+      .setScale(2);
     /*
     if (this.height < this.width) {
       this.cameras.main.setZoom(this.height / map.heightInPixels);
