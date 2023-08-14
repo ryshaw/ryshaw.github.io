@@ -4,13 +4,17 @@ class Game extends Phaser.Scene {
   player;
   arrowKeys;
   playerSpeed;
+  timerInterval; // counts down the seconds
+  daytime; // from 0 to 1, tracks how much day has passed
+  sun; // da sun
+  sky; // rectangle representing the sky
+  sea; // rectangle representing the sea
 
   constructor() {
     super({ key: "Game" });
   }
 
   preload() {
-    // load google's library for the font, Press Start 2P
     this.load.script(
       "webfont",
       "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
@@ -22,10 +26,9 @@ class Game extends Phaser.Scene {
       frameHeight: 32,
     });
 
-    //this.load.tilemapTiledJSON("map", "./assets/tiled/map.json");
     this.width = game.config.width;
     this.height = game.config.height;
-    //this.playerSpeed = 50;
+    this.daytime = 0;
   }
 
   create() {
@@ -56,11 +59,12 @@ class Game extends Phaser.Scene {
   }
 
   createLayout() {
-    const graphics = this.add.graphics();
-    graphics.fillStyle(0xffffff, 1);
-    graphics.fillRect(0, 0, this.width, this.height / 2);
-    graphics.fillStyle(0x000000, 1);
-    graphics.fillRect(0, this.height / 2, this.width, this.height);
+    this.sky = this.add
+      .rectangle(0, 0, this.width, this.height / 2, 0xffffff)
+      .setOrigin(0, 0);
+    this.sea = this.add
+      .rectangle(0, this.height / 2, this.width, this.height / 2, 0x000000)
+      .setOrigin(0, 0);
 
     this.player = this.physics.add
       .sprite(this.width / 2, this.height / 2 - 20, "ship")
@@ -80,21 +84,47 @@ class Game extends Phaser.Scene {
       key: "sun_anim",
       repeat: -1,
       frames: this.anims.generateFrameNumbers("sun", { frames: [0, 1] }),
-      duration: 3000,
+      duration: 1600,
     });
 
-    this.add
+    this.sun = this.add
       .sprite(this.width / 2, 100, "sun", 0)
       .play("sun_anim")
       .setScale(2);
-    /*
-    if (this.height < this.width) {
-      this.cameras.main.setZoom(this.height / map.heightInPixels);
-    } else {
-      this.cameras.main.setZoom(this.width / map.widthInPixels);
-    }
-    this.cameras.main.centerOn(map.widthInPixels / 2, map.heightInPixels / 2);*/
+
+    const circle = new Phaser.Geom.Circle(
+      this.width / 2,
+      this.height / 2,
+      this.width * 0.45
+    );
+
+    Phaser.Actions.PlaceOnCircle([this.sun], circle, Math.PI);
+
+    // from sunrise to sunset
+    setInterval(() => {
+      let change = Math.PI * 0.2;
+      Phaser.Actions.RotateAroundDistance(
+        [this.sun],
+        { x: circle.x, y: circle.y },
+        change,
+        circle.radius
+      );
+      this.daytime += change / Math.PI;
+      if (this.daytime >= 1) {
+        this.switchToDayOrNight();
+      }
+    }, 400);
   }
+
+  switchToDayOrNight() {
+    if (this.daytime >= 1) {
+      this.sky.setFillStyle(0x000000, 1);
+      this.sea.setFillStyle(0xffffff, 1);
+    }
+  }
+
+  // function that goes off every second, for timers
+  timerTick() {}
 
   addKeyboardControls() {
     this.input.keyboard.on("keydown-SPACE", () => {});
@@ -170,7 +200,7 @@ class Game extends Phaser.Scene {
 
 const config = {
   type: Phaser.AUTO,
-  width: 800,
+  width: 600,
   height: 600,
   physics: {
     default: "arcade",
@@ -178,9 +208,9 @@ const config = {
       debug: true,
     },
   },
-  scaleMode: Phaser.Scale.FIT,
+  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   pixelArt: true,
-  backgroundColor: "#000",
+  backgroundColor: "#fff",
   scene: [Game],
 };
 
