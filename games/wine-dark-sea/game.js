@@ -5,10 +5,12 @@ class Game extends Phaser.Scene {
   arrowKeys;
   playerSpeed;
   timerInterval; // counts down the seconds
-  daytime; // from 0 to 1, tracks how much day has passed
+  timer; // from 0 to 1, tracks how much day or night has passed
   sun; // da sun
+  moon; // da moon
   sky; // rectangle representing the sky
   sea; // rectangle representing the sea
+  daytime; // true = day, false = night
 
   constructor() {
     super({ key: "Game" });
@@ -26,9 +28,15 @@ class Game extends Phaser.Scene {
       frameHeight: 32,
     });
 
+    this.load.spritesheet("moon", "assets/moon.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+
     this.width = game.config.width;
     this.height = game.config.height;
-    this.daytime = 0;
+    this.timer = 0;
+    this.daytime = true;
   }
 
   create() {
@@ -81,46 +89,77 @@ class Game extends Phaser.Scene {
     });
 
     this.anims.create({
-      key: "sun_anim",
+      key: "sunAnim",
       repeat: -1,
       frames: this.anims.generateFrameNumbers("sun", { frames: [0, 1] }),
-      duration: 1600,
+      duration: 3100,
+    });
+
+    this.anims.create({
+      key: "moonAnim",
+      repeat: -1,
+      frames: this.anims.generateFrameNumbers("moon", { frames: [0, 1] }),
+      duration: 3100,
     });
 
     this.sun = this.add
       .sprite(this.width / 2, 100, "sun", 0)
-      .play("sun_anim")
+      .play("sunAnim")
       .setScale(2);
+
+    this.moon = this.add
+      .sprite(this.width / 2, 100, "moon", 0)
+      .play("moonAnim")
+      .setScale(2);
+    this.moon.setVisible(false);
 
     const circle = new Phaser.Geom.Circle(
       this.width / 2,
       this.height / 2,
-      this.width * 0.45
+      this.height * 0.45
     );
 
-    Phaser.Actions.PlaceOnCircle([this.sun], circle, Math.PI);
+    Phaser.Actions.PlaceOnCircle(
+      [this.sun, this.moon],
+      circle,
+      Math.PI,
+      -Math.PI
+    );
 
     // from sunrise to sunset
     setInterval(() => {
-      let change = Math.PI * 0.2;
+      let change = Math.PI * 0.02;
       Phaser.Actions.RotateAroundDistance(
-        [this.sun],
+        [this.sun, this.moon],
         { x: circle.x, y: circle.y },
         change,
         circle.radius
       );
-      this.daytime += change / Math.PI;
-      if (this.daytime >= 1) {
+      this.timer += change / Math.PI;
+      if (this.timer >= 1) {
+        console.log(this.time.now);
+        this.timer = 0;
         this.switchToDayOrNight();
       }
-    }, 400);
+    }, 500);
   }
 
   switchToDayOrNight() {
-    if (this.daytime >= 1) {
+    if (this.daytime) {
+      // switch to night
       this.sky.setFillStyle(0x000000, 1);
       this.sea.setFillStyle(0xffffff, 1);
+      this.sun.setVisible(false);
+      this.moon.setVisible(true);
+    } else {
+      // switch to day
+      this.sky.setFillStyle(0xffffff, 1);
+      this.sea.setFillStyle(0x000000, 1);
+      this.sun.setVisible(true);
+      this.moon.setVisible(false);
     }
+
+    this.daytime = !this.daytime;
   }
 
   // function that goes off every second, for timers
@@ -200,7 +239,7 @@ class Game extends Phaser.Scene {
 
 const config = {
   type: Phaser.AUTO,
-  width: 600,
+  width: 800,
   height: 600,
   physics: {
     default: "arcade",
@@ -208,7 +247,10 @@ const config = {
       debug: true,
     },
   },
-  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_HORIZONTALLY,
+  },
   pixelArt: true,
   backgroundColor: "#fff",
   scene: [Game],
