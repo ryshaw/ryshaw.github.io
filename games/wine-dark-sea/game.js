@@ -11,6 +11,8 @@ class Game extends Phaser.Scene {
   sky; // rectangle representing the sky
   sea; // rectangle representing the sea
   daytime; // true = day, false = night
+  pointerLine; // line that follows p
+  spears;
 
   constructor() {
     super({ key: "Game" });
@@ -23,6 +25,7 @@ class Game extends Phaser.Scene {
     );
 
     this.load.image("ship", "assets/ship.png");
+    this.load.image("spear", "assets/spear.png");
     this.load.spritesheet("sun", "assets/sun.png", {
       frameWidth: 32,
       frameHeight: 32,
@@ -54,7 +57,7 @@ class Game extends Phaser.Scene {
       this.UICamera.ignore(object);
     });
 
-    //this.addKeyboardControls();
+    this.addKeyboardControls();
 
     WebFont.load({
       google: {
@@ -73,6 +76,20 @@ class Game extends Phaser.Scene {
     this.sea = this.add
       .rectangle(0, this.height / 2, this.width, this.height / 2, 0x000000)
       .setOrigin(0, 0);
+
+    this.pointerLine = this.add
+      .rectangle(this.width / 2, this.height / 2, 2, 80, 0xffffff, 1)
+      .setOrigin(0.5, 0);
+
+    this.input.on("pointermove", (p) => {
+      const angle = Phaser.Math.Angle.Between(
+        this.width / 2,
+        this.height / 2,
+        p.x,
+        p.y
+      );
+      if (angle >= 0) this.pointerLine.setRotation(angle - Math.PI / 2);
+    });
 
     this.player = this.physics.add
       .sprite(this.width / 2, this.height / 2 - 20, "ship")
@@ -137,11 +154,12 @@ class Game extends Phaser.Scene {
       );
       this.timer += change / Math.PI;
       if (this.timer >= 1) {
-        console.log(this.time.now);
         this.timer = 0;
         this.switchToDayOrNight();
       }
     }, 500);
+
+    this.spears = this.physics.add.group();
   }
 
   switchToDayOrNight() {
@@ -151,12 +169,14 @@ class Game extends Phaser.Scene {
       this.sea.setFillStyle(0xffffff, 1);
       this.sun.setVisible(false);
       this.moon.setVisible(true);
+      this.pointerLine.setFillStyle(0x000000, 1);
     } else {
       // switch to day
       this.sky.setFillStyle(0xffffff, 1);
       this.sea.setFillStyle(0x000000, 1);
       this.sun.setVisible(true);
       this.moon.setVisible(false);
+      this.pointerLine.setFillStyle(0xffffff, 1);
     }
 
     this.daytime = !this.daytime;
@@ -166,46 +186,20 @@ class Game extends Phaser.Scene {
   timerTick() {}
 
   addKeyboardControls() {
-    this.input.keyboard.on("keydown-SPACE", () => {});
+    this.input.on("pointerdown", (p) => {
+      if (p.y >= this.height / 2) {
+        const spear = this.physics.add.sprite(
+          this.width / 2,
+          this.height / 2,
+          "spear"
+        );
+        this.spears.add(spear);
 
-    this.input.keyboard.on("keydown-LEFT", () => {
-      this.player.body.setVelocity(-this.playerSpeed, 0);
-      this.player.angle = 180;
-    });
-
-    this.input.keyboard.on("keydown-RIGHT", () => {
-      this.player.body.setVelocity(this.playerSpeed, 0);
-      this.player.angle = 0;
-    });
-
-    this.input.keyboard.on("keydown-UP", () => {
-      this.player.body.setVelocity(0, -this.playerSpeed);
-      this.player.angle = 270;
-    });
-
-    this.input.keyboard.on("keydown-DOWN", () => {
-      this.player.body.setVelocity(0, this.playerSpeed);
-      this.player.angle = 90;
-    });
-
-    this.input.keyboard.on("keydown-A", () => {
-      this.player.body.setVelocity(-this.playerSpeed, 0);
-      this.player.angle = 180;
-    });
-
-    this.input.keyboard.on("keydown-D", () => {
-      this.player.body.setVelocity(this.playerSpeed, 0);
-      this.player.angle = 0;
-    });
-
-    this.input.keyboard.on("keydown-W", () => {
-      this.player.body.setVelocity(0, -this.playerSpeed);
-      this.player.angle = 270;
-    });
-
-    this.input.keyboard.on("keydown-S", () => {
-      this.player.body.setVelocity(0, this.playerSpeed);
-      this.player.angle = 90;
+        this.physics.moveTo(spear, p.x, p.y, 180);
+        spear.body.setSize(16);
+        spear.body.isCircle = true;
+        spear.rotation = spear.body.velocity.angle();
+      }
     });
 
     /*
@@ -234,7 +228,10 @@ class Game extends Phaser.Scene {
     this.create();
   }
 
-  update() {}
+  update() {
+    this.player.setDepth(2);
+    this.spears.setDepth(1);
+  }
 }
 
 const config = {
@@ -244,7 +241,7 @@ const config = {
   physics: {
     default: "arcade",
     arcade: {
-      debug: true,
+      debug: false,
     },
   },
   scale: {
