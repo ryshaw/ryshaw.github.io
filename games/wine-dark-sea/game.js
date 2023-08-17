@@ -13,6 +13,7 @@ class Game extends Phaser.Scene {
   daytime; // true = day, false = night
   pointerLine; // line that follows p
   spears;
+  fishes;
 
   constructor() {
     super({ key: "Game" });
@@ -26,6 +27,7 @@ class Game extends Phaser.Scene {
 
     this.load.image("ship", "assets/ship.png");
     this.load.image("spear", "assets/spear.png");
+    this.load.image("fish", "assets/fish.png");
     this.load.spritesheet("sun", "assets/sun.png", {
       frameWidth: 32,
       frameHeight: 32,
@@ -44,6 +46,8 @@ class Game extends Phaser.Scene {
 
   create() {
     this.createLayout();
+
+    this.createFish();
 
     // add UI stuff at the very end so it's above everything
     this.UICamera = this.cameras.add(
@@ -145,7 +149,7 @@ class Game extends Phaser.Scene {
 
     // from sunrise to sunset
     setInterval(() => {
-      let change = Math.PI * 0.02;
+      let change = Math.PI * 0.01;
       Phaser.Actions.RotateAroundDistance(
         [this.sun, this.moon],
         { x: circle.x, y: circle.y },
@@ -158,8 +162,6 @@ class Game extends Phaser.Scene {
         this.switchToDayOrNight();
       }
     }, 500);
-
-    this.spears = this.physics.add.group();
   }
 
   switchToDayOrNight() {
@@ -182,6 +184,53 @@ class Game extends Phaser.Scene {
     this.daytime = !this.daytime;
   }
 
+  createFish() {
+    const bounds = new Phaser.Geom.Rectangle(
+      0 + 16,
+      this.height / 2 + 32,
+      this.width - 32,
+      this.height / 2 - 48
+    );
+    this.fishes = this.physics.add.group({
+      key: "fish",
+      quantity: 10,
+      setScale: 2,
+    });
+    Phaser.Actions.RandomRectangle(this.fishes.getChildren(), bounds);
+
+    this.fishes.getChildren().forEach((fish) => {
+      this.physics.add.existing(fish);
+      fish.body.setSize(12, 10);
+      let v = Phaser.Math.Between(20, 50);
+      if (Math.random() > 0.5) {
+        v *= -1;
+        fish.setFlipX(true);
+      }
+      fish.body.setVelocity(v, 0);
+      fish.body.setCollideWorldBounds(true);
+      fish.body.onWorldBounds = true;
+      fish.setName("fish");
+    });
+
+    this.spears = this.physics.add.group();
+
+    this.physics.add.collider(this.spears, this.fishes, (obj1, obj2) => {
+      this.hitFish(obj1, obj2);
+    });
+
+    this.physics.world.on("worldbounds", (body) => {
+      body.gameObject.destroy();
+    });
+
+    this.physics.world.setBounds(-16, 0, this.width + 32, this.height);
+  }
+
+  hitFish(spear, fish) {
+    this.fishes.remove(fish, true, true);
+    this.spears.remove(spear, true, true);
+    console.log("hit");
+  }
+
   // function that goes off every second, for timers
   timerTick() {}
 
@@ -196,9 +245,12 @@ class Game extends Phaser.Scene {
         this.spears.add(spear);
 
         this.physics.moveTo(spear, p.x, p.y, 180);
-        spear.body.setSize(16);
+        spear.body.setSize(12);
         spear.body.isCircle = true;
         spear.rotation = spear.body.velocity.angle();
+        spear.body.setCollideWorldBounds(true);
+        spear.body.onWorldBounds = true;
+        spear.setName("spear");
       }
     });
 
@@ -228,10 +280,7 @@ class Game extends Phaser.Scene {
     this.create();
   }
 
-  update() {
-    this.player.setDepth(2);
-    this.spears.setDepth(1);
-  }
+  update() {}
 }
 
 const config = {
