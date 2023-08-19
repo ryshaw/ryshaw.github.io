@@ -17,6 +17,8 @@ class Game extends Phaser.Scene {
   canThrowSpear;
   mouseDown;
   maxFish;
+  numFish;
+  sharks;
 
   constructor() {
     super({ key: "Game" });
@@ -32,6 +34,7 @@ class Game extends Phaser.Scene {
     this.load.image("spear", "assets/spear.png");
     this.load.image("fish", "assets/fish.png");
     this.load.image("fish-dark", "assets/fish-dark.png");
+    this.load.image("shark", "assets/shark.png");
     this.load.spritesheet("sun", "assets/sun.png", {
       frameWidth: 32,
       frameHeight: 32,
@@ -49,6 +52,7 @@ class Game extends Phaser.Scene {
     this.canThrowSpear = true;
     this.mouseDown = false;
     this.maxFish = 20;
+    this.numFish = 0;
   }
 
   create() {
@@ -70,7 +74,7 @@ class Game extends Phaser.Scene {
         families: ["Press Start 2P"],
       },
       active: () => {
-        //this.loadGameUI();
+        this.loadGameUI();
       },
     });
   }
@@ -151,7 +155,7 @@ class Game extends Phaser.Scene {
 
     // from sunrise to sunset
     setInterval(() => {
-      let change = Math.PI * 0.25;
+      let change = Math.PI * 0.02;
       Phaser.Actions.RotateAroundDistance(
         [this.sun, this.moon],
         { x: circle.x, y: circle.y },
@@ -174,6 +178,7 @@ class Game extends Phaser.Scene {
       this.sun.setVisible(false);
       this.moon.setVisible(true);
       this.pointerLine.setFillStyle(0x000000, 1);
+      this.fishText.setFill("#fff");
 
       // I do not know why it won't remove all fishes in one go
       // but apparently it takes multiple loops to remove all fish
@@ -184,6 +189,18 @@ class Game extends Phaser.Scene {
           .getChildren()
           .forEach((fish) => this.fishes.remove(fish, true, true));
       } while (this.fishes.getLength() > 0 && iterations > 0);
+
+      const bounds = new Phaser.Geom.Rectangle(
+        0 + 16,
+        this.height / 2 + 32,
+        this.width - 32,
+        this.height / 2 - 48
+      );
+      this.sharks.createMultiple({
+        key: "shark",
+        quantity: this.maxFish,
+      });
+      Phaser.Actions.RandomRectangle(this.sharks.getChildren(), bounds);
     } else {
       // switch to day
       this.sky.setFillStyle(0xffffff, 1);
@@ -191,7 +208,24 @@ class Game extends Phaser.Scene {
       this.sun.setVisible(true);
       this.moon.setVisible(false);
       this.pointerLine.setFillStyle(0xffffff, 1);
+      this.fishText.setFill("#000");
+
+      let iterations = 10;
+      do {
+        iterations--;
+        this.sharks
+          .getChildren()
+          .forEach((shark) => this.sharks.remove(shark, true, true));
+      } while (this.sharks.getLength() > 0 && iterations > 0);
     }
+
+    let iterations = 10;
+    do {
+      iterations--;
+      this.spears
+        .getChildren()
+        .forEach((spear) => this.spears.remove(spear, true, true));
+    } while (this.spears.getLength() > 0 && iterations > 0);
 
     this.daytime = !this.daytime;
   }
@@ -241,6 +275,7 @@ class Game extends Phaser.Scene {
 
   createPhysics() {
     this.spears = this.physics.add.group();
+    this.sharks = this.physics.add.group();
 
     this.physics.add.overlap(this.spears, this.fishes, (obj1, obj2) => {
       this.hitFish(obj1, obj2);
@@ -265,13 +300,16 @@ class Game extends Phaser.Scene {
   }
 
   hitFish(spear, fish) {
-    const t = new CustomText(this, fish.x + 8, fish.y, "+1", "l");
+    const t = new CustomText(this, fish.x + 8, fish.y, "+1", "g").setScale(0.3);
     this.tweens.add({
       targets: t,
       y: t.y - 10,
       duration: 300,
       onComplete: () => t.destroy(),
     });
+
+    this.numFish++;
+    this.fishText.setText(`fish: ${this.numFish}`);
 
     this.fishes.remove(fish, true, true);
   }
@@ -353,36 +391,44 @@ class Game extends Phaser.Scene {
     const mouseX = this.input.activePointer.x;
     const mouseY = this.input.activePointer.y;
     if (this.mouseDown && mouseY >= this.height / 2 && this.canThrowSpear) {
-      if (!this.daytime) {
+      if (!this.daytime && this.numFish > 0) {
+        this.throwSpear(mouseX, mouseY);
+      } else if (this.daytime) {
+        this.throwSpear(mouseX, mouseY);
       }
-      this.canThrowSpear = false;
-      const spear = this.physics.add.sprite(
-        this.width / 2,
-        this.height / 2,
-        "spear"
-      );
-      if (!this.daytime) {
-        spear.setTexture("fish-dark");
-      }
+    }
+  }
 
-      this.spears.add(spear);
-
-      this.physics.moveTo(spear, mouseX, mouseY, 180);
-      spear.body.setSize(12);
-      spear.body.isCircle = true;
-      spear.rotation = spear.body.velocity.angle();
-      spear.body.setCollideWorldBounds(true);
-      spear.body.onWorldBounds = true;
-      spear.setName("spear");
-
-      this.time.delayedCall(800, () => (this.canThrowSpear = true));
+  throwSpear(mouseX, mouseY) {
+    this.canThrowSpear = false;
+    const spear = this.physics.add.sprite(
+      this.width / 2,
+      this.height / 2,
+      "spear"
+    );
+    if (!this.daytime) {
+      spear.setTexture("fish-dark");
+      this.numFish--;
+      this.fishText.setText(`fish: ${this.numFish}`);
     }
 
-    this.fishes.getChildren().forEach((fish) => {
-      if (fish.body.velocity.y == 0) {
-        //fish.body.velocity.y = 10;
-      }
-    });
+    this.spears.add(spear);
+
+    this.physics.moveTo(spear, mouseX, mouseY, 180);
+    spear.body.setSize(12);
+    spear.body.isCircle = true;
+    spear.rotation = spear.body.velocity.angle();
+    spear.body.setCollideWorldBounds(true);
+    spear.body.onWorldBounds = true;
+    spear.setName("spear");
+
+    this.time.delayedCall(800, () => (this.canThrowSpear = true));
+  }
+
+  loadGameUI() {
+    this.fishText = new CustomText(this, 5, 5, `fish: ${this.numFish}`, "l")
+      .setFill("#000")
+      .setOrigin(0, 0);
   }
 }
 
@@ -393,7 +439,7 @@ const config = {
   physics: {
     default: "arcade",
     arcade: {
-      debug: true,
+      debug: false,
     },
   },
   scale: {
@@ -421,18 +467,17 @@ class CustomText extends Phaser.GameObjects.Text {
       .text(x, y, text, {
         font:
           size == "g"
-            ? "64px"
-            : size == "l"
             ? "32px"
-            : size == "m"
+            : size == "l"
             ? "16px"
-            : "10px",
+            : size == "m"
+            ? "8px"
+            : "8px",
         fill: "#fff",
         align: "center",
       })
       .setFontFamily('"Press Start 2P"')
-      .setOrigin(align == "l" ? 0 : align == "c" ? 0.5 : 1, 0.5)
-      .setScale(0.3);
+      .setOrigin(align == "l" ? 0 : align == "c" ? 0.5 : 1, 0.5);
 
     // if callback is given, assume it's a button and add callback
     if (callback) {
