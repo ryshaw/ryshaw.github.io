@@ -19,6 +19,9 @@ class Game extends Phaser.Scene {
   maxFish;
   numFish;
   sharks;
+  hull;
+  hullText;
+  maxSharks;
 
   constructor() {
     super({ key: "Game" });
@@ -52,7 +55,9 @@ class Game extends Phaser.Scene {
     this.canThrowSpear = true;
     this.mouseDown = false;
     this.maxFish = 20;
-    this.numFish = 0;
+    this.numFish = 10;
+    this.hull = 10;
+    this.maxSharks = 10;
   }
 
   create() {
@@ -67,7 +72,7 @@ class Game extends Phaser.Scene {
     // starts the fish respawn cycle
     // every so often (~1 second), check if less than max fish
     // if so, add a new fish, and repeat the cycle
-    this.time.delayedCall(1000, () => this.checkFish());
+    this.time.delayedCall(1000, () => this.checkFishOrShark());
 
     WebFont.load({
       google: {
@@ -104,6 +109,7 @@ class Game extends Phaser.Scene {
     this.player = this.physics.add
       .sprite(this.width / 2, this.height / 2 - 20, "ship")
       .setScale(2);
+    this.player.body.setSize(28);
     this.player.body.isCircle = true;
 
     this.tweens.add({
@@ -155,7 +161,12 @@ class Game extends Phaser.Scene {
 
     // from sunrise to sunset
     setInterval(() => {
-      let change = Math.PI * 0.02;
+      let change;
+      if (this.daytime) {
+        change = Math.PI * 0.01;
+      } else {
+        change = Math.PI * 0.01;
+      }
       Phaser.Actions.RotateAroundDistance(
         [this.sun, this.moon],
         { x: circle.x, y: circle.y },
@@ -179,6 +190,7 @@ class Game extends Phaser.Scene {
       this.moon.setVisible(true);
       this.pointerLine.setFillStyle(0x000000, 1);
       this.fishText.setFill("#fff");
+      this.hullText.setFill("#fff");
 
       // I do not know why it won't remove all fishes in one go
       // but apparently it takes multiple loops to remove all fish
@@ -189,18 +201,6 @@ class Game extends Phaser.Scene {
           .getChildren()
           .forEach((fish) => this.fishes.remove(fish, true, true));
       } while (this.fishes.getLength() > 0 && iterations > 0);
-
-      const bounds = new Phaser.Geom.Rectangle(
-        0 + 16,
-        this.height / 2 + 32,
-        this.width - 32,
-        this.height / 2 - 48
-      );
-      this.sharks.createMultiple({
-        key: "shark",
-        quantity: this.maxFish,
-      });
-      Phaser.Actions.RandomRectangle(this.sharks.getChildren(), bounds);
     } else {
       // switch to day
       this.sky.setFillStyle(0xffffff, 1);
@@ -209,6 +209,7 @@ class Game extends Phaser.Scene {
       this.moon.setVisible(false);
       this.pointerLine.setFillStyle(0xffffff, 1);
       this.fishText.setFill("#000");
+      this.hullText.setFill("#fff");
 
       let iterations = 10;
       do {
@@ -289,14 +290,28 @@ class Game extends Phaser.Scene {
         case "spear":
           this.spears.remove(body.gameObject, true, true);
           break;
+        case "shark":
+          this.sharks.remove(body.gameObject, true, true);
+          break;
       }
     });
 
-    this.physics.world.setBounds(-32, 0, this.width + 64, this.height + 16);
+    this.physics.world.setBounds(-32, 0, this.width + 64, this.height + 32);
     //this.physics.world.setBounds(0, 0, this.width, this.height + 16);
 
     this.physics.add.existing(this.sky, true);
     this.physics.add.collider(this.sky, this.fishes);
+
+    this.physics.add.collider(this.player, this.sharks, (player, shark) => {
+      shark.body.setVelocity(shark.body.velocity.x, 250);
+      shark.rotation = shark.body.velocity.angle();
+      this.hull--;
+      this.hullText.setText(`hull: ${this.hull}`);
+    });
+
+    this.physics.add.overlap(this.spears, this.sharks, (spear, shark) => {
+      this.sharks.remove(shark, true, true);
+    });
   }
 
   hitFish(spear, fish) {
@@ -314,7 +329,7 @@ class Game extends Phaser.Scene {
     this.fishes.remove(fish, true, true);
   }
 
-  checkFish() {
+  checkFishOrShark() {
     if (this.daytime && this.fishes.getLength() < this.maxFish) {
       let x = -16;
       if (Math.random() < 0.5) {
@@ -348,9 +363,33 @@ class Game extends Phaser.Scene {
         ],
         loop: -1,
       });
+    } else if (!this.daytime && this.sharks.getLength() < this.maxSharks) {
+      let x = -16;
+      if (Math.random() < 0.5) {
+        x = this.width + 16;
+      }
+      let y = Phaser.Math.Between(this.height / 2 + 32, this.height - 32);
+      const fish = this.physics.add.sprite(x, y, "shark");
+
+      if (x == this.width + 16) fish.setFlipY(true);
+
+      fish.setName("shark");
+      this.sharks.add(fish);
+      this.physics.moveTo(
+        fish,
+        this.player.x,
+        this.player.y + 20,
+        Phaser.Math.Between(20, 60)
+      );
+      fish.body.setSize(16);
+      fish.body.isCircle = true;
+      fish.body.setBounce(1);
+      fish.rotation = fish.body.velocity.angle();
+      fish.body.setCollideWorldBounds(true);
+      fish.body.onWorldBounds = true;
     }
     const t = Phaser.Math.Between(300, 800);
-    this.time.delayedCall(t, () => this.checkFish());
+    this.time.delayedCall(t, () => this.checkFishOrShark());
   }
 
   addKeyboardControls() {
@@ -429,6 +468,16 @@ class Game extends Phaser.Scene {
     this.fishText = new CustomText(this, 5, 5, `fish: ${this.numFish}`, "l")
       .setFill("#000")
       .setOrigin(0, 0);
+
+    this.hullText = new CustomText(
+      this,
+      this.width - 5,
+      5,
+      `hull: ${this.hull}`,
+      "l"
+    )
+      .setFill("#000")
+      .setOrigin(1, 0);
   }
 }
 
