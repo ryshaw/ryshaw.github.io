@@ -22,6 +22,9 @@ class Game extends Phaser.Scene {
   hull;
   hullText;
   maxSharks;
+  interval;
+  sounds;
+  days;
 
   constructor() {
     super({ key: "Game" });
@@ -48,24 +51,35 @@ class Game extends Phaser.Scene {
       frameHeight: 32,
     });
 
+    this.load.audio("sea", "assets/audio/sea.mp3");
+    this.load.audio("Day", "assets/audio/Day.mp3");
+    this.load.audio("Night", "assets/audio/Night.mp3");
+    this.load.audio("lose", "assets/audio/lose.mp3");
+    this.load.audio("sfx", "assets/audio/sfx1.mp3");
+    this.load.audio("hit", "assets/audio/hit1.mp3");
+
     this.width = game.config.width;
     this.height = game.config.height;
+  }
+
+  create() {
     this.timer = 0;
     this.daytime = true;
     this.canThrowSpear = true;
     this.mouseDown = false;
     this.maxFish = 20;
-    this.numFish = 10;
+    this.numFish = 5;
     this.hull = 10;
     this.maxSharks = 10;
-  }
+    this.days = 1;
 
-  create() {
     this.createLayout();
 
     this.createFish();
 
     this.createPhysics();
+
+    this.createAudio();
 
     this.addKeyboardControls();
 
@@ -160,12 +174,12 @@ class Game extends Phaser.Scene {
     );
 
     // from sunrise to sunset
-    setInterval(() => {
+    this.interval = setInterval(() => {
       let change;
       if (this.daytime) {
-        change = Math.PI * 0.01;
+        change = Math.PI * 0.0125;
       } else {
-        change = Math.PI * 0.01;
+        change = Math.PI * 0.0125;
       }
       Phaser.Actions.RotateAroundDistance(
         [this.sun, this.moon],
@@ -175,6 +189,14 @@ class Game extends Phaser.Scene {
       );
       this.timer += change / Math.PI;
       if (this.timer >= 1) {
+        if (!this.daytime) {
+          Phaser.Actions.PlaceOnCircle(
+            [this.sun, this.moon],
+            circle,
+            Math.PI,
+            -Math.PI
+          );
+        }
         this.timer = 0;
         this.switchToDayOrNight();
       }
@@ -201,15 +223,22 @@ class Game extends Phaser.Scene {
           .getChildren()
           .forEach((fish) => this.fishes.remove(fish, true, true));
       } while (this.fishes.getLength() > 0 && iterations > 0);
+
+      this.sounds["Day"].stop();
+      this.sounds["Night"].play({
+        volume: 0.15,
+        loop: true,
+      });
     } else {
       // switch to day
+      this.days++; // we lasted another night
       this.sky.setFillStyle(0xffffff, 1);
       this.sea.setFillStyle(0x000000, 1);
       this.sun.setVisible(true);
       this.moon.setVisible(false);
       this.pointerLine.setFillStyle(0xffffff, 1);
       this.fishText.setFill("#000");
-      this.hullText.setFill("#fff");
+      this.hullText.setFill("#000");
 
       let iterations = 10;
       do {
@@ -218,6 +247,12 @@ class Game extends Phaser.Scene {
           .getChildren()
           .forEach((shark) => this.sharks.remove(shark, true, true));
       } while (this.sharks.getLength() > 0 && iterations > 0);
+
+      this.sounds["Night"].stop();
+      this.sounds["Day"].play({
+        volume: 0.15,
+        loop: true,
+      });
     }
 
     let iterations = 10;
@@ -229,6 +264,7 @@ class Game extends Phaser.Scene {
     } while (this.spears.getLength() > 0 && iterations > 0);
 
     this.daytime = !this.daytime;
+    this.maxFish = 20 * ((this.days + 1) * 0.5);
   }
 
   createFish() {
@@ -296,26 +332,64 @@ class Game extends Phaser.Scene {
       }
     });
 
-    this.physics.world.setBounds(-32, 0, this.width + 64, this.height + 32);
+    this.physics.world.setBounds(-48, 0, this.width + 96, this.height + 32);
     //this.physics.world.setBounds(0, 0, this.width, this.height + 16);
 
     this.physics.add.existing(this.sky, true);
     this.physics.add.collider(this.sky, this.fishes);
 
     this.physics.add.collider(this.player, this.sharks, (player, shark) => {
+      this.sounds["hit"].play({
+        volume: 0.1,
+      });
       shark.body.setVelocity(shark.body.velocity.x, 250);
       shark.rotation = shark.body.velocity.angle();
       this.hull--;
       this.hullText.setText(`hull: ${this.hull}`);
+      if (this.hull <= 0) {
+        this.gameOver();
+      }
     });
 
     this.physics.add.overlap(this.spears, this.sharks, (spear, shark) => {
+      this.sounds["sfx"].play({
+        volume: 0.1,
+      });
       this.sharks.remove(shark, true, true);
     });
   }
 
+  createAudio() {
+    this.sounds = {
+      Day: this.sound.add("Day"),
+      Night: this.sound.add("Night"),
+      hit: this.sound.add("hit"),
+      lose: this.sound.add("lose"),
+      sfx: this.sound.add("sfx"),
+    };
+
+    this.sound.add("sea").play({
+      volume: 0.8,
+      loop: true,
+    });
+
+    this.sounds["Day"].play({
+      volume: 0.15,
+      loop: true,
+    });
+  }
+
   hitFish(spear, fish) {
-    const t = new CustomText(this, fish.x + 8, fish.y, "+1", "g").setScale(0.3);
+    this.sounds["sfx"].play({
+      volume: 0.1,
+    });
+    const t = new CustomText(
+      this,
+      fish.x + 8,
+      fish.y,
+      `+${fish.scale}`,
+      "g"
+    ).setScale(0.3);
     this.tweens.add({
       targets: t,
       y: t.y - 10,
@@ -323,7 +397,7 @@ class Game extends Phaser.Scene {
       onComplete: () => t.destroy(),
     });
 
-    this.numFish++;
+    this.numFish += fish.scale;
     this.fishText.setText(`fish: ${this.numFish}`);
 
     this.fishes.remove(fish, true, true);
@@ -340,12 +414,18 @@ class Game extends Phaser.Scene {
 
       fish.body.setSize(12, 10);
       let v = this.getFishVelocity();
+
       if (x == this.width + 16) {
         v *= -1;
         fish.setFlipX(true);
       }
       fish.setName("fish");
       this.fishes.add(fish);
+
+      if (Math.random() < 0.15) {
+        fish.setScale(2);
+        v *= 2.5;
+      }
       fish.body.setCollideWorldBounds(true);
       fish.body.onWorldBounds = true;
       fish.body.setVelocity(v, 0);
@@ -379,7 +459,10 @@ class Game extends Phaser.Scene {
         fish,
         this.player.x,
         this.player.y + 20,
-        Phaser.Math.Between(20, 60)
+        Phaser.Math.Between(
+          20 * ((this.days + 1) * 0.5),
+          80 * ((this.days + 1) * 0.5)
+        )
       );
       fish.body.setSize(16);
       fish.body.isCircle = true;
@@ -388,7 +471,11 @@ class Game extends Phaser.Scene {
       fish.body.setCollideWorldBounds(true);
       fish.body.onWorldBounds = true;
     }
-    const t = Phaser.Math.Between(300, 800);
+
+    const t = Phaser.Math.Between(
+      300 / ((this.days + 1) * 0.5),
+      800 / ((this.days + 1) * 0.5)
+    );
     this.time.delayedCall(t, () => this.checkFishOrShark());
   }
 
@@ -412,13 +499,13 @@ class Game extends Phaser.Scene {
     this.children.getAll().forEach((object) => {
       object.destroy();
     });
-    this.lights.shutdown();
     this.input.keyboard.removeAllListeners();
-    this.cameras.remove(this.UICamera);
     this.tweens.killAll();
     this.time.removeAllEvents();
     this.sound.stopAll();
     this.sound.removeAll();
+    this.anims.resumeAll();
+    this.physics.resume();
     this.create();
   }
 
@@ -461,7 +548,14 @@ class Game extends Phaser.Scene {
     spear.body.onWorldBounds = true;
     spear.setName("spear");
 
-    this.time.delayedCall(800, () => (this.canThrowSpear = true));
+    if (this.daytime) {
+      this.time.delayedCall(800, () => (this.canThrowSpear = true));
+    } else {
+      this.time.delayedCall(
+        600 / ((this.days + 1) * 0.5),
+        () => (this.canThrowSpear = true)
+      );
+    }
   }
 
   loadGameUI() {
@@ -478,6 +572,168 @@ class Game extends Phaser.Scene {
     )
       .setFill("#000")
       .setOrigin(1, 0);
+  }
+
+  gameOver() {
+    this.sound.stopAll();
+
+    this.sounds["lose"].play({
+      volume: 0.4,
+    });
+
+    this.physics.pause();
+    this.tweens.killAll();
+    clearInterval(this.interval);
+    this.anims.pauseAll();
+
+    const t = new CustomText(
+      this,
+      this.width / 2,
+      this.height / 2,
+      `game over!\nyou lasted ${this.days} days\nclick to play again`,
+      "g",
+      "c"
+    )
+      .setColor("#000")
+      .setPadding(20)
+      .setBackgroundColor("#fff")
+      .setLineSpacing(16)
+      .setDepth(2);
+
+    if (this.days == 1) {
+      t.setText(
+        `game over!\nyou lasted ${this.days} day...\nclick to play again`
+      );
+    }
+
+    this.time.delayedCall(500, () =>
+      this.input.once("pointerdown", () => this.restartGame())
+    );
+  }
+}
+
+class Start extends Phaser.Scene {
+  width;
+  height;
+
+  constructor() {
+    super({ key: "Start" });
+  }
+
+  preload() {
+    // load google's library for the font, GFS Didot
+    this.load.script(
+      "webfont",
+      "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
+    );
+
+    this.load.audio("sea", "assets/audio/sea.mp3");
+
+    this.width = game.config.width;
+    this.height = game.config.height;
+  }
+
+  create() {
+    WebFont.load({
+      google: {
+        families: ["Press Start 2P"],
+      },
+      active: () => {
+        this.loadText();
+      },
+    });
+
+    const sea = this.sound.add("sea");
+    sea.play({
+      volume: 0.8,
+      loop: true,
+    });
+  }
+
+  loadText() {
+    this.add
+      .rectangle(0, 0, this.width, this.height / 2, 0xffffff)
+      .setOrigin(0, 0);
+    this.add
+      .rectangle(0, this.height / 2, this.width, this.height / 2, 0x000000)
+      .setOrigin(0, 0);
+
+    const t1 = new CustomText(
+      this,
+      this.width / 2,
+      this.height * 0.08,
+      "the fishy sea",
+      "g",
+      "c"
+    ).setFill("#000");
+
+    this.tweens.add({
+      targets: t1,
+      y: t1.y + 10,
+      yoyo: true,
+      duration: 1600,
+      loop: -1,
+      ease: "sine.inout",
+    });
+
+    const t2 = new CustomText(
+      this,
+      this.width / 2,
+      this.height * 0.25,
+      "how many nights can you last\nout on the wine-dark sea?",
+      "l",
+      "c"
+    ).setFill("#000");
+
+    const t3 = new CustomText(
+      this,
+      this.width / 2,
+      this.height * 0.42,
+      "during the day, use your mouse\nto send out hooks and collect fish",
+      "l",
+      "c"
+    ).setFill("#000");
+
+    const t4 = new CustomText(
+      this,
+      this.width / 2,
+      this.height * 0.62,
+      "during the night, use your mouse\nto send out your caught fish\nand protect yourself from lurking sharks",
+      "l",
+      "c"
+    ).setFill("#fff");
+
+    const t5 = new CustomText(
+      this,
+      this.width / 2,
+      this.height * 0.8,
+      "if too many sharks get to your ship...\nyou'll be sleeping with the fishes!",
+      "l",
+      "c"
+    ).setFill("#fff");
+
+    const t6 = new CustomText(
+      this,
+      this.width / 2,
+      this.height * 0.92,
+      "click me to start!",
+      "g",
+      "c",
+      () => {
+        this.sound.stopAll();
+        this.sound.removeAll();
+        this.scene.start("Game");
+      }
+    ).setFill("#fff");
+
+    this.tweens.add({
+      targets: t6,
+      y: t6.y + 10,
+      yoyo: true,
+      duration: 1600,
+      loop: -1,
+      ease: "sine.inout",
+    });
   }
 }
 
@@ -497,7 +753,7 @@ const config = {
   },
   pixelArt: true,
   backgroundColor: "#fff",
-  scene: [Game],
+  scene: [Start, Game],
 };
 
 class CustomText extends Phaser.GameObjects.Text {
@@ -526,16 +782,17 @@ class CustomText extends Phaser.GameObjects.Text {
         align: "center",
       })
       .setFontFamily('"Press Start 2P"')
-      .setOrigin(align == "l" ? 0 : align == "c" ? 0.5 : 1, 0.5);
+      .setOrigin(align == "l" ? 0 : align == "c" ? 0.5 : 1, 0.5)
+      .setLineSpacing(16);
 
     // if callback is given, assume it's a button and add callback
     if (callback) {
       cT.setInteractive()
         .on("pointerover", function () {
-          this.setTint(0xffffcc);
+          //this.setTint(0xffffcc);
         })
         .on("pointerout", function () {
-          this.setTint(0xffffff);
+          //this.setTint(0xffffff);
         })
         .on("pointerdown", callback, scene);
     }
