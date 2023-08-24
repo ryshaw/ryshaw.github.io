@@ -15,11 +15,18 @@ class Game extends Phaser.Scene {
       "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
     );
 
+    this.load.spritesheet("fs", "assets/fullscreen.png", {
+      frameWidth: 8,
+      frameHeight: 8,
+    });
+
     this.width = game.config.width;
     this.height = game.config.height;
   }
 
   create() {
+    this.scale.lockOrientation("landscape");
+
     this.createLayout();
 
     WebFont.load({
@@ -53,6 +60,8 @@ class Game extends Phaser.Scene {
         100
       )
       .setDropZone();
+
+    this.physics.add.existing(z);
 
     const zoneDrawing = this.add.rectangle(
       z.x,
@@ -91,18 +100,29 @@ class Game extends Phaser.Scene {
       .rectangle(this.width / 2, this.height / 2, 160, 160, 0xf4a261)
       .setInteractive();
 
+    this.coffeeCup.attachedToZone = false;
+
     this.physics.add.existing(this.coffeeCup);
 
     this.input.setDraggable(this.coffeeCup);
 
+    this.physics.add.overlap(this.coffeeCup, z, () => {
+      this.coffeeCup.attachedToZone = true;
+      /*this.tweens.add({
+        targets: this.coffeeCup,
+        y: z.y - this.coffeeCup.height / 2,
+        duration: 200,
+      });*/
+    });
+
     this.input.on("gameobjectdown", (p, obj) => {
       if (obj.input.draggable) {
-        /*this.tweens.add({
+        this.tweens.add({
           targets: obj,
           x: p.x,
           y: p.y,
-          duration: 50,
-        });*/
+          duration: 100,
+        });
 
         this.tweens.add({
           targets: obj,
@@ -122,7 +142,17 @@ class Game extends Phaser.Scene {
       }
     });
 
-    this.input.on("drag", (p, obj, dX, dY) => obj.setPosition(dX, dY));
+    this.input.on("drag", (p, obj, dX, dY) => {
+      const d = Phaser.Math.Distance.Between(obj.x, obj.y, p.x, p.y);
+      this.tweens.add({
+        targets: obj,
+        x: p.x,
+        y: p.y,
+        duration: 15,
+      });
+      //obj.setPosition(p.x, p.y);
+      //this.physics.moveToObject(obj, p, 600);
+    });
 
     this.input.on("drop", (pointer, obj, z) => {
       this.tweens.add({
@@ -169,6 +199,16 @@ class Game extends Phaser.Scene {
   loadGameUI() {
     const t1 = new CustomText(this, 100, this.height * 0.13, "serve", "l", "c");
     const t2 = new CustomText(this, 100, this.height * 0.9, "table", "l", "c");
+
+    const b1 = new CustomButton(this, this.width - 5, 5, "fs")
+      .setOrigin(1, 0)
+      .setScale(4)
+      .setFrame(0)
+      .setInteractive()
+      .on("pointerup", () => {
+        this.scale.toggleFullscreen();
+        b1.frame.name == 0 ? b1.setFrame(1) : b1.setFrame(0);
+      });
   }
 
   gameOver() {}
