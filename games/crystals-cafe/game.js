@@ -42,6 +42,11 @@ class Game extends Phaser.Scene {
   update() {}
 
   createLayout() {
+    this.coffeeCup = this.add
+      .rectangle(this.width / 2, this.height / 2, 160, 160, 0xf4a261)
+      .setInteractive()
+      .setDepth(1);
+
     this.table = this.add
       .rectangle(
         this.width / 2,
@@ -57,20 +62,12 @@ class Game extends Phaser.Scene {
         this.width / 2,
         this.table.getTopCenter().y,
         this.table.width - 100,
-        100
+        this.coffeeCup.height * 0.6
       )
-      .setDropZone();
+      .setDropZone()
+      .setOrigin(0.5, 1);
 
     this.physics.add.existing(z);
-
-    const zoneDrawing = this.add.rectangle(
-      z.x,
-      z.y,
-      z.width,
-      z.height,
-      0xe2e2df,
-      0.3
-    );
 
     this.ledge = this.add
       .rectangle(
@@ -80,40 +77,24 @@ class Game extends Phaser.Scene {
         this.height * 0.05,
         0x78586f
       )
-      .setOrigin(0.5, 0);
+      .setOrigin(0.5, 1);
 
     const z2 = this.add
-      .zone(this.ledge.x, this.ledge.y, this.ledge.width, this.ledge.height * 2)
+      .zone(
+        this.ledge.x,
+        this.ledge.getTopCenter().y,
+        this.ledge.width,
+        this.coffeeCup.height * 0.6
+      )
       .setDropZone()
-      .setName("ledge");
+      .setName("ledge")
+      .setOrigin(0.5, 1);
 
-    const zoneDrawing2 = this.add.rectangle(
-      z2.x,
-      z2.y,
-      z2.width,
-      z2.height,
-      0xe2e2df,
-      0.3
-    );
-
-    this.coffeeCup = this.add
-      .rectangle(this.width / 2, this.height / 2, 160, 160, 0xf4a261)
-      .setInteractive();
-
-    this.coffeeCup.attachedToZone = false;
+    this.physics.add.existing(z2);
 
     this.physics.add.existing(this.coffeeCup);
 
     this.input.setDraggable(this.coffeeCup);
-
-    this.physics.add.overlap(this.coffeeCup, z, () => {
-      this.coffeeCup.attachedToZone = true;
-      /*this.tweens.add({
-        targets: this.coffeeCup,
-        y: z.y - this.coffeeCup.height / 2,
-        duration: 200,
-      });*/
-    });
 
     this.input.on("gameobjectdown", (p, obj) => {
       if (obj.input.draggable) {
@@ -121,13 +102,8 @@ class Game extends Phaser.Scene {
           targets: obj,
           x: p.x,
           y: p.y,
-          duration: 100,
-        });
-
-        this.tweens.add({
-          targets: obj,
-          scale: 1.05,
-          duration: 50,
+          scale: 0.7,
+          duration: 15,
         });
       }
     });
@@ -143,15 +119,12 @@ class Game extends Phaser.Scene {
     });
 
     this.input.on("drag", (p, obj, dX, dY) => {
-      const d = Phaser.Math.Distance.Between(obj.x, obj.y, p.x, p.y);
       this.tweens.add({
         targets: obj,
         x: p.x,
         y: p.y,
         duration: 15,
       });
-      //obj.setPosition(p.x, p.y);
-      //this.physics.moveToObject(obj, p, 600);
     });
 
     this.input.on("drop", (pointer, obj, z) => {
@@ -221,7 +194,7 @@ const config = {
   physics: {
     default: "arcade",
     arcade: {
-      debug: false,
+      debug: true,
     },
   },
   scale: {
