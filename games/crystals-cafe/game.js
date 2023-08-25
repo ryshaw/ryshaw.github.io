@@ -1,9 +1,9 @@
 class Game extends Phaser.Scene {
   width; // width of game
   height; // height of game
-  player;
-  arrowKeys;
   sounds;
+  zoneObjects;
+  dragObjects;
 
   constructor() {
     super({ key: "Game" });
@@ -27,13 +27,12 @@ class Game extends Phaser.Scene {
   create() {
     this.scale.lockOrientation("landscape");
 
-    this.createLayout();
-
     WebFont.load({
       google: {
-        families: ["Press Start 2P"],
+        families: ["Press Start 2P", "Roboto Mono"],
       },
       active: () => {
+        this.createLayout();
         this.loadGameUI();
       },
     });
@@ -42,117 +41,64 @@ class Game extends Phaser.Scene {
   update() {}
 
   createLayout() {
-    this.coffeeCup = this.add
-      .rectangle(this.width / 2, this.height / 2, 160, 160, 0xf4a261)
-      .setInteractive()
-      .setDepth(1);
+    this.zoneObjects = this.add.container();
 
-    this.table = this.add
-      .rectangle(
+    this.zoneObjects.add(
+      new ZoneObject(
+        this,
+        "table",
         this.width / 2,
-        this.height * 0.92,
+        this.height * 0.96,
         this.width * 0.98,
         this.height * 0.08,
         0x3a86ff
       )
-      .setOrigin(0.5, 0);
+    );
 
-    const z = this.add
-      .zone(
-        this.width / 2,
-        this.table.getTopCenter().y,
-        this.table.width - 100,
-        this.coffeeCup.height * 0.6
-      )
-      .setDropZone()
-      .setOrigin(0.5, 1);
-
-    this.physics.add.existing(z);
-
-    this.ledge = this.add
-      .rectangle(
+    this.zoneObjects.add(
+      new ZoneObject(
+        this,
+        "servingLedge",
         this.width / 2,
         this.height * 0.15,
         this.width,
         this.height * 0.05,
-        0x78586f
+        0x78586f,
+        (dragObject) => {
+          if (dragObject.name == "cup") {
+            dragObject.body.setAcceleration(-1500, 0);
+            dragObject.label.setText("");
+            this.input.setDraggable(dragObject, false);
+          }
+        }
       )
-      .setOrigin(0.5, 1);
+    );
 
-    const z2 = this.add
-      .zone(
-        this.ledge.x,
-        this.ledge.getTopCenter().y,
-        this.ledge.width,
-        this.coffeeCup.height * 0.6
+    this.dragObjects = this.add.container();
+
+    this.dragObjects.add(
+      new DragObject(
+        this,
+        "cup",
+        this.width / 2,
+        this.height / 2,
+        140,
+        140,
+        0xf4a261
       )
-      .setDropZone()
-      .setName("ledge")
-      .setOrigin(0.5, 1);
+    );
 
-    this.physics.add.existing(z2);
-
-    this.physics.add.existing(this.coffeeCup);
-
-    this.input.setDraggable(this.coffeeCup);
-
-    this.input.on("gameobjectdown", (p, obj) => {
-      if (obj.input.draggable) {
-        this.tweens.add({
-          targets: obj,
-          x: p.x,
-          y: p.y,
-          scale: 0.7,
-          duration: 15,
-        });
-      }
-    });
-
-    this.input.on("gameobjectup", (p, obj) => {
-      if (obj.input.draggable) {
-        this.tweens.add({
-          targets: obj,
-          scale: 1,
-          duration: 50,
-        });
-      }
-    });
-
-    this.input.on("drag", (p, obj, dX, dY) => {
-      this.tweens.add({
-        targets: obj,
-        x: p.x,
-        y: p.y,
-        duration: 15,
-      });
-    });
-
-    this.input.on("drop", (pointer, obj, z) => {
-      this.tweens.add({
-        targets: obj,
-        y: z.y - obj.height / 2,
-        duration: 50,
-      });
-      if (z.name == "ledge" && obj.body) {
-        obj.body.setAcceleration(-1500, 0);
-        //obj.disableInteractive();
-      }
-    });
-  }
-
-  addKeyboardControls() {
-    //this.input.on("pointerdown", (p) => (this.mouseDown = true));
-    // this.input.on("pointerup", (p) => (this.mouseDown = false));
-    /*
-    this.input.keyboard.on("keydown-M", () => {
-      const track1 = this.sound.get("track1");
-      track1.isPlaying ? track1.pause() : track1.resume();
-    });
-
-    this.input.keyboard.on("keydown-N", () => {
-      this.soundVolume > 0 ? (this.soundVolume = 0) : (this.soundVolume = 0.8);
-      Object.values(this.soundEffects).forEach((sound) => sound.stop());
-    });*/
+    this.dragObjects.add(
+      new DragObject(
+        this,
+        "cup",
+        this.width / 4,
+        this.height / 2,
+        140,
+        140,
+        0xffafcc
+      )
+    );
   }
 
   restartGame() {
@@ -170,9 +116,6 @@ class Game extends Phaser.Scene {
   }
 
   loadGameUI() {
-    const t1 = new CustomText(this, 100, this.height * 0.13, "serve", "l", "c");
-    const t2 = new CustomText(this, 100, this.height * 0.9, "table", "l", "c");
-
     const b1 = new CustomButton(this, this.width - 5, 5, "fs")
       .setOrigin(1, 0)
       .setScale(4)
@@ -194,7 +137,7 @@ const config = {
   physics: {
     default: "arcade",
     arcade: {
-      debug: true,
+      debug: false,
     },
   },
   scale: {
@@ -222,13 +165,13 @@ class CustomText extends Phaser.GameObjects.Text {
       .text(x, y, text, {
         font:
           size == "g"
-            ? "32px"
+            ? "64px"
             : size == "l"
-            ? "16px"
+            ? "32px"
             : size == "m"
-            ? "8px"
+            ? "16px"
             : "8px",
-        fill: "#000",
+        fill: "#fff",
         align: "center",
       })
       .setFontFamily('"Press Start 2P"')
@@ -278,4 +221,108 @@ class CustomButton extends Phaser.GameObjects.Image {
     return cT;
   }
 }
+
+class ZoneObject extends Phaser.GameObjects.Rectangle {
+  zone; // da zone
+  label; // text label
+  callback; // optional function that runs when zone is dropped on
+
+  constructor(scene, name, x, y, w, h, c, callback = null) {
+    super(scene, x, y, w, h, c, 1).setName(name);
+
+    this.zone = scene.add
+      .zone(x, this.getTopCenter().y, w, 75)
+      .setDropZone()
+      .setOrigin(0.5, 1)
+      .setName(name);
+
+    scene.physics.add.existing(this.zone);
+
+    this.zone.body.debugBodyColor = 0x00ffff;
+
+    this.label = new CustomText(scene, x, y, name);
+
+    this.callback = callback ? callback : () => {};
+
+    return this;
+  }
+}
+
+class DragObject extends Phaser.GameObjects.Rectangle {
+  label; // text label
+  droppedOnZone; // objects must be placed in a zone when picked up
+  lastPosition; // otherwise, they'll return to their last position
+
+  constructor(scene, name, x, y, w, h, c) {
+    super(scene, x, y, w, h, c, 0.1).setName(name).setInteractive().setDepth(1);
+
+    this.setStrokeStyle(5, c);
+
+    this.label = new CustomText(scene, x, y, name);
+
+    scene.physics.add.existing(this);
+    scene.input.setDraggable(this);
+
+    this.droppedOnZone = false;
+    this.lastPosition = new Phaser.Math.Vector2(x, y);
+
+    this.on("pointerdown", (p) => {
+      this.droppedOnZone = false;
+      this.lastPosition = new Phaser.Math.Vector2(this.x, this.y);
+
+      scene.tweens.add({
+        targets: [this, this.label],
+        x: p.x,
+        y: p.y,
+        scale: 0.7,
+        duration: 15,
+      });
+    });
+
+    this.on("pointerup", () => {
+      scene.tweens.add({
+        targets: [this, this.label],
+        scale: 1,
+        duration: 50,
+      });
+
+      if (!this.droppedOnZone) {
+        scene.tweens.add({
+          targets: [this, this.label],
+          x: this.lastPosition.x,
+          y: this.lastPosition.y,
+          duration: 100,
+        });
+      }
+    });
+
+    this.on("drag", (p) => {
+      scene.tweens.add({
+        targets: [this, this.label],
+        x: p.x,
+        y: p.y,
+        duration: 15,
+      });
+    });
+
+    this.on("drop", (p, z) => {
+      this.droppedOnZone = true;
+      this.lastPosition = new Phaser.Math.Vector2(this.x, this.y);
+
+      scene.tweens.add({
+        targets: [this, this.label],
+        y: z.y - this.height / 2,
+        scale: 1,
+        duration: 50,
+        onComplete: () =>
+          (this.lastPosition = new Phaser.Math.Vector2(this.x, this.y)),
+      });
+
+      scene.zoneObjects.getByName(z.name).callback(this);
+    });
+
+    return this;
+  }
+}
+
 const game = new Phaser.Game(config);
