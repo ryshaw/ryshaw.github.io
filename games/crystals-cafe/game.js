@@ -1,6 +1,6 @@
 class Game extends Phaser.Scene {
-  width; // width of game
-  height; // height of game
+  w; // width of game (1280 as of alpha version)
+  h; // height of game (720 as of alpha version)
   sounds;
   zoneObjects;
   dragObjects;
@@ -20,8 +20,8 @@ class Game extends Phaser.Scene {
       frameHeight: 8,
     });
 
-    this.width = game.config.width;
-    this.height = game.config.height;
+    this.w = game.config.width;
+    this.h = game.config.height;
   }
 
   create() {
@@ -47,26 +47,31 @@ class Game extends Phaser.Scene {
       new ZoneObject(
         this,
         "table",
-        this.width / 2,
-        this.height * 0.96,
-        this.width * 0.98,
-        this.height * 0.08,
-        0x3a86ff
+        this.w / 2,
+        this.h * 0.98,
+        this.w * 0.95,
+        this.h * 0.04,
+        0x78586f
       )
     );
 
     this.zoneObjects.add(
       new ZoneObject(
         this,
-        "servingLedge",
-        this.width / 2,
-        this.height * 0.15,
-        this.width,
-        this.height * 0.05,
-        0x78586f,
+        "cupDropoff",
+        this.w * 0.9,
+        this.h * 0.18,
+        this.w * 0.2,
+        this.h * 0.04,
+        0x1b263b,
         (dragObject) => {
           if (dragObject.name == "cup") {
-            dragObject.body.setAcceleration(-1500, 0);
+            this.tweens.add({
+              targets: dragObject,
+              x: dragObject.x + this.w,
+              duration: 1600,
+              ease: "sine.in",
+            });
             dragObject.label.setText("");
             this.input.setDraggable(dragObject, false);
           }
@@ -74,31 +79,39 @@ class Game extends Phaser.Scene {
       )
     );
 
+    const pickup = this.add.rectangle(
+      this.w * 0.1,
+      this.h * 0.18,
+      this.w * 0.2,
+      this.h * 0.04,
+      0x1b263b
+    );
+
     this.dragObjects = this.add.container();
 
+    const startPos = pickup.getTopCenter().y - 70;
+
     this.dragObjects.add(
-      new DragObject(
-        this,
-        "cup",
-        this.width / 2,
-        this.height / 2,
-        140,
-        140,
-        0xf4a261
-      )
+      new DragObject(this, "cup", -100, startPos, 120, 140, 0xf4a261)
+    );
+
+    this.tweens.add({
+      targets: [
+        this.dragObjects.getByName("cup"),
+        this.dragObjects.getByName("cup").label,
+      ],
+      x: this.w * 0.1,
+      duration: 800,
+      ease: "sine.out",
+    });
+
+    /*this.dragObjects.add(
+      new DragObject(this, "cup", -100, startPos, 140, 140, 0xffafcc)
     );
 
     this.dragObjects.add(
-      new DragObject(
-        this,
-        "cup",
-        this.width / 4,
-        this.height / 2,
-        140,
-        140,
-        0xffafcc
-      )
-    );
+      new DragObject(this, "cup", -100, startPos, 120, 140, 0x8d99ae)
+    );*/
   }
 
   restartGame() {
@@ -116,7 +129,7 @@ class Game extends Phaser.Scene {
   }
 
   loadGameUI() {
-    const b1 = new CustomButton(this, this.width - 5, 5, "fs")
+    const b1 = new CustomButton(this, this.w - 5, 5, "fs")
       .setOrigin(1, 0)
       .setScale(4)
       .setFrame(0)
@@ -137,7 +150,7 @@ const config = {
   physics: {
     default: "arcade",
     arcade: {
-      debug: false,
+      debug: true,
     },
   },
   scale: {
@@ -255,7 +268,6 @@ class DragObject extends Phaser.GameObjects.Rectangle {
 
   constructor(scene, name, x, y, w, h, c) {
     super(scene, x, y, w, h, c, 0.1).setName(name).setInteractive().setDepth(1);
-
     this.setStrokeStyle(5, c);
 
     this.label = new CustomText(scene, x, y, name);
