@@ -90,7 +90,7 @@ class BouncyBalls extends Phaser.Scene {
     // player instantiates in the gameStart function
 
     // this is where the difficulty progression happens
-    this.createCircles(this.level * 1); // circles instantiate here
+    this.createCircles(this.level * 10); // circles instantiate here
     this.timer = this.level * 5 + 20;
 
     // upon balls bouncing, switch both to random colors
