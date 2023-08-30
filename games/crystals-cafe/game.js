@@ -2,10 +2,12 @@ class Game extends Phaser.Scene {
   w; // width of game (1280 as of alpha version)
   h; // height of game (720 as of alpha version)
   holding; // reference to cup player is currently holding
+  justDroppedOnZone;
   sounds;
   zoneObjects;
   dragObjects;
   clickObjects;
+  cupColors;
 
   constructor() {
     super({ key: "Game" });
@@ -27,6 +29,10 @@ class Game extends Phaser.Scene {
     this.w = game.config.width;
     this.h = game.config.height;
     this.holding = null;
+    this.justDroppedOnZone = false;
+    this.cupColors = [
+      0x219ebc, 0xffafcc, 0x344e41, 0xffb4a2, 0xc9ada7, 0xf4a261,
+    ];
   }
 
   create() {
@@ -84,27 +90,183 @@ class Game extends Phaser.Scene {
         0x1b263b,
         (dragObject) => {
           if (dragObject.name == "cup") {
-            this.tweens.add({
+            const t = this.tweens.add({
               targets: dragObject,
-              alpha: 0,
-              duration: 1500,
+              delay: 1200,
+              y: dragObject.y - this.h,
+              duration: 1000,
               ease: "sine.in",
+              onComplete: () => {
+                console.log("sent");
+              },
+            });
+            dragObject.once("pointerdown", () => {
+              this.tweens.killTweensOf(dragObject);
             });
           }
         }
       )
     );
 
+    this.clickObjects = this.add.container();
+
+    this.clickObjects.add([
+      new ClickObject(
+        this,
+        "cupPickup",
+        404,
+        192,
+        100,
+        100,
+        0x8ecae6,
+        null,
+        () => {
+          if (this.holding) return;
+          const c = Phaser.Utils.Array.GetRandom(this.cupColors);
+          this.dragObjects.add(
+            new DragObject(this, "cup", 404, 190, 100, 100, c)
+          );
+          this.holding = this.dragObjects.getAt(this.dragObjects.length - 1);
+        }
+      ),
+      new ClickObject(this, "ticket1", 72, 54, 100, 80, 0xe4c1f9, null, () => {
+        const obj = this.clickObjects.getByName("ticket1");
+        if (obj.scale == 3) return;
+        this.clickObjects.bringToTop(obj);
+        this.tweens.addCounter({
+          from: 10,
+          to: 30,
+          onUpdate: function (tween) {
+            obj.label.setFontSize(tween.getValue());
+          },
+          duration: 200,
+        });
+        this.tweens.add({
+          targets: obj.label,
+          x: 192,
+          y: 200,
+          duration: 200,
+        });
+        this.tweens.add({
+          targets: obj,
+          scale: 3,
+          x: 192,
+          y: 200,
+          duration: 200,
+          onComplete: () => {
+            this.input.once("pointerup", () => {
+              this.tweens.add({
+                targets: [obj, obj.label],
+                scale: 1,
+                x: 72,
+                y: 54,
+                duration: 200,
+              });
+              this.tweens.addCounter({
+                from: 30,
+                to: 10,
+                onUpdate: function (tween) {
+                  obj.label.setFontSize(tween.getValue());
+                },
+                duration: 200,
+              });
+            });
+          },
+        });
+      }),
+      new ClickObject(this, "ticket2", 192, 54, 100, 80, 0x06d6a0, null, () => {
+        const obj = this.clickObjects.getByName("ticket2");
+        if (obj.scale == 3) return;
+        this.clickObjects.bringToTop(obj);
+        this.tweens.addCounter({
+          from: 10,
+          to: 30,
+          onUpdate: function (tween) {
+            obj.label.setFontSize(tween.getValue());
+          },
+          duration: 200,
+        });
+        this.tweens.add({
+          targets: obj.label,
+          x: 192,
+          y: 200,
+          duration: 200,
+        });
+        this.tweens.add({
+          targets: obj,
+          scale: 3,
+          x: 192,
+          y: 200,
+          duration: 200,
+          onComplete: () => {
+            this.input.once("pointerup", () => {
+              this.tweens.add({
+                targets: [obj, obj.label],
+                scale: 1,
+                x: 192,
+                y: 54,
+                duration: 200,
+              });
+              this.tweens.addCounter({
+                from: 30,
+                to: 10,
+                onUpdate: function (tween) {
+                  obj.label.setFontSize(tween.getValue());
+                },
+                duration: 200,
+              });
+            });
+          },
+        });
+      }),
+      new ClickObject(this, "ticket3", 312, 54, 100, 80, 0x800e13, null, () => {
+        const obj = this.clickObjects.getByName("ticket3");
+        if (obj.scale == 3) return;
+        this.clickObjects.bringToTop(obj);
+        this.tweens.addCounter({
+          from: 10,
+          to: 30,
+          onUpdate: function (tween) {
+            obj.label.setFontSize(tween.getValue());
+          },
+          duration: 200,
+        });
+        this.tweens.add({
+          targets: obj.label,
+          x: 192,
+          y: 200,
+          duration: 200,
+        });
+        this.tweens.add({
+          targets: obj,
+          scale: 3,
+          x: 192,
+          y: 200,
+          duration: 200,
+          onComplete: () => {
+            this.input.once("pointerup", () => {
+              this.tweens.add({
+                targets: [obj, obj.label],
+                scale: 1,
+                x: 312,
+                y: 54,
+                duration: 200,
+              });
+              this.tweens.addCounter({
+                from: 30,
+                to: 10,
+                onUpdate: function (tween) {
+                  obj.label.setFontSize(tween.getValue());
+                },
+                duration: 200,
+              });
+            });
+          },
+        });
+      }),
+    ]);
+
     this.dragObjects = this.add.container();
-
-    this.dragObjects.add(
-      new DragObject(this, "cup", 404, 190, 100, 100, 0xf4a261)
-    );
-
-    /*const pickup = this.add
-      .rectangle(404, 190, 100, 100, 0x1b263b)
-      .setInteractive()
-      .on("pointerdown", () => console.log("hit"));*/
   }
 
   restartGame() {
@@ -242,41 +404,34 @@ class ZoneObject extends Phaser.GameObjects.Rectangle {
       .setDropZone()
       .setInteractive()
       .setOrigin(0.5, 1)
+      .setDepth(2)
       .setName(name);
 
     scene.physics.add.existing(this.zone);
 
     this.zone.body.debugBodyColor = 0x00ffff;
 
-    this.label = new CustomText(scene, x, y, name);
+    this.label = new CustomText(scene, x, y, name).setFontSize("10px");
 
     this.callback = callback ? callback : () => {};
 
     this.attachedToZone = [];
 
     this.zone.on("pointerup", (p) => {
-      // if you're holding something, either you just picked it up
-      // or you want to put it down on this zone
+      const obj = scene.holding;
       if (scene.holding) {
-        // if you just picked this up from this zone...
-        if (this.attachedToZone.includes(scene.holding)) {
-          // let you have it
-          const index = this.attachedToZone.indexOf(scene.holding);
-          this.attachedToZone.splice(index, 1);
-        } else {
-          // otherwise, add it to the list attached to the zone
-          // and move it onto the zone
-          const obj = scene.holding;
-          scene.tweens.add({
-            targets: scene.holding,
-            y: this.zone.y - scene.holding.height / 2,
-            scale: 1,
-            duration: 50,
-            onComplete: () => this.callback(obj),
-          });
-          this.attachedToZone.push(scene.holding);
-          scene.holding = null;
-        }
+        scene.tweens.add({
+          targets: scene.holding,
+          y: this.zone.y - scene.holding.height / 2,
+          scale: 1,
+          duration: 50,
+          onComplete: () => {
+            this.callback(obj);
+            scene.justDroppedOnZone = false;
+          },
+        });
+        scene.justDroppedOnZone = true;
+        scene.holding = null;
       }
     });
 
@@ -286,15 +441,14 @@ class ZoneObject extends Phaser.GameObjects.Rectangle {
 
 class DragObject extends Phaser.GameObjects.Rectangle {
   constructor(scene, name, x, y, w, h, c) {
-    super(scene, x, y, w, h, c, 0.05)
-      .setName(name)
-      .setInteractive()
-      .setDepth(1);
+    super(scene, x, y, w, h, c, 0.1).setName(name).setInteractive().setDepth(1);
     this.setStrokeStyle(5, c);
 
-    scene.physics.add.existing(this);
-
-    this.on("pointerup", () => (scene.holding = this));
+    this.on("pointerup", () => {
+      if (!scene.holding && !scene.justDroppedOnZone) {
+        scene.holding = this;
+      }
+    });
 
     return this;
   }
@@ -316,23 +470,16 @@ class ClickObject extends Phaser.GameObjects.Rectangle {
     downCallback = null,
     upCallback = null
   ) {
-    super(scene, x, y, w, h, c, 1).setName(name);
+    super(scene, x, y, w, h, c, 1).setName(name).setInteractive().setDepth(1);
 
-    this.zone = scene.add
-      .zone(x, this.getTopCenter().y, w, 75)
-      .setDropZone()
-      .setOrigin(0.5, 1)
-      .setName(name);
-
-    scene.physics.add.existing(this.zone);
-
-    this.zone.body.debugBodyColor = 0x0000ff;
-
-    this.label = new CustomText(scene, x, y, name);
+    this.label = new CustomText(scene, x, y, name).setFontSize("10px");
 
     this.downCallback = downCallback ? downCallback : () => {};
 
     this.upCallback = upCallback ? upCallback : () => {};
+
+    this.on("pointerdown", this.downCallback);
+    this.on("pointerup", this.upCallback);
 
     return this;
   }
