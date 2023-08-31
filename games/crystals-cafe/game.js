@@ -129,144 +129,64 @@ class Game extends Phaser.Scene {
           this.holding = this.dragObjects.getAt(this.dragObjects.length - 1);
         }
       ),
-      new ClickObject(this, "ticket1", 72, 54, 100, 80, 0xe4c1f9, null, () => {
-        const obj = this.clickObjects.getByName("ticket1");
-        if (obj.scale == 3) return;
-        this.clickObjects.bringToTop(obj);
-        this.tweens.addCounter({
-          from: 10,
-          to: 30,
-          onUpdate: function (tween) {
-            obj.label.setFontSize(tween.getValue());
-          },
-          duration: 200,
-        });
-        this.tweens.add({
-          targets: obj.label,
-          x: 192,
-          y: 200,
-          duration: 200,
-        });
-        this.tweens.add({
-          targets: obj,
-          scale: 3,
-          x: 192,
-          y: 200,
-          duration: 200,
-          onComplete: () => {
-            this.input.once("pointerup", () => {
-              this.tweens.add({
-                targets: [obj, obj.label],
-                scale: 1,
-                x: 72,
-                y: 54,
-                duration: 200,
-              });
-              this.tweens.addCounter({
-                from: 30,
-                to: 10,
-                onUpdate: function (tween) {
-                  obj.label.setFontSize(tween.getValue());
-                },
-                duration: 200,
-              });
-            });
-          },
-        });
-      }),
-      new ClickObject(this, "ticket2", 192, 54, 100, 80, 0x06d6a0, null, () => {
-        const obj = this.clickObjects.getByName("ticket2");
-        if (obj.scale == 3) return;
-        this.clickObjects.bringToTop(obj);
-        this.tweens.addCounter({
-          from: 10,
-          to: 30,
-          onUpdate: function (tween) {
-            obj.label.setFontSize(tween.getValue());
-          },
-          duration: 200,
-        });
-        this.tweens.add({
-          targets: obj.label,
-          x: 192,
-          y: 200,
-          duration: 200,
-        });
-        this.tweens.add({
-          targets: obj,
-          scale: 3,
-          x: 192,
-          y: 200,
-          duration: 200,
-          onComplete: () => {
-            this.input.once("pointerup", () => {
-              this.tweens.add({
-                targets: [obj, obj.label],
-                scale: 1,
-                x: 192,
-                y: 54,
-                duration: 200,
-              });
-              this.tweens.addCounter({
-                from: 30,
-                to: 10,
-                onUpdate: function (tween) {
-                  obj.label.setFontSize(tween.getValue());
-                },
-                duration: 200,
-              });
-            });
-          },
-        });
-      }),
-      new ClickObject(this, "ticket3", 312, 54, 100, 80, 0x800e13, null, () => {
-        const obj = this.clickObjects.getByName("ticket3");
-        if (obj.scale == 3) return;
-        this.clickObjects.bringToTop(obj);
-        this.tweens.addCounter({
-          from: 10,
-          to: 30,
-          onUpdate: function (tween) {
-            obj.label.setFontSize(tween.getValue());
-          },
-          duration: 200,
-        });
-        this.tweens.add({
-          targets: obj.label,
-          x: 192,
-          y: 200,
-          duration: 200,
-        });
-        this.tweens.add({
-          targets: obj,
-          scale: 3,
-          x: 192,
-          y: 200,
-          duration: 200,
-          onComplete: () => {
-            this.input.once("pointerup", () => {
-              this.tweens.add({
-                targets: [obj, obj.label],
-                scale: 1,
-                x: 312,
-                y: 54,
-                duration: 200,
-              });
-              this.tweens.addCounter({
-                from: 30,
-                to: 10,
-                onUpdate: function (tween) {
-                  obj.label.setFontSize(tween.getValue());
-                },
-                duration: 200,
-              });
-            });
-          },
-        });
-      }),
+      new ClickObject(this, "ticket1", 72, 54, 100, 80, 0xe4c1f9, null, () =>
+        this.zoomOnTicket(1)
+      ),
+      new ClickObject(this, "ticket2", 192, 54, 100, 80, 0x06d6a0, null, () =>
+        this.zoomOnTicket(2)
+      ),
+      new ClickObject(this, "ticket3", 312, 54, 100, 80, 0x800e13, null, () =>
+        this.zoomOnTicket(3)
+      ),
     ]);
 
     this.dragObjects = this.add.container();
+  }
+
+  zoomOnTicket(num) {
+    const obj = this.clickObjects.getByName("ticket" + num);
+    if (obj.scale == 3) return;
+    this.clickObjects.bringToTop(obj);
+    this.tweens.addCounter({
+      from: 10,
+      to: 30,
+      onUpdate: function (tween) {
+        obj.label.setFontSize(tween.getValue());
+      },
+      duration: 200,
+    });
+    this.tweens.add({
+      targets: obj.label,
+      x: 192,
+      y: 200,
+      duration: 200,
+    });
+    this.tweens.add({
+      targets: obj,
+      scale: 3,
+      x: 192,
+      y: 200,
+      duration: 200,
+      onComplete: () => {
+        this.input.once("pointerup", () => {
+          this.tweens.add({
+            targets: [obj, obj.label],
+            scale: 1,
+            x: 72 + 120 * (num - 1),
+            y: 54,
+            duration: 200,
+          });
+          this.tweens.addCounter({
+            from: 30,
+            to: 10,
+            onUpdate: function (tween) {
+              obj.label.setFontSize(tween.getValue());
+            },
+            duration: 200,
+          });
+        });
+      },
+    });
   }
 
   restartGame() {
