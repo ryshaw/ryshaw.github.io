@@ -1,4 +1,4 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+/*import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
 import {
   getDatabase,
   ref,
@@ -62,4 +62,4 @@ window.addEventListener("startPlaySession", () => {
     .catch((error) => {
       console.error(error);
     });
-});
+});*/

@@ -21,7 +21,7 @@ class BouncyBalls extends Phaser.Scene {
 
   // preload is only run once when the game is loaded for the first time
   preload() {
-    localStorage.clear();
+    //localStorage.clear();
 
     this.level = localStorage.getItem("level") || 1;
     this.scaleRatio = Math.min(window.devicePixelRatio, 2);
@@ -113,7 +113,7 @@ class BouncyBalls extends Phaser.Scene {
       .setStrokeStyle(4, 0xffffff)
       .setOrigin(0.5, 0.5)
       .setFillStyle(0x0, 0.8);
-
+    /*
     const prompt = new CustomText(
       this,
       0,
@@ -147,7 +147,7 @@ class BouncyBalls extends Phaser.Scene {
       "no personally identifiable info is\ncollected in compliance with the GDPR",
       "s",
       "c"
-    );
+    );*/
 
     this.currentMenu = this.add
       .container(this.width * 0.5, this.height * 0.5, [
@@ -183,7 +183,8 @@ class BouncyBalls extends Phaser.Scene {
       "c",
       () => {
         this.currentMenu.destroy();
-        this.loadOptInDataCollection();
+        //this.loadOptInDataCollection();
+        this.gameStart();
       }
     );
 
@@ -359,8 +360,9 @@ class BouncyBalls extends Phaser.Scene {
     );
 
     // detect if mouse or touch input is happening
-    this.input.on("pointerdown", () => (this.isPointerDown = true), this);
-    this.input.on("pointerup", () => (this.isPointerDown = false), this);
+    //this.input.on("pointerdown", () => (this.isPointerDown = true), this);
+    //this.input.on("pointerup", () => (this.isPointerDown = false), this);
+    this.isPointerDown = true;
 
     // if first time loading in, disable so we don't display start menu again
     if (this.firstTimeLoad) this.firstTimeLoad = false;
@@ -538,12 +540,12 @@ class BouncyBalls extends Phaser.Scene {
 
   loadGameOverUI() {
     const box = this.add
-      .rectangle(0, 0, 350, 200)
+      .rectangle(0, 0, 320, 280)
       .setStrokeStyle(4, 0xffffff)
       .setOrigin(0.5, 0.5)
       .setFillStyle(0x0, 0.8);
 
-    const restartText = new CustomText(this, 0, 60, "restart", "l", "c", () => {
+    const restartText = new CustomText(this, 0, 90, "restart", "l", "c", () => {
       this.children.getAll().forEach((object) => {
         object.destroy();
       });
@@ -557,7 +559,7 @@ class BouncyBalls extends Phaser.Scene {
       this,
       0,
       -40,
-      "game over!\ntry again?",
+      `game over!\nhigh score:\nlevel ${localStorage.getItem("level")}`,
       "l",
       "c"
     ).setLineSpacing(24);
