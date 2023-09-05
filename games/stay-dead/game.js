@@ -26,14 +26,9 @@ class Game extends Phaser.Scene {
     this.createLayout();
 
     // add UI stuff at the very end so it's above everything
-    this.UICamera = this.cameras.add(
-      this.cameras.main.x,
-      this.cameras.main.y,
-      this.cameras.main.width,
-      this.cameras.main.height
-    );
+    this.UICamera = this.cameras.add(-this.w, -this.h, this.w * 2, this.h * 2);
 
-    this.UIContainer = this.add.container();
+    this.UIContainer = this.add.container().setPosition(this.w, this.h);
 
     /*this.children.getAll().forEach((object) => {
       this.UICamera.ignore(object);
@@ -47,13 +42,6 @@ class Game extends Phaser.Scene {
       },
       active: () => {
         this.loadGameUI();
-        this.add
-          .text(this.w * 0.5, 10, "STAY DEAD", {
-            fontFamily: "Finger Paint",
-            fontSize: 32,
-            color: "#9e2a2b",
-          })
-          .setOrigin(0.5, 0);
       },
     });
   }
@@ -127,6 +115,10 @@ class Game extends Phaser.Scene {
 
   loadGameUI() {
     new CustomText(this, 5, 5, "le fishe", "m").setOrigin(0, 0);
+    new CustomText(this, this.w * 0.5, 5, "STAY DEAD", "m")
+      .setFontFamily("Finger Paint")
+      .setOrigin(0.5, 0)
+      .setColor("#9e2a2b");
   }
 
   gameOver() {
@@ -336,7 +328,7 @@ class CustomText extends Phaser.GameObjects.Text {
         fill: "#fff",
         align: "center",
       })
-      .setFontFamily('"Anonymous Pro')
+      .setFontFamily("Anonymous Pro")
       .setOrigin(align == "l" ? 0 : align == "c" ? 0.5 : 1, 0.5)
       .setLineSpacing(16);
 
@@ -351,6 +343,8 @@ class CustomText extends Phaser.GameObjects.Text {
         })
         .on("pointerdown", callback, scene);
     }
+
+    scene.UIContainer.add(cT);
 
     return cT;
   }
