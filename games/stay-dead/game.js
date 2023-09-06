@@ -6,6 +6,7 @@ class Game extends Phaser.Scene {
   player;
   arrowKeys;
   sounds;
+  cursors;
 
   constructor() {
     super({ key: "Game" });
@@ -25,16 +26,17 @@ class Game extends Phaser.Scene {
   create() {
     this.createLayout();
 
-    // add UI stuff at the very end so it's above everything
     this.UICamera = this.cameras.add(-this.w, -this.h, this.w * 2, this.h * 2);
 
     this.UIContainer = this.add.container().setPosition(this.w, this.h);
 
-    /*this.children.getAll().forEach((object) => {
-      this.UICamera.ignore(object);
-    });*/
-
     this.cameras.main.setZoom(3);
+    this.physics.world.setBounds(
+      this.w / 2 - this.w / 4,
+      this.h / 2 - this.h / 4,
+      this.w / 4,
+      this.h / 4
+    );
 
     WebFont.load({
       google: {
@@ -44,10 +46,26 @@ class Game extends Phaser.Scene {
         this.loadGameUI();
       },
     });
+
+    this.add.rectangle(
+      this.w / 2,
+      this.h / 2,
+      this.w / 4,
+      this.h / 4,
+      0x0000ff,
+      0.8
+    );
   }
 
   createLayout() {
+    //this.physics.world.setBounds();
+    console.log(this.physics.world.bounds);
     this.player = this.physics.add.sprite(this.w * 0.6, this.h * 0.5, "car");
+    this.player.body.setSize(8, 8);
+    this.player.body.isCircle = true;
+    this.player.body.setCollideWorldBounds = true;
+
+    this.cursors = this.input.keyboard.createCursorKeys();
   }
 
   /*
@@ -104,12 +122,29 @@ class Game extends Phaser.Scene {
   update() {
     const mouseX = this.input.activePointer.x;
     const mouseY = this.input.activePointer.y;
-    if (this.mouseDown && mouseY >= this.h / 2 && this.canThrowSpear) {
-      if (!this.daytime && this.numFish > 0) {
-        this.throwSpear(mouseX, mouseY);
-      } else if (this.daytime) {
-        this.throwSpear(mouseX, mouseY);
-      }
+    this.player.setVelocity(0);
+    this.player.setAngularVelocity(0);
+
+    if (this.cursors.left.isDown && !this.cursors.right.isDown) {
+      this.player.setAngularVelocity(-120);
+    }
+    if (this.cursors.right.isDown && !this.cursors.left.isDown) {
+      this.player.setAngularVelocity(120);
+    }
+
+    if (this.cursors.up.isDown && !this.cursors.down.isDown) {
+      this.physics.velocityFromAngle(
+        this.player.angle,
+        100,
+        this.player.body.velocity
+      );
+    }
+    if (this.cursors.down.isDown && !this.cursors.up.isDown) {
+      this.physics.velocityFromAngle(
+        this.player.angle,
+        -100,
+        this.player.body.velocity
+      );
     }
   }
 
@@ -291,7 +326,7 @@ const config = {
   physics: {
     default: "arcade",
     arcade: {
-      debug: false,
+      debug: true,
     },
   },
   scale: {
