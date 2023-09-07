@@ -1,6 +1,10 @@
 class Game extends Phaser.Scene {
-  w; // width of game
-  h; // height of game
+  // window resolution is 1280x720.
+  // game resolution is 320x180.
+  windowW;
+  windowH;
+  gameW;
+  gameH;
   UICamera;
   UIContainer;
   player;
@@ -19,24 +23,34 @@ class Game extends Phaser.Scene {
     );
 
     this.load.image("car", "assets/car.png");
-    this.w = game.config.width;
-    this.h = game.config.height;
+    this.windowW = game.config.width;
+    this.windowH = game.config.height;
+    this.gameW = this.windowW / 4;
+    this.gameH = this.windowH / 4;
   }
 
   create() {
+    // zoom in camera and reset position
+    // bounds of the world are [0, 0, gameW, gameH]
+    this.cameras.main.setZoom(4);
+    this.cameras.main.centerOn(this.gameW / 2, this.gameH / 2);
+    this.physics.world.setBounds(0, 0, this.gameW, this.gameH);
+
     this.createLayout();
 
-    this.UICamera = this.cameras.add(-this.w, -this.h, this.w * 2, this.h * 2);
-
-    this.UIContainer = this.add.container().setPosition(this.w, this.h);
-
-    this.cameras.main.setZoom(3);
-    this.physics.world.setBounds(
-      this.w / 2 - this.w / 4,
-      this.h / 2 - this.h / 4,
-      this.w / 4,
-      this.h / 4
+    // get this all the way off the screen
+    // so the UI isn't duplicated on the main camera
+    this.UICamera = this.cameras.add(
+      -this.windowW,
+      -this.windowH,
+      this.windowW * 2,
+      this.windowH * 2
     );
+
+    // adjust position of all UI to match the offset cam
+    this.UIContainer = this.add
+      .container()
+      .setPosition(this.windowW, this.windowH);
 
     WebFont.load({
       google: {
@@ -46,24 +60,18 @@ class Game extends Phaser.Scene {
         this.loadGameUI();
       },
     });
-
-    this.add.rectangle(
-      this.w / 2,
-      this.h / 2,
-      this.w / 4,
-      this.h / 4,
-      0x0000ff,
-      0.8
-    );
   }
 
   createLayout() {
-    //this.physics.world.setBounds();
-    console.log(this.physics.world.bounds);
-    this.player = this.physics.add.sprite(this.w * 0.6, this.h * 0.5, "car");
+    this.player = this.physics.add.sprite(
+      this.gameW * 0.7,
+      this.gameH * 0.5,
+      "car"
+    );
     this.player.body.setSize(8, 8);
     this.player.body.isCircle = true;
-    this.player.body.setCollideWorldBounds = true;
+    this.player.body.collideWorldBounds = true;
+    //this.player.body.setMaxVelocity(60, 60);
 
     this.cursors = this.input.keyboard.createCursorKeys();
   }
@@ -124,6 +132,9 @@ class Game extends Phaser.Scene {
     const mouseY = this.input.activePointer.y;
     this.player.setVelocity(0);
     this.player.setAngularVelocity(0);
+    const maxVelocity = new Phaser.Math.Vector2(60, 60);
+    const lerpVelocity = this.player.body.velocity.lerp(maxVelocity, 0.5);
+    console.log(lerpVelocity);
 
     if (this.cursors.left.isDown && !this.cursors.right.isDown) {
       this.player.setAngularVelocity(-120);
@@ -150,7 +161,7 @@ class Game extends Phaser.Scene {
 
   loadGameUI() {
     new CustomText(this, 5, 5, "le fishe", "m").setOrigin(0, 0);
-    new CustomText(this, this.w * 0.5, 5, "STAY DEAD", "m")
+    new CustomText(this, this.windowW * 0.5, 5, "STAY DEAD", "m")
       .setFontFamily("Finger Paint")
       .setOrigin(0.5, 0)
       .setColor("#9e2a2b");
@@ -170,8 +181,8 @@ class Game extends Phaser.Scene {
 
     const t = new CustomText(
       this,
-      this.w / 2,
-      this.h / 2,
+      this.windowW / 2,
+      this.windowH / 2,
       `game over!\nyou lasted ${this.days} days\nclick to play again`,
       "g",
       "c"
