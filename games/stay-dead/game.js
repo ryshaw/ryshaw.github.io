@@ -10,7 +10,7 @@ class Game extends Phaser.Scene {
   player;
   arrowKeys;
   sounds;
-  cursors;
+  keys;
 
   constructor() {
     super({ key: "Game" });
@@ -37,6 +37,7 @@ class Game extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, this.gameW, this.gameH);
 
     this.createLayout();
+    this.createControls();
 
     // get this all the way off the screen
     // so the UI isn't duplicated on the main camera
@@ -64,16 +65,14 @@ class Game extends Phaser.Scene {
 
   createLayout() {
     this.player = this.physics.add.sprite(
-      this.gameW * 0.7,
+      this.gameW * 0.1,
       this.gameH * 0.5,
       "car"
     );
     this.player.body.setSize(8, 8);
     this.player.body.isCircle = true;
     this.player.body.collideWorldBounds = true;
-    //this.player.body.setMaxVelocity(60, 60);
-
-    this.cursors = this.input.keyboard.createCursorKeys();
+    this.player.speed = 0;
   }
 
   /*
@@ -97,9 +96,20 @@ class Game extends Phaser.Scene {
     });
   }*/
 
-  addKeyboardControls() {
-    this.input.on("pointerdown", (p) => (this.mouseDown = true));
-    this.input.on("pointerup", (p) => (this.mouseDown = false));
+  createControls() {
+    //this.input.on("pointerdown", (p) => (this.mouseDown = true));
+    //this.input.on("pointerup", (p) => (this.mouseDown = false));
+
+    this.keys = this.input.keyboard.addKeys({
+      w: Phaser.Input.Keyboard.KeyCodes.W,
+      up: Phaser.Input.Keyboard.KeyCodes.UP,
+      s: Phaser.Input.Keyboard.KeyCodes.S,
+      down: Phaser.Input.Keyboard.KeyCodes.DOWN,
+      a: Phaser.Input.Keyboard.KeyCodes.A,
+      left: Phaser.Input.Keyboard.KeyCodes.LEFT,
+      d: Phaser.Input.Keyboard.KeyCodes.D,
+      right: Phaser.Input.Keyboard.KeyCodes.RIGHT,
+    });
 
     /*
     this.input.keyboard.on("keydown-M", () => {
@@ -130,37 +140,120 @@ class Game extends Phaser.Scene {
   update() {
     const mouseX = this.input.activePointer.x;
     const mouseY = this.input.activePointer.y;
-    this.player.setVelocity(0);
-    this.player.setAngularVelocity(0);
-    const maxVelocity = new Phaser.Math.Vector2(60, 60);
-    const lerpVelocity = this.player.body.velocity.lerp(maxVelocity, 0.5);
-    console.log(lerpVelocity);
 
-    if (this.cursors.left.isDown && !this.cursors.right.isDown) {
-      this.player.setAngularVelocity(-120);
-    }
-    if (this.cursors.right.isDown && !this.cursors.left.isDown) {
-      this.player.setAngularVelocity(120);
+    this.updatePlayerMovement();
+  }
+
+  updatePlayerMovement() {
+    // this is a long one :)
+
+    let turnRadius = 160; // maximum turn radius of the car
+    let maxSpeed = 80; // maximum speed of the car
+
+    const forward = this.keys.up.isDown || this.keys.w.isDown;
+    const backward = this.keys.down.isDown || this.keys.s.isDown;
+    const left = this.keys.left.isDown || this.keys.a.isDown;
+    const right = this.keys.right.isDown || this.keys.d.isDown;
+
+    // if we're moving forward but not fully at maxSpeed, scale down turnRadius
+    // so you can't spin around going at low speeds, similar to cars irl
+    if (
+      this.player.speed >= 0 &&
+      Math.abs(this.player.speed) < maxSpeed * 0.8
+    ) {
+      turnRadius *= this.player.speed / (maxSpeed * 0.8);
     }
 
-    if (this.cursors.up.isDown && !this.cursors.down.isDown) {
-      this.physics.velocityFromAngle(
-        this.player.angle,
-        100,
-        this.player.body.velocity
+    // if we're backing up, turn down the turnRadius
+    if (this.player.speed < 0) turnRadius *= -0.5;
+
+    // turn left when we press left
+    if (left && !right) {
+      this.player.body.angularVelocity = Phaser.Math.Linear(
+        this.player.body.angularVelocity,
+        -turnRadius,
+        0.05
       );
+      // if we're turning right when we press left, turn left faster
+      if (this.player.body.angularVelocity > 0) {
+        this.player.body.angularVelocity = Phaser.Math.Linear(
+          this.player.body.angularVelocity,
+          -turnRadius,
+          0.05
+        );
+      }
     }
-    if (this.cursors.down.isDown && !this.cursors.up.isDown) {
-      this.physics.velocityFromAngle(
-        this.player.angle,
-        -100,
-        this.player.body.velocity
+
+    // turn right when press right
+    if (right && !left) {
+      this.player.body.angularVelocity = Phaser.Math.Linear(
+        this.player.body.angularVelocity,
+        turnRadius,
+        0.05
       );
+      // if we're turning left when we press right, turn right faster
+      if (this.player.body.angularVelocity < 0) {
+        this.player.body.angularVelocity = Phaser.Math.Linear(
+          this.player.body.angularVelocity,
+          turnRadius,
+          0.05
+        );
+      }
     }
+
+    // if we don't press left or right, stop turning
+    if (!left && !right) {
+      this.player.body.angularVelocity = Phaser.Math.Linear(
+        this.player.body.angularVelocity,
+        0,
+        0.3
+      );
+      if (Math.abs(this.player.body.angularVelocity) < 0.01) {
+        this.player.body.angularVelocity = 0;
+      }
+    }
+
+    // if we press up, move forward
+    if (forward && !backward) {
+      this.player.speed = Phaser.Math.Linear(this.player.speed, maxSpeed, 0.02);
+    }
+
+    // if we press down, go backward
+    if (backward && !forward) {
+      this.player.speed = Phaser.Math.Linear(
+        this.player.speed,
+        -maxSpeed * 0.25,
+        0.02
+      );
+      // if going forward, brake faster
+      if (this.player.speed > 0) {
+        this.player.speed = Phaser.Math.Linear(
+          this.player.speed,
+          -maxSpeed * 0.25,
+          0.02
+        );
+      }
+    }
+
+    // if we press neither up nor right, slow down
+    if (!backward && !forward) {
+      this.player.speed = Phaser.Math.Linear(this.player.speed, 0, 0.04);
+      if (Math.abs(this.player.speed) < 0.01) {
+        this.player.speed = 0;
+      }
+    }
+
+    // set body velocity according to speed and angle
+    this.player.body.velocity = this.physics
+      .velocityFromAngle(this.player.angle, 1)
+      .scale(this.player.speed);
   }
 
   loadGameUI() {
-    new CustomText(this, 5, 5, "le fishe", "m").setOrigin(0, 0);
+    new CustomText(this, 5, 5, "wasd or arrow keys to move", "s").setOrigin(
+      0,
+      0
+    );
     new CustomText(this, this.windowW * 0.5, 5, "STAY DEAD", "m")
       .setFontFamily("Finger Paint")
       .setOrigin(0.5, 0)
