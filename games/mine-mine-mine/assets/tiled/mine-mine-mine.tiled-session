@@ -15,8 +15,8 @@
             "scale": 4,
             "selectedLayer": 2,
             "viewCenter": {
-                "x": 91,
-                "y": 73.5
+                "x": 90.75,
+                "y": 73.25
             }
         },
         "map.tmx#dirt-tiles": {

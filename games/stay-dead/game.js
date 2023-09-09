@@ -8,9 +8,13 @@ class Game extends Phaser.Scene {
   UICamera;
   UIContainer;
   player;
+  gun;
   arrowKeys;
   sounds;
   keys;
+  mouseDown;
+  graphics;
+  reloadTime;
 
   constructor() {
     super({ key: "Game" });
@@ -22,14 +26,26 @@ class Game extends Phaser.Scene {
       "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
     );
 
+    // load tilesets and tilemap
+    this.load.image("tileset", "assets/tiled/tileset.png");
+    this.load.tilemapTiledJSON("map", "assets/tiled/map.json");
+
+    // load sprites
     this.load.image("car", "assets/car.png");
     this.windowW = game.config.width;
     this.windowH = game.config.height;
     this.gameW = this.windowW / 4;
     this.gameH = this.windowH / 4;
+
+    this.mouseDown = false;
+    this.reloadTime = 0;
   }
 
   create() {
+    this.graphics = this.add.graphics({
+      lineStyle: { width: 0.2, color: 0xffd166 },
+    });
+
     // zoom in camera and reset position
     // bounds of the world are [0, 0, gameW, gameH]
     this.cameras.main.setZoom(4);
@@ -64,6 +80,19 @@ class Game extends Phaser.Scene {
   }
 
   createLayout() {
+    const map = this.make.tilemap({ key: "map" });
+
+    const backgroundLayer = map.createLayer(
+      "Background",
+      map.addTilesetImage("tileset", "tileset")
+    );
+
+    const fortLayer = map
+      .createLayer("Fort", map.addTilesetImage("tileset", "tileset"))
+      .setDepth(1); // to be above car
+
+    map.setCollisionByExclusion([-1], true, true, fortLayer);
+
     this.player = this.physics.add.sprite(
       this.gameW * 0.1,
       this.gameH * 0.5,
@@ -73,6 +102,24 @@ class Game extends Phaser.Scene {
     this.player.body.isCircle = true;
     this.player.body.collideWorldBounds = true;
     this.player.speed = 0;
+
+    this.physics.add.collider(this.player, fortLayer);
+
+    // gun is given the exact same body as player,
+    // so it mimics all movement. this is a workaround
+    // rather than throwing both of them in a Container.
+    this.gun = this.add
+      .rectangle(this.player.x, this.player.y, 1, 10, 0xffffff, 1)
+      .setOrigin(0.5, 0)
+      .setRotation(-Math.PI / 2);
+
+    this.physics.add.existing(this.gun);
+    this.gun.body.setSize(8, 8);
+    this.gun.body.isCircle = true;
+    this.gun.body.collideWorldBounds = true;
+    this.gun.body.setOffset(-4, -4);
+
+    this.physics.add.collider(this.gun, fortLayer);
   }
 
   /*
@@ -97,8 +144,8 @@ class Game extends Phaser.Scene {
   }*/
 
   createControls() {
-    //this.input.on("pointerdown", (p) => (this.mouseDown = true));
-    //this.input.on("pointerup", (p) => (this.mouseDown = false));
+    this.input.on("pointerdown", (p) => (this.mouseDown = true));
+    this.input.on("pointerup", (p) => (this.mouseDown = false));
 
     this.keys = this.input.keyboard.addKeys({
       w: Phaser.Input.Keyboard.KeyCodes.W,
@@ -138,17 +185,37 @@ class Game extends Phaser.Scene {
   }
 
   update() {
-    const mouseX = this.input.activePointer.x;
-    const mouseY = this.input.activePointer.y;
-
+    this.graphics.clear();
     this.updatePlayerMovement();
+
+    if (this.mouseDown && this.reloadTime <= 0) {
+      const v = this.input.activePointer.positionToCamera(this.cameras.main);
+      this.add.rectangle(v.x, v.y, 1, 1, 0xffd166, 1);
+      const offset = new Phaser.Math.Vector2(
+        Math.cos(this.gun.rotation + Math.PI / 2) * this.gun.height,
+        Math.sin(this.gun.rotation + Math.PI / 2) * this.gun.height
+      );
+      const line = new Phaser.Geom.Line(
+        this.player.x + offset.x,
+        this.player.y + offset.y,
+        v.x,
+        v.y
+      );
+      this.graphics.strokeLineShape(line);
+      this.reloadTime = 0.1;
+      this.tweens.add({
+        targets: this,
+        reloadTime: 0,
+        duration: this.reloadTime * 1000,
+      });
+    }
   }
 
   updatePlayerMovement() {
     // this is a long one :)
 
-    let turnRadius = 160; // maximum turn radius of the car
-    let maxSpeed = 80; // maximum speed of the car
+    let turnRadius = 220; // maximum turn radius of the car
+    let maxSpeed = 100; // maximum speed of the car
 
     const forward = this.keys.up.isDown || this.keys.w.isDown;
     const backward = this.keys.down.isDown || this.keys.s.isDown;
@@ -158,28 +225,29 @@ class Game extends Phaser.Scene {
     // if we're moving forward but not fully at maxSpeed, scale down turnRadius
     // so you can't spin around going at low speeds, similar to cars irl
     if (
-      this.player.speed >= 0 &&
-      Math.abs(this.player.speed) < maxSpeed * 0.8
+      // this.player.speed >= 0 &&
+      Math.abs(this.player.speed) <
+      maxSpeed * 0.8
     ) {
       turnRadius *= this.player.speed / (maxSpeed * 0.8);
     }
 
     // if we're backing up, turn down the turnRadius
-    if (this.player.speed < 0) turnRadius *= -0.5;
+    //if (this.player.speed < 0) turnRadius *= -0.5;
 
     // turn left when we press left
     if (left && !right) {
       this.player.body.angularVelocity = Phaser.Math.Linear(
         this.player.body.angularVelocity,
         -turnRadius,
-        0.05
+        0.04
       );
       // if we're turning right when we press left, turn left faster
       if (this.player.body.angularVelocity > 0) {
         this.player.body.angularVelocity = Phaser.Math.Linear(
           this.player.body.angularVelocity,
           -turnRadius,
-          0.05
+          0.04
         );
       }
     }
@@ -189,14 +257,14 @@ class Game extends Phaser.Scene {
       this.player.body.angularVelocity = Phaser.Math.Linear(
         this.player.body.angularVelocity,
         turnRadius,
-        0.05
+        0.04
       );
       // if we're turning left when we press right, turn right faster
       if (this.player.body.angularVelocity < 0) {
         this.player.body.angularVelocity = Phaser.Math.Linear(
           this.player.body.angularVelocity,
           turnRadius,
-          0.05
+          0.04
         );
       }
     }
@@ -222,14 +290,14 @@ class Game extends Phaser.Scene {
     if (backward && !forward) {
       this.player.speed = Phaser.Math.Linear(
         this.player.speed,
-        -maxSpeed * 0.25,
+        -maxSpeed * 0.4,
         0.02
       );
       // if going forward, brake faster
       if (this.player.speed > 0) {
         this.player.speed = Phaser.Math.Linear(
           this.player.speed,
-          -maxSpeed * 0.25,
+          -maxSpeed * 0.4,
           0.02
         );
       }
@@ -247,6 +315,21 @@ class Game extends Phaser.Scene {
     this.player.body.velocity = this.physics
       .velocityFromAngle(this.player.angle, 1)
       .scale(this.player.speed);
+
+    // set gun velocity to the exact same,
+    // so it looks like it's attached to the car
+    this.gun.body.velocity = this.physics
+      .velocityFromAngle(this.player.angle, 1)
+      .scale(this.player.speed);
+
+    const v = this.input.activePointer.positionToCamera(this.cameras.main);
+    const angle = Phaser.Math.Angle.Between(
+      this.player.x,
+      this.player.y,
+      v.x,
+      v.y
+    );
+    this.gun.setRotation(angle - Math.PI / 2);
   }
 
   loadGameUI() {

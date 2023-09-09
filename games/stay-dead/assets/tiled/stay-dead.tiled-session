@@ -1,0 +1,35 @@
+{
+    "Map/SizeTest": {
+        "height": 4300,
+        "width": 2
+    },
+    "activeFile": "",
+    "expandedProjectPaths": [
+    ],
+    "fileStates": {
+        "": {
+            "scaleInDock": 32
+        },
+        "map.tmx#tileset2": {
+            "scaleInEditor": 1
+        }
+    },
+    "last.exportedFilePath": "C:/Users/rshaw/Documents/projects/ryshaw.github.io/games/stay-dead/assets/tiled",
+    "last.imagePath": "C:/Users/rshaw/Documents/projects/ryshaw.github.io/games/stay-dead/assets/tiled",
+    "map.height": 18,
+    "map.lastUsedExportFilter": "All Files (*)",
+    "map.lastUsedFormat": "tmx",
+    "map.tileHeight": 10,
+    "map.tileWidth": 10,
+    "map.width": 32,
+    "openFiles": [
+    ],
+    "project": "stay-dead.tiled-project",
+    "recentFiles": [
+    ],
+    "tileset.embedInMap": true,
+    "tileset.tileSize": {
+        "height": 10,
+        "width": 10
+    }
+}
