@@ -9,18 +9,19 @@
     ],
     "fileStates": {
         "": {
-            "scaleInDock": 32
+            "scaleInDock": 32,
+            "scaleInEditor": 23
         },
         "map.tmx": {
-            "scale": 3,
+            "scale": 4,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 211.66666666666669,
-                "y": 86.16666666666666
+                "x": 175.75,
+                "y": 94.375
             }
         },
         "map.tmx#tileset": {
-            "scaleInDock": 16
+            "scaleInDock": 11
         },
         "map.tmx#tileset2": {
             "scaleInEditor": 1

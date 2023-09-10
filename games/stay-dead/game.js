@@ -32,6 +32,9 @@ class Game extends Phaser.Scene {
 
     // load sprites
     this.load.image("car", "assets/car.png");
+    this.load.image("zombo", "assets/zombo.png");
+    this.load.image("food", "assets/food.png");
+
     this.windowW = game.config.width;
     this.windowH = game.config.height;
     this.gameW = this.windowW / 4;
@@ -98,7 +101,7 @@ class Game extends Phaser.Scene {
       this.gameH * 0.5,
       "car"
     );
-    this.player.body.setSize(8, 8);
+    this.player.body.setSize(6, 6);
     this.player.body.isCircle = true;
     this.player.body.collideWorldBounds = true;
     this.player.speed = 0;
@@ -109,17 +112,44 @@ class Game extends Phaser.Scene {
     // so it mimics all movement. this is a workaround
     // rather than throwing both of them in a Container.
     this.gun = this.add
-      .rectangle(this.player.x, this.player.y, 1, 10, 0xffffff, 1)
+      .rectangle(this.player.x, this.player.y, 1, 8, 0xffffff, 1)
       .setOrigin(0.5, 0)
       .setRotation(-Math.PI / 2);
 
     this.physics.add.existing(this.gun);
-    this.gun.body.setSize(8, 8);
+    this.gun.body.setSize(6, 6);
     this.gun.body.isCircle = true;
     this.gun.body.collideWorldBounds = true;
-    this.gun.body.setOffset(-4, -4);
+    this.gun.body.setOffset(-3, -3);
 
     this.physics.add.collider(this.gun, fortLayer);
+
+    this.physics.world.on("worldbounds", (body) => {
+      switch (body.gameObject.name) {
+        case "bullet":
+          body.gameObject.destroy();
+          break;
+      }
+    });
+
+    const f = this.physics.add.staticSprite(
+      this.gameW / 2,
+      this.gameH / 2,
+      "food"
+    );
+    f.body.setSize(10, 10);
+    f.body.isCircle = true;
+
+    const z = this.physics.add.sprite(
+      this.gameW * 0.1,
+      this.gameH * 0.1,
+      "zombo"
+    );
+
+    z.body.setSize(4, 4);
+    z.body.isCircle = true;
+
+    this.physics.moveToObject(z, f, 10);
   }
 
   /*
@@ -195,16 +225,16 @@ class Game extends Phaser.Scene {
         Math.cos(this.gun.rotation + Math.PI / 2) * (this.gun.height + 5),
         Math.sin(this.gun.rotation + Math.PI / 2) * (this.gun.height + 5)
       );
-      const circle = this.add.circle(
-        this.player.x + offset.x,
-        this.player.y + offset.y,
-        1,
-        0xffd166,
-        1
-      );
+      const circle = this.add
+        .circle(this.player.x, this.player.y, 0.5, 0xffd166, 1)
+        .setDepth(-1);
       this.physics.add.existing(circle);
-      this.physics.moveTo(circle, v.x, v.y, 500);
+      this.physics.moveTo(circle, v.x, v.y, 800);
       circle.body.isCircle = true;
+      circle.body.setSize(0.5, 0.5);
+      circle.name = "bullet";
+      circle.body.setCollideWorldBounds(true);
+      circle.body.onWorldBounds = true;
 
       /*const line = new Phaser.Geom.Line(
         this.player.x + offset.x,
@@ -213,6 +243,7 @@ class Game extends Phaser.Scene {
         v.y
       );
       this.graphics.strokeLineShape(line);*/
+
       this.reloadTime = 0.2;
       this.tweens.add({
         targets: this,
@@ -524,7 +555,7 @@ const config = {
   physics: {
     default: "arcade",
     arcade: {
-      debug: false,
+      debug: true,
     },
   },
   scale: {
