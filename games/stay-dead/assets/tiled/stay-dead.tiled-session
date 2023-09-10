@@ -3,12 +3,24 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "",
+    "activeFile": "map.tmx",
     "expandedProjectPaths": [
+        "."
     ],
     "fileStates": {
         "": {
             "scaleInDock": 32
+        },
+        "map.tmx": {
+            "scale": 3,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 211.66666666666669,
+                "y": 86.16666666666666
+            }
+        },
+        "map.tmx#tileset": {
+            "scaleInDock": 16
         },
         "map.tmx#tileset2": {
             "scaleInEditor": 1
@@ -23,9 +35,11 @@
     "map.tileWidth": 10,
     "map.width": 32,
     "openFiles": [
+        "map.tmx"
     ],
     "project": "stay-dead.tiled-project",
     "recentFiles": [
+        "map.tmx"
     ],
     "tileset.embedInMap": true,
     "tileset.tileSize": {

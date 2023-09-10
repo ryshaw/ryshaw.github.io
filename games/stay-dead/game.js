@@ -190,19 +190,30 @@ class Game extends Phaser.Scene {
 
     if (this.mouseDown && this.reloadTime <= 0) {
       const v = this.input.activePointer.positionToCamera(this.cameras.main);
-      this.add.rectangle(v.x, v.y, 1, 1, 0xffd166, 1);
+      //this.add.rectangle(v.x, v.y, 1, 1, 0xffd166, 1);
       const offset = new Phaser.Math.Vector2(
-        Math.cos(this.gun.rotation + Math.PI / 2) * this.gun.height,
-        Math.sin(this.gun.rotation + Math.PI / 2) * this.gun.height
+        Math.cos(this.gun.rotation + Math.PI / 2) * (this.gun.height + 5),
+        Math.sin(this.gun.rotation + Math.PI / 2) * (this.gun.height + 5)
       );
-      const line = new Phaser.Geom.Line(
+      const circle = this.add.circle(
+        this.player.x + offset.x,
+        this.player.y + offset.y,
+        1,
+        0xffd166,
+        1
+      );
+      this.physics.add.existing(circle);
+      this.physics.moveTo(circle, v.x, v.y, 500);
+      circle.body.isCircle = true;
+
+      /*const line = new Phaser.Geom.Line(
         this.player.x + offset.x,
         this.player.y + offset.y,
         v.x,
         v.y
       );
-      this.graphics.strokeLineShape(line);
-      this.reloadTime = 0.1;
+      this.graphics.strokeLineShape(line);*/
+      this.reloadTime = 0.2;
       this.tweens.add({
         targets: this,
         reloadTime: 0,
@@ -513,7 +524,7 @@ const config = {
   physics: {
     default: "arcade",
     arcade: {
-      debug: true,
+      debug: false,
     },
   },
   scale: {
