@@ -130,37 +130,8 @@ class Game extends Phaser.Scene {
     f.body.isCircle = true;
 
     this.zombos = this.physics.add.group();
-    const z = this.physics.add
-      .sprite(this.gameW * 0.1, this.gameH * 0.1, "zombo")
-      .setDepth(1);
-    this.zombos.add(z);
-    z.health = 3;
-    z.body.setSize(5, 5).setCircle(3).setOffset(0, 0);
+    this.add.existing(new Zombo(this, this.gameW * 0.1, this.gameH * 0.1));
 
-    const zTargets = fortLayer.getTilesWithinShape(
-      new Phaser.Geom.Line(z.x, z.y, this.gameW / 2, this.gameH / 2),
-      {
-        isNotEmpty: true,
-      }
-    );
-
-    const zTarget = Phaser.Utils.Array.StableSort(zTargets, (tileA, tileB) => {
-      const distA = Phaser.Math.Distance.Between(
-        z.x,
-        z.y,
-        tileA.pixelX,
-        tileA.pixelY
-      );
-      const distB = Phaser.Math.Distance.Between(
-        z.x,
-        z.y,
-        tileB.pixelX,
-        tileB.pixelY
-      );
-      return distA - distB;
-    })[0];
-
-    this.physics.moveTo(z, zTarget.pixelX, zTarget.pixelY, 20);
     this.physics.add.collider(this.zombos, fortLayer, (z, t) =>
       this.zomboHitWall(z, t)
     );
@@ -169,6 +140,14 @@ class Game extends Phaser.Scene {
     this.physics.add.overlap(this.zombos, this.bullets, (z, b) =>
       this.hitZombo(z, b)
     );
+
+    this.physics.add.collider(this.zombos, f, (z, f) =>
+      this.zomboHitFood(z, f)
+    );
+
+    this.physics.add.collider(this.player, this.zombos, (p, z) => {
+      z.attacking = false;
+    });
   }
 
   /*
@@ -234,7 +213,6 @@ class Game extends Phaser.Scene {
   }
 
   update() {
-    this.zombos.getChildren().forEach((z) => (z.rotation = z.body.angle));
     this.updatePlayerMovement();
     this.updateShoot();
   }
@@ -397,20 +375,24 @@ class Game extends Phaser.Scene {
   }
 
   zomboHitWall(zombo, wall) {
-    if (!zombo.body.blocked.none) {
-      console.log("blocked");
-    }
     zombo.body.stop();
-    this.time.delayedCall(1000, () => this.zomboDamageWall(zombo, wall));
+    zombo.attacking = true;
+    this.time.delayedCall(1000, () => {
+      if (zombo.health >= 0) {
+        if (zombo.attacking) {
+          if (wall.alpha <= 0.2) {
+            wall.setCollision(false);
+          } else {
+            wall.setAlpha(wall.alpha - 0.1);
+          }
+        }
+      }
+    });
   }
 
-  zomboDamageWall(zombo, wall) {
-    wall.setAlpha(wall.alpha - 0.5);
-    if (wall.alpha <= 0) {
-      wall.setCollision(false);
-      console.log("hi");
-    }
-    this.time.delayedCall(1000, () => this.zomboDamageWall(zombo, wall));
+  zomboHitFood(zombo, food) {
+    zombo.body.stop();
+    console.log("hit");
   }
 
   loadGameUI() {
@@ -605,6 +587,33 @@ const config = {
   backgroundColor: "#9badb7",
   scene: [Game],
 };
+
+class Zombo extends Phaser.Physics.Arcade.Sprite {
+  scene;
+
+  constructor(scene, x, y) {
+    super(scene, x, y, "zombo");
+    this.scene = scene;
+    this.setDepth(1);
+    scene.zombos.add(this);
+    this.health = 3;
+    this.attacking = false;
+    this.body.setSize(5, 5).setCircle(3).setOffset(0, 0);
+
+    scene.time.delayedCall(1000, () => this.zomboHandler());
+  }
+
+  zomboHandler() {
+    this.rotation = this.body.angle;
+    this.scene.physics.moveTo(
+      this,
+      this.scene.gameW / 2,
+      this.scene.gameH / 2,
+      20
+    );
+    this.scene.time.delayedCall(1000, () => this.zomboHandler());
+  }
+}
 
 // Bullet & Bullets unused for now
 class Bullet extends Phaser.GameObjects.Arc {
