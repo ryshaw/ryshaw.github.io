@@ -16,6 +16,8 @@ class Game extends Phaser.Scene {
   reloadTime;
   bullets; // physics group
   zombos; // physics group
+  playerHealth;
+  days;
 
   constructor() {
     super({ key: "Game" });
@@ -40,12 +42,14 @@ class Game extends Phaser.Scene {
     this.windowH = game.config.height;
     this.gameW = this.windowW / 4;
     this.gameH = this.windowH / 4;
-
-    this.mouseDown = false;
-    this.reloadTime = 0;
   }
 
   create() {
+    this.mouseDown = false;
+    this.reloadTime = 0;
+    this.playerHealth = 10;
+    this.days = 1;
+
     this.graphics = this.add.graphics({
       lineStyle: { width: 0.2, color: 0xffd166 },
     });
@@ -109,7 +113,7 @@ class Game extends Phaser.Scene {
     this.player = this.add.container(20, 100, [car, gun]).setSize(8, 8);
     this.player.speed = 0;
     this.physics.world.enable(this.player); // this.physics.add.existing didn't work
-    this.player.body.setCircle(4).setCollideWorldBounds(true);
+    this.player.body.setCircle(4).setCollideWorldBounds(true).setMass(5);
 
     this.physics.add.collider(this.player, fortLayer);
 
@@ -128,6 +132,7 @@ class Game extends Phaser.Scene {
     );
     f.body.setSize(10, 10);
     f.body.isCircle = true;
+    f.health = 10;
 
     this.zombos = this.physics.add.group();
     this.add.existing(new Zombo(this, this.gameW * 0.1, this.gameH * 0.1));
@@ -147,6 +152,9 @@ class Game extends Phaser.Scene {
 
     this.physics.add.collider(this.player, this.zombos, (p, z) => {
       z.attacking = false;
+      if (!z.hitByCar) {
+        z.hitByCar = true;
+      }
     });
   }
 
@@ -378,13 +386,11 @@ class Game extends Phaser.Scene {
     zombo.body.stop();
     zombo.attacking = true;
     this.time.delayedCall(1000, () => {
-      if (zombo.health >= 0) {
-        if (zombo.attacking) {
-          if (wall.alpha <= 0.2) {
-            wall.setCollision(false);
-          } else {
-            wall.setAlpha(wall.alpha - 0.1);
-          }
+      if (zombo.health >= 0 && zombo.attacking) {
+        if (wall.alpha <= 0.2) {
+          wall.setCollision(false);
+        } else {
+          wall.setAlpha(wall.alpha - 0.1);
         }
       }
     });
@@ -392,7 +398,11 @@ class Game extends Phaser.Scene {
 
   zomboHitFood(zombo, food) {
     zombo.body.stop();
-    console.log("hit");
+    this.playerHealth -= 1;
+    this.UIContainer.getByName("healthText").setText(
+      `health: ${this.playerHealth}`
+    );
+    if (this.playerHealth <= 0) this.gameOver();
   }
 
   loadGameUI() {
@@ -400,6 +410,15 @@ class Game extends Phaser.Scene {
       0,
       0
     );
+    new CustomText(
+      this,
+      this.windowW - 5,
+      5,
+      `health: ${this.playerHealth}`,
+      "s"
+    )
+      .setOrigin(1, 0)
+      .setName("healthText");
     new CustomText(this, this.windowW * 0.5, 5, "STAY DEAD", "m")
       .setFontFamily("Finger Paint")
       .setOrigin(0.5, 0)
@@ -407,15 +426,15 @@ class Game extends Phaser.Scene {
   }
 
   gameOver() {
+    /*
     this.sound.stopAll();
 
     this.sounds["lose"].play({
       volume: 0.4,
-    });
+    });*/
 
     this.physics.pause();
     this.tweens.killAll();
-    clearInterval(this.interval);
     this.anims.pauseAll();
 
     const t = new CustomText(
@@ -423,12 +442,12 @@ class Game extends Phaser.Scene {
       this.windowW / 2,
       this.windowH / 2,
       `game over!\nyou lasted ${this.days} days\nclick to play again`,
-      "g",
+      "l",
       "c"
     )
-      .setColor("#000")
-      .setPadding(20)
-      .setBackgroundColor("#fff")
+      .setColor("#9e2a2b")
+      .setPadding(15)
+      .setBackgroundColor("#f5ebe0")
       .setLineSpacing(16)
       .setDepth(2);
 
@@ -576,7 +595,7 @@ const config = {
   physics: {
     default: "arcade",
     arcade: {
-      debug: true,
+      debug: false,
     },
   },
   scale: {
@@ -590,28 +609,46 @@ const config = {
 
 class Zombo extends Phaser.Physics.Arcade.Sprite {
   scene;
+  health;
+  attacking;
+  hitByCar;
 
   constructor(scene, x, y) {
-    super(scene, x, y, "zombo");
+    super(scene, x, y, "zombo").setDepth(1);
     this.scene = scene;
-    this.setDepth(1);
     scene.zombos.add(this);
     this.health = 3;
     this.attacking = false;
-    this.body.setSize(5, 5).setCircle(3).setOffset(0, 0);
+    this.hitByCar = false;
+    this.body
+      .setSize(5, 5)
+      .setCircle(3)
+      .setOffset(0, 0)
+      .setBounce(0.6, 0.6)
+      .setDrag(2, 2)
+      .setFriction(1, 1);
 
     scene.time.delayedCall(1000, () => this.zomboHandler());
   }
 
   zomboHandler() {
-    this.rotation = this.body.angle;
-    this.scene.physics.moveTo(
-      this,
-      this.scene.gameW / 2,
-      this.scene.gameH / 2,
-      20
-    );
+    if (!this.body) return;
+    if (this.hitByCar) {
+      this.hitByCar = false;
+    } else {
+      this.scene.physics.moveTo(
+        this,
+        this.scene.gameW / 2,
+        this.scene.gameH / 2,
+        20
+      );
+    }
     this.scene.time.delayedCall(1000, () => this.zomboHandler());
+  }
+
+  preUpdate(time, delta) {
+    super.preUpdate(time, delta);
+    this.rotation = this.body.angle;
   }
 }
 
