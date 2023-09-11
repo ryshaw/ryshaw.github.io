@@ -7,14 +7,15 @@ class Game extends Phaser.Scene {
   gameH;
   UICamera;
   UIContainer;
-  player;
-  gun;
+  player; // container with the car and the mounted gun
   arrowKeys;
   sounds;
   keys;
   mouseDown;
   graphics;
   reloadTime;
+  bullets; // physics group
+  zombos; // physics group
 
   constructor() {
     super({ key: "Game" });
@@ -96,33 +97,21 @@ class Game extends Phaser.Scene {
 
     map.setCollisionByExclusion([-1], true, true, fortLayer);
 
-    this.player = this.physics.add.sprite(
-      this.gameW * 0.1,
-      this.gameH * 0.5,
-      "car"
-    );
-    this.player.body.setSize(6, 6);
-    this.player.body.isCircle = true;
-    this.player.body.collideWorldBounds = true;
+    // this.player is two parts, car and gun. both are in a container
+    const car = this.add.sprite(0, 0, "car").setName("car");
+
+    const gun = this.add
+      .rectangle(0, 0, 1, 7, 0xffffff, 1)
+      .setOrigin(0.5, 0)
+      .setRotation(-Math.PI / 2)
+      .setName("gun");
+
+    this.player = this.add.container(20, 100, [car, gun]).setSize(8, 8);
     this.player.speed = 0;
+    this.physics.world.enable(this.player); // this.physics.add.existing didn't work
+    this.player.body.setCircle(4).setCollideWorldBounds(true);
 
     this.physics.add.collider(this.player, fortLayer);
-
-    // gun is given the exact same body as player,
-    // so it mimics all movement. this is a workaround
-    // rather than throwing both of them in a Container.
-    this.gun = this.add
-      .rectangle(this.player.x, this.player.y, 1, 8, 0xffffff, 1)
-      .setOrigin(0.5, 0)
-      .setRotation(-Math.PI / 2);
-
-    this.physics.add.existing(this.gun);
-    this.gun.body.setSize(6, 6);
-    this.gun.body.isCircle = true;
-    this.gun.body.collideWorldBounds = true;
-    this.gun.body.setOffset(-3, -3);
-
-    this.physics.add.collider(this.gun, fortLayer);
 
     this.physics.world.on("worldbounds", (body) => {
       switch (body.gameObject.name) {
@@ -140,16 +129,46 @@ class Game extends Phaser.Scene {
     f.body.setSize(10, 10);
     f.body.isCircle = true;
 
-    const z = this.physics.add.sprite(
-      this.gameW * 0.1,
-      this.gameH * 0.1,
-      "zombo"
+    this.zombos = this.physics.add.group();
+    const z = this.physics.add
+      .sprite(this.gameW * 0.1, this.gameH * 0.1, "zombo")
+      .setDepth(1);
+    this.zombos.add(z);
+    z.health = 3;
+    z.body.setSize(5, 5).setCircle(3).setOffset(0, 0);
+
+    const zTargets = fortLayer.getTilesWithinShape(
+      new Phaser.Geom.Line(z.x, z.y, this.gameW / 2, this.gameH / 2),
+      {
+        isNotEmpty: true,
+      }
     );
 
-    z.body.setSize(4, 4);
-    z.body.isCircle = true;
+    const zTarget = Phaser.Utils.Array.StableSort(zTargets, (tileA, tileB) => {
+      const distA = Phaser.Math.Distance.Between(
+        z.x,
+        z.y,
+        tileA.pixelX,
+        tileA.pixelY
+      );
+      const distB = Phaser.Math.Distance.Between(
+        z.x,
+        z.y,
+        tileB.pixelX,
+        tileB.pixelY
+      );
+      return distA - distB;
+    })[0];
 
-    this.physics.moveToObject(z, f, 10);
+    this.physics.moveTo(z, zTarget.pixelX, zTarget.pixelY, 20);
+    this.physics.add.collider(this.zombos, fortLayer, (z, t) =>
+      this.zomboHitWall(z, t)
+    );
+
+    this.bullets = this.physics.add.group();
+    this.physics.add.overlap(this.zombos, this.bullets, (z, b) =>
+      this.hitZombo(z, b)
+    );
   }
 
   /*
@@ -215,42 +234,9 @@ class Game extends Phaser.Scene {
   }
 
   update() {
-    this.graphics.clear();
+    this.zombos.getChildren().forEach((z) => (z.rotation = z.body.angle));
     this.updatePlayerMovement();
-
-    if (this.mouseDown && this.reloadTime <= 0) {
-      const v = this.input.activePointer.positionToCamera(this.cameras.main);
-      //this.add.rectangle(v.x, v.y, 1, 1, 0xffd166, 1);
-      const offset = new Phaser.Math.Vector2(
-        Math.cos(this.gun.rotation + Math.PI / 2) * (this.gun.height + 5),
-        Math.sin(this.gun.rotation + Math.PI / 2) * (this.gun.height + 5)
-      );
-      const circle = this.add
-        .circle(this.player.x, this.player.y, 0.5, 0xffd166, 1)
-        .setDepth(-1);
-      this.physics.add.existing(circle);
-      this.physics.moveTo(circle, v.x, v.y, 800);
-      circle.body.isCircle = true;
-      circle.body.setSize(0.5, 0.5);
-      circle.name = "bullet";
-      circle.body.setCollideWorldBounds(true);
-      circle.body.onWorldBounds = true;
-
-      /*const line = new Phaser.Geom.Line(
-        this.player.x + offset.x,
-        this.player.y + offset.y,
-        v.x,
-        v.y
-      );
-      this.graphics.strokeLineShape(line);*/
-
-      this.reloadTime = 0.2;
-      this.tweens.add({
-        targets: this,
-        reloadTime: 0,
-        duration: this.reloadTime * 1000,
-      });
-    }
+    this.updateShoot();
   }
 
   updatePlayerMovement() {
@@ -266,16 +252,11 @@ class Game extends Phaser.Scene {
 
     // if we're moving forward but not fully at maxSpeed, scale down turnRadius
     // so you can't spin around going at low speeds, similar to cars irl
-    if (
-      // this.player.speed >= 0 &&
-      Math.abs(this.player.speed) <
-      maxSpeed * 0.8
-    ) {
+    if (Math.abs(this.player.speed) < maxSpeed * 0.8) {
       turnRadius *= this.player.speed / (maxSpeed * 0.8);
     }
 
     // if we're backing up, turn down the turnRadius
-    //if (this.player.speed < 0) turnRadius *= -0.5;
 
     // turn left when we press left
     if (left && !right) {
@@ -358,12 +339,7 @@ class Game extends Phaser.Scene {
       .velocityFromAngle(this.player.angle, 1)
       .scale(this.player.speed);
 
-    // set gun velocity to the exact same,
-    // so it looks like it's attached to the car
-    this.gun.body.velocity = this.physics
-      .velocityFromAngle(this.player.angle, 1)
-      .scale(this.player.speed);
-
+    // turn mounted gun to face mouse
     const v = this.input.activePointer.positionToCamera(this.cameras.main);
     const angle = Phaser.Math.Angle.Between(
       this.player.x,
@@ -371,7 +347,70 @@ class Game extends Phaser.Scene {
       v.x,
       v.y
     );
-    this.gun.setRotation(angle - Math.PI / 2);
+    // gotta subtract this.player.rotation because by default, gun rotation
+    // is offset by the container's rotation
+    this.player
+      .getByName("gun")
+      .setRotation(angle - Math.PI / 2 - this.player.rotation);
+  }
+
+  updateShoot() {
+    if (this.mouseDown && this.reloadTime <= 0) {
+      const v = this.input.activePointer.positionToCamera(this.cameras.main);
+      // adjust for how fast player is going so it doesn't look bad
+      const offset = new Phaser.Math.Vector2(
+        this.player.body.velocity.x,
+        this.player.body.velocity.y
+      ).scale(0.05);
+      // yeah I'm doing this by hand instead of using custom classes, keep scrolling
+      const circle = this.add
+        .circle(
+          this.player.x + offset.x,
+          this.player.y + offset.y,
+          0.5,
+          0xffd166,
+          1
+        )
+        .setDepth(-1);
+      this.physics.add.existing(circle);
+      this.bullets.add(circle);
+      this.physics.moveTo(circle, v.x, v.y, 250);
+      circle.body.isCircle = true;
+      circle.body.setSize(0.5, 0.5);
+      circle.name = "bullet";
+      circle.body.setCollideWorldBounds(true);
+      circle.body.onWorldBounds = true;
+
+      this.reloadTime = 0.2;
+      this.tweens.add({
+        targets: this,
+        reloadTime: 0,
+        duration: this.reloadTime * 1000,
+      });
+    }
+  }
+
+  hitZombo(zombo, bullet) {
+    this.bullets.remove(bullet, true, true);
+    zombo.health--;
+    if (zombo.health <= 0) this.zombos.remove(zombo, true, true);
+  }
+
+  zomboHitWall(zombo, wall) {
+    if (!zombo.body.blocked.none) {
+      console.log("blocked");
+    }
+    zombo.body.stop();
+    this.time.delayedCall(1000, () => this.zomboDamageWall(zombo, wall));
+  }
+
+  zomboDamageWall(zombo, wall) {
+    wall.setAlpha(wall.alpha - 0.5);
+    if (wall.alpha <= 0) {
+      wall.setCollision(false);
+      console.log("hi");
+    }
+    this.time.delayedCall(1000, () => this.zomboDamageWall(zombo, wall));
   }
 
   loadGameUI() {
@@ -566,6 +605,53 @@ const config = {
   backgroundColor: "#9badb7",
   scene: [Game],
 };
+
+// Bullet & Bullets unused for now
+class Bullet extends Phaser.GameObjects.Arc {
+  constructor(scene, x, y) {
+    super(scene, x, y, 0.5).setFillStyle(0xffd166);
+  }
+
+  fire(x, y) {
+    this.body.reset(x, y);
+
+    this.setActive(true);
+    this.setVisible(true);
+
+    this.setVelocityY(-300);
+  }
+
+  preUpdate(time, delta) {
+    super.preUpdate(time, delta);
+
+    if (this.y <= -32) {
+      this.setActive(false);
+      this.setVisible(false);
+    }
+  }
+}
+
+class Bullets extends Phaser.Physics.Arcade.Group {
+  constructor(scene) {
+    super(scene.physics.world, scene);
+
+    this.createMultiple({
+      frameQuantity: 5,
+      key: "bullet",
+      active: false,
+      visible: false,
+      classType: Bullet,
+    });
+  }
+
+  fireBullet(x, y) {
+    const bullet = this.getFirstDead(false);
+
+    if (bullet) {
+      bullet.fire(x, y);
+    }
+  }
+}
 
 class CustomText extends Phaser.GameObjects.Text {
   constructor(
