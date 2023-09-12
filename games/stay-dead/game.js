@@ -19,6 +19,11 @@ class Game extends Phaser.Scene {
   playerHealth;
   days;
 
+  playerCollisionCategory;
+  zomboCollisionCategory;
+  bulletCollisionCategory;
+  fortCollisionCategory;
+
   constructor() {
     super({ key: "Game" });
   }
@@ -58,7 +63,7 @@ class Game extends Phaser.Scene {
     // bounds of the world are [0, 0, gameW, gameH]
     this.cameras.main.setZoom(4);
     this.cameras.main.centerOn(this.gameW / 2, this.gameH / 2);
-    this.physics.world.setBounds(0, 0, this.gameW, this.gameH);
+    this.matter.world.setBounds(0, 0, this.gameW, this.gameH);
 
     this.createLayout();
     this.createControls();
@@ -88,6 +93,11 @@ class Game extends Phaser.Scene {
   }
 
   createLayout() {
+    this.playerCollisionCategory = this.matter.world.nextCategory();
+    this.zomboCollisionCategory = this.matter.world.nextCategory();
+    this.bulletCollisionCategory = this.matter.world.nextCategory();
+    this.fortCollisionCategory = this.matter.world.nextCategory();
+
     const map = this.make.tilemap({ key: "map" });
 
     const backgroundLayer = map.createLayer(
@@ -101,6 +111,8 @@ class Game extends Phaser.Scene {
 
     map.setCollisionByExclusion([-1], true, true, fortLayer);
 
+    this.matter.world.convertTilemapLayer(fortLayer);
+
     // this.player is two parts, car and gun. both are in a container
     const car = this.add.sprite(0, 0, "car").setName("car");
 
@@ -110,13 +122,12 @@ class Game extends Phaser.Scene {
       .setRotation(-Math.PI / 2)
       .setName("gun");
 
-    this.player = this.add.container(20, 100, [car, gun]).setSize(8, 8);
+    this.player = this.add.container(20, 100, [car, gun]);
+    this.matter.add.gameObject(this.player);
+    this.player.setRectangle(9, 5).setFriction(1, 0.3, 1);
     this.player.speed = 0;
-    this.physics.world.enable(this.player); // this.physics.add.existing didn't work
-    this.player.body.setCircle(4).setCollideWorldBounds(true).setMass(5);
 
-    this.physics.add.collider(this.player, fortLayer);
-
+    /*
     this.physics.world.on("worldbounds", (body) => {
       switch (body.gameObject.name) {
         case "bullet":
@@ -155,7 +166,7 @@ class Game extends Phaser.Scene {
       if (!z.hitByCar) {
         z.hitByCar = true;
       }
-    });
+    });*/
   }
 
   /*
@@ -222,109 +233,55 @@ class Game extends Phaser.Scene {
 
   update() {
     this.updatePlayerMovement();
-    this.updateShoot();
+    //this.updateShoot();
   }
 
   updatePlayerMovement() {
     // this is a long one :)
 
-    let turnRadius = 220; // maximum turn radius of the car
-    let maxSpeed = 100; // maximum speed of the car
+    let turnRadius = 0.075; // maximum turn radius of the car
+    let maxSpeed = 0.00006; // maximum speed of the car
 
     const forward = this.keys.up.isDown || this.keys.w.isDown;
     const backward = this.keys.down.isDown || this.keys.s.isDown;
     const left = this.keys.left.isDown || this.keys.a.isDown;
     const right = this.keys.right.isDown || this.keys.d.isDown;
 
-    // if we're moving forward but not fully at maxSpeed, scale down turnRadius
-    // so you can't spin around going at low speeds, similar to cars irl
-    if (Math.abs(this.player.speed) < maxSpeed * 0.8) {
-      turnRadius *= this.player.speed / (maxSpeed * 0.8);
-    }
-
     // if we're backing up, turn down the turnRadius
+    if (this.player.speed < 0) turnRadius *= -0.6;
 
     // turn left when we press left
-    if (left && !right) {
-      this.player.body.angularVelocity = Phaser.Math.Linear(
-        this.player.body.angularVelocity,
-        -turnRadius,
-        0.04
-      );
-      // if we're turning right when we press left, turn left faster
-      if (this.player.body.angularVelocity > 0) {
-        this.player.body.angularVelocity = Phaser.Math.Linear(
-          this.player.body.angularVelocity,
-          -turnRadius,
-          0.04
-        );
-      }
-    }
+    if (left && !right) this.player.setAngularVelocity(-turnRadius);
 
     // turn right when press right
-    if (right && !left) {
-      this.player.body.angularVelocity = Phaser.Math.Linear(
-        this.player.body.angularVelocity,
-        turnRadius,
-        0.04
-      );
-      // if we're turning left when we press right, turn right faster
-      if (this.player.body.angularVelocity < 0) {
-        this.player.body.angularVelocity = Phaser.Math.Linear(
-          this.player.body.angularVelocity,
-          turnRadius,
-          0.04
-        );
-      }
-    }
-
-    // if we don't press left or right, stop turning
-    if (!left && !right) {
-      this.player.body.angularVelocity = Phaser.Math.Linear(
-        this.player.body.angularVelocity,
-        0,
-        0.3
-      );
-      if (Math.abs(this.player.body.angularVelocity) < 0.01) {
-        this.player.body.angularVelocity = 0;
-      }
-    }
+    if (right && !left) this.player.setAngularVelocity(turnRadius);
 
     // if we press up, move forward
-    if (forward && !backward) {
+    if (forward && !backward)
       this.player.speed = Phaser.Math.Linear(this.player.speed, maxSpeed, 0.02);
-    }
 
     // if we press down, go backward
-    if (backward && !forward) {
+    if (backward && !forward)
       this.player.speed = Phaser.Math.Linear(
         this.player.speed,
-        -maxSpeed * 0.4,
+        -maxSpeed * 0.3,
         0.02
       );
-      // if going forward, brake faster
-      if (this.player.speed > 0) {
-        this.player.speed = Phaser.Math.Linear(
-          this.player.speed,
-          -maxSpeed * 0.4,
-          0.02
-        );
-      }
-    }
 
     // if we press neither up nor right, slow down
     if (!backward && !forward) {
       this.player.speed = Phaser.Math.Linear(this.player.speed, 0, 0.04);
-      if (Math.abs(this.player.speed) < 0.01) {
-        this.player.speed = 0;
-      }
+      if (Math.abs(this.player.speed) < 0.0000001) this.player.speed = 0;
     }
 
     // set body velocity according to speed and angle
-    this.player.body.velocity = this.physics
-      .velocityFromAngle(this.player.angle, 1)
-      .scale(this.player.speed);
+    this.matter.applyForceFromAngle(
+      this.player,
+      this.player.speed,
+      this.player.rotation
+    );
 
+    /*
     // turn mounted gun to face mouse
     const v = this.input.activePointer.positionToCamera(this.cameras.main);
     const angle = Phaser.Math.Angle.Between(
@@ -337,7 +294,7 @@ class Game extends Phaser.Scene {
     // is offset by the container's rotation
     this.player
       .getByName("gun")
-      .setRotation(angle - Math.PI / 2 - this.player.rotation);
+      .setRotation(angle - Math.PI / 2 - this.player.rotation);*/
   }
 
   updateShoot() {
@@ -593,9 +550,13 @@ const config = {
   width: 1280,
   height: 720,
   physics: {
-    default: "arcade",
-    arcade: {
-      debug: false,
+    default: "matter",
+    matter: {
+      debug: true,
+      gravity: {
+        x: 0,
+        y: 0,
+      },
     },
   },
   scale: {
