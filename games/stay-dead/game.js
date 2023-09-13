@@ -23,6 +23,7 @@ class Game extends Phaser.Scene {
   zomboCollisionCategory;
   bulletCollisionCategory;
   fortCollisionCategory;
+  playerGroup;
 
   constructor() {
     super({ key: "Game" });
@@ -97,6 +98,7 @@ class Game extends Phaser.Scene {
     this.zomboCollisionCategory = this.matter.world.nextCategory();
     this.bulletCollisionCategory = this.matter.world.nextCategory();
     this.fortCollisionCategory = this.matter.world.nextCategory();
+    this.playerGroup = this.matter.world.nextGroup(true);
 
     const map = this.make.tilemap({ key: "map" });
 
@@ -126,25 +128,17 @@ class Game extends Phaser.Scene {
     this.matter.add.gameObject(this.player);
     this.player.setRectangle(9, 5).setFriction(1, 0.3, 1);
     this.player.speed = 0;
+    this.player.setCollisionGroup(this.playerGroup);
+    //this.player.setCollisionCategory(this.playerCollisionCategory);
 
-    /*
-    this.physics.world.on("worldbounds", (body) => {
-      switch (body.gameObject.name) {
-        case "bullet":
-          body.gameObject.destroy();
-          break;
-      }
-    });
-
-    const f = this.physics.add.staticSprite(
-      this.gameW / 2,
-      this.gameH / 2,
-      "food"
-    );
-    f.body.setSize(10, 10);
-    f.body.isCircle = true;
+    const f = this.matter.add
+      .sprite(this.gameW / 2, this.gameH / 2, "food")
+      .setStatic(true)
+      .setCircle(10);
     f.health = 10;
 
+    this.add.existing(new Zombo(this, this.gameW * 0.1, this.gameH * 0.1));
+    /*
     this.zombos = this.physics.add.group();
     this.add.existing(new Zombo(this, this.gameW * 0.1, this.gameH * 0.1));
 
@@ -233,7 +227,7 @@ class Game extends Phaser.Scene {
 
   update() {
     this.updatePlayerMovement();
-    //this.updateShoot();
+    this.updateShoot();
   }
 
   updatePlayerMovement() {
@@ -271,7 +265,7 @@ class Game extends Phaser.Scene {
     // if we press neither up nor right, slow down
     if (!backward && !forward) {
       this.player.speed = Phaser.Math.Linear(this.player.speed, 0, 0.04);
-      if (Math.abs(this.player.speed) < 0.0000001) this.player.speed = 0;
+      if (Math.abs(this.player.speed) < 0.000001) this.player.speed = 0;
     }
 
     // set body velocity according to speed and angle
@@ -281,7 +275,6 @@ class Game extends Phaser.Scene {
       this.player.rotation
     );
 
-    /*
     // turn mounted gun to face mouse
     const v = this.input.activePointer.positionToCamera(this.cameras.main);
     const angle = Phaser.Math.Angle.Between(
@@ -294,7 +287,7 @@ class Game extends Phaser.Scene {
     // is offset by the container's rotation
     this.player
       .getByName("gun")
-      .setRotation(angle - Math.PI / 2 - this.player.rotation);*/
+      .setRotation(angle - Math.PI / 2 - this.player.rotation);
   }
 
   updateShoot() {
@@ -304,7 +297,7 @@ class Game extends Phaser.Scene {
       const offset = new Phaser.Math.Vector2(
         this.player.body.velocity.x,
         this.player.body.velocity.y
-      ).scale(0.05);
+      ).scale(1.8);
       // yeah I'm doing this by hand instead of using custom classes, keep scrolling
       const circle = this.add
         .circle(
@@ -315,15 +308,18 @@ class Game extends Phaser.Scene {
           1
         )
         .setDepth(-1);
-      this.physics.add.existing(circle);
-      this.bullets.add(circle);
-      this.physics.moveTo(circle, v.x, v.y, 250);
-      circle.body.isCircle = true;
-      circle.body.setSize(0.5, 0.5);
-      circle.name = "bullet";
-      circle.body.setCollideWorldBounds(true);
-      circle.body.onWorldBounds = true;
 
+      this.matter.add
+        .gameObject(circle)
+        .setCircle(0.5)
+        .setFriction(0, 0, 0)
+        .setCollisionGroup(this.playerGroup)
+        .setCollidesWith(0);
+
+      this.moveToPoint(circle, v, 5);
+      circle.name = "bullet";
+
+      this.time.delayedCall(5000, () => circle.destroy());
       this.reloadTime = 0.2;
       this.tweens.add({
         targets: this,
@@ -331,6 +327,15 @@ class Game extends Phaser.Scene {
         duration: this.reloadTime * 1000,
       });
     }
+  }
+
+  // moveToPoint stolen from https://phaser.discourse.group/t/is-it-possible-to-use-sprite-move-to-another-sprite-on-matter-js/2367
+
+  moveToPoint(obj, to, speed = 1) {
+    const direction = Math.atan((to.x - obj.x) / (to.y - obj.y));
+    const speed2 = to.y >= obj.y ? speed : -speed;
+
+    obj.setVelocity(speed2 * Math.sin(direction), speed2 * Math.cos(direction));
   }
 
   hitZombo(zombo, bullet) {
@@ -552,7 +557,7 @@ const config = {
   physics: {
     default: "matter",
     matter: {
-      debug: true,
+      debug: false,
       gravity: {
         x: 0,
         y: 0,
@@ -568,26 +573,19 @@ const config = {
   scene: [Game],
 };
 
-class Zombo extends Phaser.Physics.Arcade.Sprite {
+class Zombo extends Phaser.Physics.Matter.Sprite {
   scene;
   health;
   attacking;
   hitByCar;
 
   constructor(scene, x, y) {
-    super(scene, x, y, "zombo").setDepth(1);
+    super(scene.matter.world, x, y, "zombo").setDepth(1);
     this.scene = scene;
-    scene.zombos.add(this);
     this.health = 3;
     this.attacking = false;
     this.hitByCar = false;
-    this.body
-      .setSize(5, 5)
-      .setCircle(3)
-      .setOffset(0, 0)
-      .setBounce(0.6, 0.6)
-      .setDrag(2, 2)
-      .setFriction(1, 1);
+    this.setCircle(3).setBounce(0.6, 0.6).setFriction(0.1, 0.1);
 
     scene.time.delayedCall(1000, () => this.zomboHandler());
   }
@@ -597,11 +595,10 @@ class Zombo extends Phaser.Physics.Arcade.Sprite {
     if (this.hitByCar) {
       this.hitByCar = false;
     } else {
-      this.scene.physics.moveTo(
+      this.scene.moveToPoint(
         this,
-        this.scene.gameW / 2,
-        this.scene.gameH / 2,
-        20
+        new Phaser.Math.Vector2(this.scene.gameW / 2, this.scene.gameH / 2),
+        0.5
       );
     }
     this.scene.time.delayedCall(1000, () => this.zomboHandler());
