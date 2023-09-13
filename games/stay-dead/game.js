@@ -124,9 +124,9 @@ class Game extends Phaser.Scene {
       .setRotation(-Math.PI / 2)
       .setName("gun");
 
-    this.player = this.add.container(20, 100, [car, gun]);
+    this.player = this.add.container(20, 100, [car, gun]).setName("player");
     this.matter.add.gameObject(this.player);
-    this.player.setRectangle(9, 5).setFriction(1, 0.3, 1);
+    this.player.setRectangle(9, 5).setFriction(0, 0.3, 1);
     this.player.speed = 0;
     this.player.setCollisionGroup(this.playerGroup);
     //this.player.setCollisionCategory(this.playerCollisionCategory);
@@ -134,13 +134,12 @@ class Game extends Phaser.Scene {
     const f = this.matter.add
       .sprite(this.gameW / 2, this.gameH / 2, "food")
       .setStatic(true)
-      .setCircle(10);
+      .setCircle(10)
+      .setName("food");
     f.health = 10;
 
     this.add.existing(new Zombo(this, this.gameW * 0.1, this.gameH * 0.1));
     /*
-    this.zombos = this.physics.add.group();
-    this.add.existing(new Zombo(this, this.gameW * 0.1, this.gameH * 0.1));
 
     this.physics.add.collider(this.zombos, fortLayer, (z, t) =>
       this.zomboHitWall(z, t)
@@ -161,6 +160,41 @@ class Game extends Phaser.Scene {
         z.hitByCar = true;
       }
     });*/
+
+    this.matter.world.on("collisionstart", (event) =>
+      this.collisionHandler(event)
+    );
+  }
+
+  // sorry in advance...
+  collisionHandler(event) {
+    event.pairs.forEach((pair) => {
+      const objs = {
+        [this.getNameOfBody(pair.bodyA)]: pair.bodyA,
+        [this.getNameOfBody(pair.bodyB)]: pair.bodyB,
+      };
+      const names = Object.keys(objs).sort();
+      switch (names[0]) {
+        case "fort":
+          if (names[1] == "zombo") {
+            this.zomboHitWall(
+              objs["zombo"].gameObject,
+              objs["fort"].gameObject.tile
+            );
+          }
+          break;
+
+        default:
+          break;
+      }
+    });
+  }
+
+  getNameOfBody(body) {
+    if (body.gameObject)
+      if (body.gameObject.tile) return "fort";
+      else return body.gameObject.name;
+    else return "bounds";
   }
 
   /*
@@ -330,11 +364,9 @@ class Game extends Phaser.Scene {
   }
 
   // moveToPoint stolen from https://phaser.discourse.group/t/is-it-possible-to-use-sprite-move-to-another-sprite-on-matter-js/2367
-
   moveToPoint(obj, to, speed = 1) {
     const direction = Math.atan((to.x - obj.x) / (to.y - obj.y));
     const speed2 = to.y >= obj.y ? speed : -speed;
-
     obj.setVelocity(speed2 * Math.sin(direction), speed2 * Math.cos(direction));
   }
 
@@ -345,12 +377,11 @@ class Game extends Phaser.Scene {
   }
 
   zomboHitWall(zombo, wall) {
-    zombo.body.stop();
     zombo.attacking = true;
     this.time.delayedCall(1000, () => {
       if (zombo.health >= 0 && zombo.attacking) {
         if (wall.alpha <= 0.2) {
-          wall.setCollision(false);
+          wall.physics.matterBody.setCollisionCategory(0);
         } else {
           wall.setAlpha(wall.alpha - 0.1);
         }
@@ -557,7 +588,7 @@ const config = {
   physics: {
     default: "matter",
     matter: {
-      debug: false,
+      debug: true,
       gravity: {
         x: 0,
         y: 0,
@@ -580,12 +611,12 @@ class Zombo extends Phaser.Physics.Matter.Sprite {
   hitByCar;
 
   constructor(scene, x, y) {
-    super(scene.matter.world, x, y, "zombo").setDepth(1);
+    super(scene.matter.world, x, y, "zombo").setDepth(1).setName("zombo");
     this.scene = scene;
     this.health = 3;
     this.attacking = false;
     this.hitByCar = false;
-    this.setCircle(3).setBounce(0.6, 0.6).setFriction(0.1, 0.1);
+    this.setRectangle(5, 5).setBounce(0.6).setFriction(0.05, 0.05);
 
     scene.time.delayedCall(1000, () => this.zomboHandler());
   }
@@ -598,7 +629,15 @@ class Zombo extends Phaser.Physics.Matter.Sprite {
       this.scene.moveToPoint(
         this,
         new Phaser.Math.Vector2(this.scene.gameW / 2, this.scene.gameH / 2),
-        0.5
+        0.3
+      );
+      this.setRotation(
+        Phaser.Math.Angle.Between(
+          0,
+          0,
+          this.body.velocity.x,
+          this.body.velocity.y
+        )
       );
     }
     this.scene.time.delayedCall(1000, () => this.zomboHandler());
@@ -606,7 +645,6 @@ class Zombo extends Phaser.Physics.Matter.Sprite {
 
   preUpdate(time, delta) {
     super.preUpdate(time, delta);
-    this.rotation = this.body.angle;
   }
 }
 
