@@ -171,12 +171,16 @@ class Game extends Phaser.Scene {
     );
 
     this.matter.world.on("collisionstart", (event) => {
-      this.collisionHandler(event);
+      this.collisionStartHandler(event);
+    });
+
+    this.matter.world.on("collisionend", (event) => {
+      //this.collisionEndHandler(event);
     });
   }
 
   // sorry in advance...
-  collisionHandler(event) {
+  collisionStartHandler(event) {
     event.pairs.forEach((pair) => {
       const objs = {
         [this.getNameOfBody(pair.bodyA)]: pair.bodyA,
@@ -193,6 +197,38 @@ class Game extends Phaser.Scene {
         case "food":
           if (names[1] == "zombo") {
             objs["zombo"].gameObject.hit(objs["food"].gameObject);
+          }
+          break;
+
+        case "player":
+          if (names[1] == "zombo") {
+            objs["zombo"].gameObject.hitByCar();
+          }
+          break;
+
+        default:
+          break;
+      }
+    });
+  }
+
+  collisionEndHandler(event) {
+    event.pairs.forEach((pair) => {
+      const objs = {
+        [this.getNameOfBody(pair.bodyA)]: pair.bodyA,
+        [this.getNameOfBody(pair.bodyB)]: pair.bodyB,
+      };
+      const names = Object.keys(objs).sort();
+      switch (names[0]) {
+        case "fort":
+          if (names[1] == "zombo") {
+            objs["zombo"].gameObject.collisionEnd(objs["fort"].gameObject.tile);
+          }
+          break;
+
+        case "food":
+          if (names[1] == "zombo") {
+            objs["zombo"].gameObject.collisionEnd(objs["fort"].gameObject.tile);
           }
           break;
 
@@ -614,7 +650,7 @@ class Zombo extends Phaser.Physics.Matter.Sprite {
     this.state = STANDING;
     this.timeInState = 0;
     this.target = null;
-    this.setRectangle(5, 5).setBounce(0.6).setFriction(0, 0.15, 0);
+    this.setRectangle(5, 5).setBounce(0.7).setFriction(0, 0.06, 0);
   }
 
   zomboHandler() {
@@ -643,6 +679,7 @@ class Zombo extends Phaser.Physics.Matter.Sprite {
   preUpdate(time, delta) {
     super.preUpdate(time, delta);
     this.timeInState += delta;
+    console.log(this.state);
 
     switch (this.state) {
       case STANDING:
@@ -669,21 +706,14 @@ class Zombo extends Phaser.Physics.Matter.Sprite {
         break;
 
       case ATTACKING:
-        if (this.target.name == "wall") {
-          this.setRotation(
-            Phaser.Math.Angle.Between(
-              this.x,
-              this.y,
-              this.target.pixelX + this.target.width / 2,
-              this.target.pixelY + this.target.height / 2
-            )
-          );
-        }
         if (this.timeInState >= 1000) {
+          this.timeInState -= 1000;
           this.target.health -= 1;
+
           if (this.target.name == "food") {
             this.scene.events.emit("foodDamaged");
           }
+
           if (this.target.health <= 0) {
             if (this.target.name == "wall") {
               this.target.physics.matterBody.setCollisionCategory(0);
@@ -695,12 +725,14 @@ class Zombo extends Phaser.Physics.Matter.Sprite {
           } else {
             this.target.setAlpha(this.target.alpha - 0.1);
           }
-
-          this.timeInState -= 1000;
         }
         break;
 
       case HITBYCAR:
+        if (this.body.speed < 0.01) {
+          this.state = STANDING;
+          this.timeInState = 0;
+        }
         break;
 
       default:
@@ -710,9 +742,24 @@ class Zombo extends Phaser.Physics.Matter.Sprite {
 
   hit(obj) {
     // hit wall or food
+    if (this.state == HITBYCAR) return;
     this.state = ATTACKING;
     this.timeInState = 0;
     this.target = obj;
+  }
+
+  hitByCar() {
+    this.state = HITBYCAR;
+    this.timeInState = 0;
+    this.target = null;
+  }
+
+  collisionEnd(obj) {
+    // was hit by car, or the wall came down while attacking
+    console.log("collision end");
+    this.state = STANDING;
+    this.timeInState = 0;
+    this.target = null;
   }
 }
 
