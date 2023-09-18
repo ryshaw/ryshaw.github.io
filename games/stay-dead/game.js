@@ -16,7 +16,7 @@ class Game extends Phaser.Scene {
   reloadTime;
   bullets; // physics group
   zombos; // physics group
-  playerHealth;
+  food;
   days;
 
   playerCollisionCategory;
@@ -111,6 +111,13 @@ class Game extends Phaser.Scene {
       .createLayer("Fort", map.addTilesetImage("tileset", "tileset"))
       .setDepth(1); // to be above car
 
+    fortLayer.forEachTile((tile) => {
+      if (tile.index != -1) {
+        tile.name = "wall";
+        tile.health = 8;
+      }
+    });
+
     map.setCollisionByExclusion([-1], true, true, fortLayer);
 
     this.matter.world.convertTilemapLayer(fortLayer);
@@ -131,27 +138,18 @@ class Game extends Phaser.Scene {
     this.player.setCollisionGroup(this.playerGroup);
     //this.player.setCollisionCategory(this.playerCollisionCategory);
 
-    const f = this.matter.add
+    this.food = this.matter.add
       .sprite(this.gameW / 2, this.gameH / 2, "food")
-      .setStatic(true)
       .setCircle(10)
+      .setStatic(true)
       .setName("food");
-    f.health = 10;
+    this.food.health = 10;
 
-    this.add.existing(new Zombo(this, this.gameW * 0.1, this.gameH * 0.1));
+    this.add.existing(new Zombo(this, this.gameW * 0.2, this.gameH * 0.2));
     /*
-
-    this.physics.add.collider(this.zombos, fortLayer, (z, t) =>
-      this.zomboHitWall(z, t)
-    );
-
     this.bullets = this.physics.add.group();
     this.physics.add.overlap(this.zombos, this.bullets, (z, b) =>
       this.hitZombo(z, b)
-    );
-
-    this.physics.add.collider(this.zombos, f, (z, f) =>
-      this.zomboHitFood(z, f)
     );
 
     this.physics.add.collider(this.player, this.zombos, (p, z) => {
@@ -161,9 +159,20 @@ class Game extends Phaser.Scene {
       }
     });*/
 
-    this.matter.world.on("collisionstart", (event) =>
-      this.collisionHandler(event)
+    this.events.on(
+      "foodDamaged",
+      () => {
+        this.UIContainer.getByName("healthText").setText(
+          `health: ${this.food.health}`
+        );
+        if (this.food.health <= 0) this.gameOver();
+      },
+      this
     );
+
+    this.matter.world.on("collisionstart", (event) => {
+      this.collisionHandler(event);
+    });
   }
 
   // sorry in advance...
@@ -177,10 +186,13 @@ class Game extends Phaser.Scene {
       switch (names[0]) {
         case "fort":
           if (names[1] == "zombo") {
-            this.zomboHitWall(
-              objs["zombo"].gameObject,
-              objs["fort"].gameObject.tile
-            );
+            objs["zombo"].gameObject.hit(objs["fort"].gameObject.tile);
+          }
+          break;
+
+        case "food":
+          if (names[1] == "zombo") {
+            objs["zombo"].gameObject.hit(objs["food"].gameObject);
           }
           break;
 
@@ -255,7 +267,7 @@ class Game extends Phaser.Scene {
     this.sound.stopAll();
     this.sound.removeAll();
     this.anims.resumeAll();
-    this.physics.resume();
+    this.matter.resume();
     this.create();
   }
 
@@ -376,28 +388,6 @@ class Game extends Phaser.Scene {
     if (zombo.health <= 0) this.zombos.remove(zombo, true, true);
   }
 
-  zomboHitWall(zombo, wall) {
-    zombo.attacking = true;
-    this.time.delayedCall(1000, () => {
-      if (zombo.health >= 0 && zombo.attacking) {
-        if (wall.alpha <= 0.2) {
-          wall.physics.matterBody.setCollisionCategory(0);
-        } else {
-          wall.setAlpha(wall.alpha - 0.1);
-        }
-      }
-    });
-  }
-
-  zomboHitFood(zombo, food) {
-    zombo.body.stop();
-    this.playerHealth -= 1;
-    this.UIContainer.getByName("healthText").setText(
-      `health: ${this.playerHealth}`
-    );
-    if (this.playerHealth <= 0) this.gameOver();
-  }
-
   loadGameUI() {
     new CustomText(this, 5, 5, "wasd or arrow keys to move", "s").setOrigin(
       0,
@@ -426,7 +416,7 @@ class Game extends Phaser.Scene {
       volume: 0.4,
     });*/
 
-    this.physics.pause();
+    this.matter.pause();
     this.tweens.killAll();
     this.anims.pauseAll();
 
@@ -588,7 +578,7 @@ const config = {
   physics: {
     default: "matter",
     matter: {
-      debug: true,
+      debug: false,
       gravity: {
         x: 0,
         y: 0,
@@ -604,24 +594,31 @@ const config = {
   scene: [Game],
 };
 
+// for zombo states
+const STANDING = 0;
+const WALKING = 1;
+const ATTACKING = 2;
+const HITBYCAR = 3;
+
 class Zombo extends Phaser.Physics.Matter.Sprite {
   scene;
   health;
-  attacking;
-  hitByCar;
+  state; // finite state machine: standing, walking, attacking, or hitByCar
+  timeInState; // counter of time in each state, resets to 0 each time we switch
+  target; // when attacking fort
 
   constructor(scene, x, y) {
     super(scene.matter.world, x, y, "zombo").setDepth(1).setName("zombo");
     this.scene = scene;
     this.health = 3;
-    this.attacking = false;
-    this.hitByCar = false;
-    this.setRectangle(5, 5).setBounce(0.6).setFriction(0.05, 0.05);
-
-    scene.time.delayedCall(1000, () => this.zomboHandler());
+    this.state = STANDING;
+    this.timeInState = 0;
+    this.target = null;
+    this.setRectangle(5, 5).setBounce(0.6).setFriction(0, 0.15, 0);
   }
 
   zomboHandler() {
+    /*
     if (!this.body) return;
     if (this.hitByCar) {
       this.hitByCar = false;
@@ -640,11 +637,82 @@ class Zombo extends Phaser.Physics.Matter.Sprite {
         )
       );
     }
-    this.scene.time.delayedCall(1000, () => this.zomboHandler());
+    this.scene.time.delayedCall(1000, () => this.zomboHandler());*/
   }
 
   preUpdate(time, delta) {
     super.preUpdate(time, delta);
+    this.timeInState += delta;
+
+    switch (this.state) {
+      case STANDING:
+        if (this.timeInState >= 1000) {
+          this.state = WALKING;
+          this.timeInState = 0;
+        }
+        break;
+
+      case WALKING:
+        this.scene.moveToPoint(
+          this,
+          new Phaser.Math.Vector2(this.scene.gameW / 2, this.scene.gameH / 2),
+          0.3
+        );
+        this.setRotation(
+          Phaser.Math.Angle.Between(
+            0,
+            0,
+            this.body.velocity.x,
+            this.body.velocity.y
+          )
+        );
+        break;
+
+      case ATTACKING:
+        if (this.target.name == "wall") {
+          this.setRotation(
+            Phaser.Math.Angle.Between(
+              this.x,
+              this.y,
+              this.target.pixelX + this.target.width / 2,
+              this.target.pixelY + this.target.height / 2
+            )
+          );
+        }
+        if (this.timeInState >= 1000) {
+          this.target.health -= 1;
+          if (this.target.name == "food") {
+            this.scene.events.emit("foodDamaged");
+          }
+          if (this.target.health <= 0) {
+            if (this.target.name == "wall") {
+              this.target.physics.matterBody.setCollisionCategory(0);
+            }
+            this.scene.time.delayedCall(900, () => {
+              this.state = WALKING;
+              this.timeInState = 0;
+            });
+          } else {
+            this.target.setAlpha(this.target.alpha - 0.1);
+          }
+
+          this.timeInState -= 1000;
+        }
+        break;
+
+      case HITBYCAR:
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  hit(obj) {
+    // hit wall or food
+    this.state = ATTACKING;
+    this.timeInState = 0;
+    this.target = obj;
   }
 }
 
