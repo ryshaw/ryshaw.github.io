@@ -150,15 +150,9 @@ class Game extends Phaser.Scene {
     this.bullets = this.physics.add.group();
     this.physics.add.overlap(this.zombos, this.bullets, (z, b) =>
       this.hitZombo(z, b)
-    );
+    );*/
 
-    this.physics.add.collider(this.player, this.zombos, (p, z) => {
-      z.attacking = false;
-      if (!z.hitByCar) {
-        z.hitByCar = true;
-      }
-    });*/
-
+    // foodDamaged emitted by zombo when attacking food supply
     this.events.on(
       "foodDamaged",
       () => {
@@ -175,7 +169,7 @@ class Game extends Phaser.Scene {
     });
 
     this.matter.world.on("collisionend", (event) => {
-      //this.collisionEndHandler(event);
+      this.collisionEndHandler(event);
     });
   }
 
@@ -190,18 +184,21 @@ class Game extends Phaser.Scene {
       switch (names[0]) {
         case "fort":
           if (names[1] == "zombo") {
+            // zombo attacking fort
             objs["zombo"].gameObject.hit(objs["fort"].gameObject.tile);
           }
           break;
 
         case "food":
           if (names[1] == "zombo") {
+            // zombo attacking food
             objs["zombo"].gameObject.hit(objs["food"].gameObject);
           }
           break;
 
         case "player":
           if (names[1] == "zombo") {
+            // player hit zombo
             objs["zombo"].gameObject.hitByCar();
           }
           break;
@@ -238,6 +235,7 @@ class Game extends Phaser.Scene {
     });
   }
 
+  // helper method for collisionHandlers
   getNameOfBody(body) {
     if (body.gameObject)
       if (body.gameObject.tile) return "fort";
@@ -324,7 +322,7 @@ class Game extends Phaser.Scene {
     const right = this.keys.right.isDown || this.keys.d.isDown;
 
     // if we're backing up, turn down the turnRadius
-    if (this.player.speed < 0) turnRadius *= -0.6;
+    if (this.player.speed < -0.000008) turnRadius *= -0.6;
 
     // turn left when we press left
     if (left && !right) this.player.setAngularVelocity(-turnRadius);
@@ -396,7 +394,7 @@ class Game extends Phaser.Scene {
         .setCircle(0.5)
         .setFriction(0, 0, 0)
         .setCollisionGroup(this.playerGroup)
-        .setCollidesWith(0);
+        .setCollidesWith(this.zomboCollisionCategory);
 
       this.moveToPoint(circle, v, 5);
       circle.name = "bullet";
@@ -641,7 +639,7 @@ class Zombo extends Phaser.Physics.Matter.Sprite {
   health;
   state; // finite state machine: standing, walking, attacking, or hitByCar
   timeInState; // counter of time in each state, resets to 0 each time we switch
-  target; // when attacking fort
+  targets; // when attacking fort
 
   constructor(scene, x, y) {
     super(scene.matter.world, x, y, "zombo").setDepth(1).setName("zombo");
@@ -649,39 +647,18 @@ class Zombo extends Phaser.Physics.Matter.Sprite {
     this.health = 3;
     this.state = STANDING;
     this.timeInState = 0;
-    this.target = null;
+    this.targets = [];
     this.setRectangle(5, 5).setBounce(0.7).setFriction(0, 0.06, 0);
+    this.setCollisionCategory(this.scene.zomboCollisionCategory);
   }
 
-  zomboHandler() {
-    /*
-    if (!this.body) return;
-    if (this.hitByCar) {
-      this.hitByCar = false;
-    } else {
-      this.scene.moveToPoint(
-        this,
-        new Phaser.Math.Vector2(this.scene.gameW / 2, this.scene.gameH / 2),
-        0.3
-      );
-      this.setRotation(
-        Phaser.Math.Angle.Between(
-          0,
-          0,
-          this.body.velocity.x,
-          this.body.velocity.y
-        )
-      );
-    }
-    this.scene.time.delayedCall(1000, () => this.zomboHandler());*/
-  }
-
+  // runs every frame or whatever
   preUpdate(time, delta) {
     super.preUpdate(time, delta);
     this.timeInState += delta;
-    console.log(this.state);
 
     switch (this.state) {
+      // if standing around, wait a second then start walking
       case STANDING:
         if (this.timeInState >= 1000) {
           this.state = WALKING;
@@ -689,6 +666,7 @@ class Zombo extends Phaser.Physics.Matter.Sprite {
         }
         break;
 
+      // walk towards center of screen (food)
       case WALKING:
         this.scene.moveToPoint(
           this,
@@ -703,31 +681,61 @@ class Zombo extends Phaser.Physics.Matter.Sprite {
             this.body.velocity.y
           )
         );
+        /* this next block fixes a bug where a zombo gets stuck on the
+        north, east, south, west section of the wall. the zombo gets stuck
+        because it's not really moving around the wall so it's not finding
+        targets to hit. so, every once in a while, turn around for exactly
+        one frame so the velocity and collision box can reset.
+        */
+        if (Math.random() < 0.005) {
+          this.scene.moveToPoint(
+            this,
+            new Phaser.Math.Vector2(this.scene.gameW / 2, this.scene.gameH / 2),
+            -0.1
+          );
+        }
         break;
 
+      // zombo is attacking a wall or the food supply
       case ATTACKING:
+        // only attack once per second
         if (this.timeInState >= 1000) {
           this.timeInState -= 1000;
-          this.target.health -= 1;
+          // check if there's any targets, sometimes there aren't
+          // if not, just go back to walking
+          if (this.targets.length <= 0) {
+            this.state = WALKING;
+            this.timeInState = 0;
+            break;
+          }
+          // if there is a target, select the first one
+          const target = this.targets[0];
+          target.health -= 1;
 
-          if (this.target.name == "food") {
+          // if food supply is attacked, emit for UI and gameOver purposes
+          if (target.name == "food") {
             this.scene.events.emit("foodDamaged");
           }
 
-          if (this.target.health <= 0) {
-            if (this.target.name == "wall") {
-              this.target.physics.matterBody.setCollisionCategory(0);
+          // target is destroyed
+          if (target.health <= 0) {
+            if (target.name == "wall") {
+              // remove collision on wall so zombo can move forward
+              target.physics.matterBody.setCollisionCategory(0);
             }
+            Phaser.Utils.Array.Remove(this.targets, target);
             this.scene.time.delayedCall(900, () => {
               this.state = WALKING;
               this.timeInState = 0;
             });
           } else {
-            this.target.setAlpha(this.target.alpha - 0.1);
+            target.setAlpha(target.alpha - 0.1);
           }
         }
         break;
 
+      // if hit by car, idle until zombo slows down to a stop
+      // then go back to standing (which then invokes walking)
       case HITBYCAR:
         if (this.body.speed < 0.01) {
           this.state = STANDING;
@@ -745,21 +753,17 @@ class Zombo extends Phaser.Physics.Matter.Sprite {
     if (this.state == HITBYCAR) return;
     this.state = ATTACKING;
     this.timeInState = 0;
-    this.target = obj;
+    Phaser.Utils.Array.Add(this.targets, obj);
   }
 
   hitByCar() {
     this.state = HITBYCAR;
     this.timeInState = 0;
-    this.target = null;
   }
 
   collisionEnd(obj) {
     // was hit by car, or the wall came down while attacking
-    console.log("collision end");
-    this.state = STANDING;
-    this.timeInState = 0;
-    this.target = null;
+    Phaser.Utils.Array.Remove(this.targets, obj);
   }
 }
 
