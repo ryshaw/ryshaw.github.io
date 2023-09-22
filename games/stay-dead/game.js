@@ -14,8 +14,8 @@ class Game extends Phaser.Scene {
   mouseDown;
   graphics;
   reloadTime;
-  bullets; // physics group
-  zombos; // physics group
+  bullets; // GameObject group
+  zombos; // GameObject group
   food;
   days;
 
@@ -55,6 +55,8 @@ class Game extends Phaser.Scene {
     this.reloadTime = 0;
     this.playerHealth = 10;
     this.days = 1;
+    this.bullets = this.add.group();
+    this.zombos = this.add.group();
 
     this.graphics = this.add.graphics({
       lineStyle: { width: 0.2, color: 0xffd166 },
@@ -203,6 +205,15 @@ class Game extends Phaser.Scene {
           }
           break;
 
+        case "bullet":
+          if (names[1] == "zombo") {
+            objs["bullet"].gameObject.destroy();
+            objs["zombo"].health -= 1;
+            if (objs["zombo"].health <= 0) {
+              objs["zombo"].destroy();
+            }
+          }
+
         default:
           break;
       }
@@ -308,7 +319,21 @@ class Game extends Phaser.Scene {
   update() {
     this.updatePlayerMovement();
     this.updateShoot();
+
+    // see if any bullets hit zombies. this must be done each frame
+    // because we're checking for overlap, not collision
+    this.bullets.getChildren().forEach((bullet) => {
+      this.matter.overlap(bullet, this.zombos.getChildren(), (b, z) => {
+        this.bullets.remove(bullet, true, true);
+        z.gameObject.health -= 1;
+        if (z.gameObject.health <= 0) {
+          this.zombos.remove(z.gameObject, true, true);
+        }
+      });
+    });
   }
+
+  bulletHitZombo(bullet, zombo) {}
 
   updatePlayerMovement() {
     // this is a long one :)
@@ -377,7 +402,7 @@ class Game extends Phaser.Scene {
       const offset = new Phaser.Math.Vector2(
         this.player.body.velocity.x,
         this.player.body.velocity.y
-      ).scale(1.8);
+      ).scale(1.7);
       // yeah I'm doing this by hand instead of using custom classes, keep scrolling
       const circle = this.add
         .circle(
@@ -394,10 +419,12 @@ class Game extends Phaser.Scene {
         .setCircle(0.5)
         .setFriction(0, 0, 0)
         .setCollisionGroup(this.playerGroup)
-        .setCollidesWith(this.zomboCollisionCategory);
+        .setCollidesWith(0);
 
-      this.moveToPoint(circle, v, 5);
+      this.moveToPoint(circle, v, 8);
       circle.name = "bullet";
+
+      this.bullets.add(circle);
 
       this.time.delayedCall(5000, () => circle.destroy());
       this.reloadTime = 0.2;
@@ -650,6 +677,7 @@ class Zombo extends Phaser.Physics.Matter.Sprite {
     this.targets = [];
     this.setRectangle(5, 5).setBounce(0.7).setFriction(0, 0.06, 0);
     this.setCollisionCategory(this.scene.zomboCollisionCategory);
+    this.scene.zombos.add(this);
   }
 
   // runs every frame or whatever
