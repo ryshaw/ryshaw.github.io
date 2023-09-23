@@ -18,11 +18,9 @@ class Game extends Phaser.Scene {
   zombos; // GameObject group
   food;
   days;
+  wave;
 
-  playerCollisionCategory;
   zomboCollisionCategory;
-  bulletCollisionCategory;
-  fortCollisionCategory;
   playerGroup;
 
   constructor() {
@@ -55,6 +53,7 @@ class Game extends Phaser.Scene {
     this.reloadTime = 0;
     this.playerHealth = 10;
     this.days = 1;
+    this.wave = 1;
     this.bullets = this.add.group();
     this.zombos = this.add.group();
 
@@ -96,10 +95,7 @@ class Game extends Phaser.Scene {
   }
 
   createLayout() {
-    this.playerCollisionCategory = this.matter.world.nextCategory();
     this.zomboCollisionCategory = this.matter.world.nextCategory();
-    this.bulletCollisionCategory = this.matter.world.nextCategory();
-    this.fortCollisionCategory = this.matter.world.nextCategory();
     this.playerGroup = this.matter.world.nextGroup(true);
 
     const map = this.make.tilemap({ key: "map" });
@@ -138,7 +134,6 @@ class Game extends Phaser.Scene {
     this.player.setRectangle(9, 5).setFriction(0, 0.3, 1);
     this.player.speed = 0;
     this.player.setCollisionGroup(this.playerGroup);
-    //this.player.setCollisionCategory(this.playerCollisionCategory);
 
     this.food = this.matter.add
       .sprite(this.gameW / 2, this.gameH / 2, "food")
@@ -147,12 +142,8 @@ class Game extends Phaser.Scene {
       .setName("food");
     this.food.health = 10;
 
-    this.add.existing(new Zombo(this, this.gameW * 0.2, this.gameH * 0.2));
-    /*
-    this.bullets = this.physics.add.group();
-    this.physics.add.overlap(this.zombos, this.bullets, (z, b) =>
-      this.hitZombo(z, b)
-    );*/
+    this.add.existing(new Zombo(this, this.gameW * 0.1, this.gameH * 0.2));
+    this.add.existing(new Zombo(this, this.gameW * 0.2, this.gameH * 0.4));
 
     // foodDamaged emitted by zombo when attacking food supply
     this.events.on(
@@ -166,6 +157,14 @@ class Game extends Phaser.Scene {
       this
     );
 
+    this.events.on(
+      "waveOver",
+      () => {
+        this.wave += 1;
+        this.UIContainer.getByName("waveText").setText(`wave: ${this.wave}`);
+      },
+      this
+    );
     this.matter.world.on("collisionstart", (event) => {
       this.collisionStartHandler(event);
     });
@@ -236,7 +235,7 @@ class Game extends Phaser.Scene {
 
         case "food":
           if (names[1] == "zombo") {
-            objs["zombo"].gameObject.collisionEnd(objs["fort"].gameObject.tile);
+            objs["zombo"].gameObject.collisionEnd(objs["food"].gameObject.tile);
           }
           break;
 
@@ -245,6 +244,8 @@ class Game extends Phaser.Scene {
       }
     });
   }
+
+  waveHandler() {}
 
   // helper method for collisionHandlers
   getNameOfBody(body) {
@@ -332,8 +333,6 @@ class Game extends Phaser.Scene {
       });
     });
   }
-
-  bulletHitZombo(bullet, zombo) {}
 
   updatePlayerMovement() {
     // this is a long one :)
@@ -463,6 +462,11 @@ class Game extends Phaser.Scene {
     )
       .setOrigin(1, 0)
       .setName("healthText");
+
+    new CustomText(this, this.windowW - 5, 20, `wave: ${this.wave}`, "s")
+      .setOrigin(1, 0)
+      .setName("waveText");
+
     new CustomText(this, this.windowW * 0.5, 5, "STAY DEAD", "m")
       .setFontFamily("Finger Paint")
       .setOrigin(0.5, 0)
