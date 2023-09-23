@@ -177,83 +177,82 @@ class Game extends Phaser.Scene {
   // sorry in advance...
   collisionStartHandler(event) {
     event.pairs.forEach((pair) => {
-      const objs = {
-        [this.getNameOfBody(pair.bodyA)]: pair.bodyA,
-        [this.getNameOfBody(pair.bodyB)]: pair.bodyB,
-      };
-      const names = Object.keys(objs).sort();
-      switch (names[0]) {
-        case "fort":
-          if (names[1] == "zombo") {
-            // zombo attacking fort
-            objs["zombo"].gameObject.hit(objs["fort"].gameObject.tile);
-          }
-          break;
-
-        case "food":
-          if (names[1] == "zombo") {
-            // zombo attacking food
-            objs["zombo"].gameObject.hit(objs["food"].gameObject);
-          }
-          break;
-
-        case "player":
-          if (names[1] == "zombo") {
-            // player hit zombo
-            objs["zombo"].gameObject.hitByCar();
-          }
-          break;
-
-        case "bullet":
-          if (names[1] == "zombo") {
-            objs["bullet"].gameObject.destroy();
-            objs["zombo"].health -= 1;
-            if (objs["zombo"].health <= 0) {
-              objs["zombo"].destroy();
-            }
-          }
-
-        default:
-          break;
+      const objA = this.getNameAndGameObject(pair.bodyA);
+      const objB = this.getNameAndGameObject(pair.bodyB);
+      if (objA.includes("zombo")) {
+        switch (objB[0]) {
+          case "zombo":
+          case "fort":
+          case "food":
+            objA[1].hit(objB[1]);
+            break;
+          case "player":
+            objA[1].hitByCar();
+          default:
+            break;
+        }
+      }
+      if (objB.includes("zombo")) {
+        switch (objA[0]) {
+          case "zombo":
+          case "fort":
+          case "food":
+            objB[1].hit(objA[1]);
+            break;
+          case "player":
+            objB[1].hitByCar();
+          default:
+            break;
+        }
       }
     });
   }
 
   collisionEndHandler(event) {
     event.pairs.forEach((pair) => {
-      const objs = {
-        [this.getNameOfBody(pair.bodyA)]: pair.bodyA,
-        [this.getNameOfBody(pair.bodyB)]: pair.bodyB,
-      };
-      const names = Object.keys(objs).sort();
-      switch (names[0]) {
-        case "fort":
-          if (names[1] == "zombo") {
-            objs["zombo"].gameObject.collisionEnd(objs["fort"].gameObject.tile);
-          }
-          break;
+      const objA = this.getNameAndGameObject(pair.bodyA);
+      const objB = this.getNameAndGameObject(pair.bodyB);
+      if (objA.includes("zombo")) {
+        switch (objB[0]) {
+          case "zombo":
+          case "fort":
+          case "food":
+          case "player":
+            objA[1].collisionEnd(objB[1]);
+            break;
 
-        case "food":
-          if (names[1] == "zombo") {
-            objs["zombo"].gameObject.collisionEnd(objs["food"].gameObject.tile);
-          }
-          break;
+          default:
+            break;
+        }
+      }
+      if (objB.includes("zombo")) {
+        switch (objA[0]) {
+          case "zombo":
+          case "fort":
+          case "food":
+          case "player":
+            objB[1].collisionEnd(objA[1]);
+            break;
 
-        default:
-          break;
+          default:
+            break;
+        }
       }
     });
   }
 
-  waveHandler() {}
-
   // helper method for collisionHandlers
-  getNameOfBody(body) {
+  getNameAndGameObject(body) {
+    let array = [];
     if (body.gameObject)
-      if (body.gameObject.tile) return "fort";
-      else return body.gameObject.name;
-    else return "bounds";
+      if (body.gameObject.tile) array = ["fort", body.gameObject.tile];
+      else array = [body.gameObject.name, body.gameObject];
+    else array = ["bounds", null];
+
+    return array;
   }
+
+  waveHandler() {}
 
   /*
   createAudio() {
@@ -719,7 +718,7 @@ class Zombo extends Phaser.Physics.Matter.Sprite {
         targets to hit. so, every once in a while, turn around for exactly
         one frame so the velocity and collision box can reset.
         */
-        if (Math.random() < 0.005) {
+        if (Math.random() < 0.008) {
           this.scene.moveToPoint(
             this,
             new Phaser.Math.Vector2(this.scene.gameW / 2, this.scene.gameH / 2),
@@ -782,10 +781,15 @@ class Zombo extends Phaser.Physics.Matter.Sprite {
 
   hit(obj) {
     // hit wall or food
-    if (this.state == HITBYCAR) return;
-    this.state = ATTACKING;
-    this.timeInState = 0;
-    Phaser.Utils.Array.Add(this.targets, obj);
+    if (this.state == HITBYCAR) {
+      if (obj.name == "zombo") obj.hitByCar();
+      return;
+    }
+    if (obj.name != "zombo") {
+      this.state = ATTACKING;
+      this.timeInState = 0;
+      Phaser.Utils.Array.Add(this.targets, obj);
+    }
   }
 
   hitByCar() {
