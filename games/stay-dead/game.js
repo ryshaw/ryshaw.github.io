@@ -65,6 +65,7 @@ class Night extends Phaser.Scene {
 
     this.graphics = this.add.graphics({
       lineStyle: { width: 0.2, color: 0xffd166 },
+      fillStyle: { color: 0xff00ff },
     });
 
     // zoom in camera and reset position
@@ -154,9 +155,6 @@ class Night extends Phaser.Scene {
       .setName("food");
     this.food.health = 10;
 
-    this.add.existing(new Zombo(this, this.gameW * 0.1, this.gameH * 0.2));
-    this.add.existing(new Zombo(this, this.gameW * 0.2, this.gameH * 0.4));
-
     // foodDamaged emitted by zombo when attacking food supply
     this.events.on(
       "foodDamaged",
@@ -188,7 +186,7 @@ class Night extends Phaser.Scene {
 
     // game starts at night, so set the interval and get the night going
     this.timeInterval = setInterval(() => this.timeHandler(), 1000);
-    this.waveInterval = setInterval(() => this.waveHandler(), 1000);
+    this.waveInterval = setInterval(() => this.waveHandler(), 2500);
   }
 
   // converts the timer during night to clock format so we can display it for player
@@ -226,7 +224,18 @@ class Night extends Phaser.Scene {
   }
 
   waveHandler() {
-    this.add.existing(new Zombo(this, this.gameW * 0.1, this.gameH * 0.2));
+    // get random point outside the screen for zombo to spawn in
+    const rectOuter = new Phaser.Geom.Rectangle(
+      -this.gameW * 0.1,
+      -this.gameH * 0.1,
+      this.gameW * 1.2,
+      this.gameH * 1.2
+    );
+    const rectInner = new Phaser.Geom.Rectangle(0, 0, this.gameW, this.gameH);
+
+    this.add.existing(
+      new Zombo(this, Phaser.Geom.Rectangle.RandomOutside(rectOuter, rectInner))
+    );
   }
 
   // sorry in advance...
@@ -1041,9 +1050,12 @@ class Zombo extends Phaser.Physics.Matter.Sprite {
   state; // finite state machine: standing, walking, attacking, or hitByCar
   timeInState; // counter of time in each state, resets to 0 each time we switch
   targets; // when attacking fort
+  walkingSpeed;
 
-  constructor(scene, x, y) {
-    super(scene.matter.world, x, y, "zombo").setDepth(1).setName("zombo");
+  constructor(scene, point) {
+    super(scene.matter.world, point.x, point.y, "zombo")
+      .setDepth(1)
+      .setName("zombo");
     this.scene = scene;
     this.health = 3;
     this.state = STANDING;
@@ -1051,6 +1063,19 @@ class Zombo extends Phaser.Physics.Matter.Sprite {
     this.targets = [];
     this.setRectangle(5, 5).setBounce(0.7).setFriction(0, 0.06, 0);
     this.scene.zombos.add(this);
+
+    /* calculate zombo speed. the zombo spawns at a random point just outside the game bounds.
+    first we get the distance from zombo to center of screen (food supply),
+    then we square the distance and divide it by a large number so it's small enough to be
+    a good slow Matter velocity. I square it to make sure large distances can be covered easily,
+    while keeping short-distanced zombos at a very slow speed to not overwhelm the player,
+    as the top and bottom sides of the screen are closest to the walls. */
+    const center = new Phaser.Geom.Point(
+      this.scene.gameW / 2,
+      this.scene.gameH / 2
+    );
+    const d = Phaser.Math.Distance.BetweenPoints(point, center);
+    this.walkingSpeed = d ** 2 / 200000;
   }
 
   // runs every frame or whatever
@@ -1075,7 +1100,7 @@ class Zombo extends Phaser.Physics.Matter.Sprite {
         this.scene.moveToPoint(
           this,
           new Phaser.Math.Vector2(this.scene.gameW / 2, this.scene.gameH / 2),
-          0.3
+          this.walkingSpeed
         );
         this.setRotation(
           Phaser.Math.Angle.Between(
