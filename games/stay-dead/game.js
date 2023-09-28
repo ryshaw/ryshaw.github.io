@@ -99,6 +99,9 @@ class Night extends Phaser.Scene {
         this.loadGameUI();
       },
     });
+
+    this.cameras.main.fadeIn(800);
+    this.UICamera.fadeIn(800);
   }
 
   createLayout() {
@@ -215,8 +218,8 @@ class Night extends Phaser.Scene {
         },
         completeDelay: 500,
         onComplete: () => {
-          this.cameras.main.fadeOut();
-          this.UICamera.fadeOut();
+          this.cameras.main.fadeOut(800);
+          this.UICamera.fadeOut(800);
           this.time.delayedCall(1000, () => this.scene.start("Day"));
         },
       });
@@ -535,7 +538,7 @@ class Night extends Phaser.Scene {
       .setOrigin(1, 0)
       .setName("waveText");
 
-    new CustomText(this, this.windowW * 0.5, 2, `12:00`, "m")
+    new CustomText(this, this.windowW * 0.5, 2, "12:00", "m")
       .setOrigin(0.5, 0)
       .setName("timeText");
 
@@ -685,8 +688,8 @@ class Day extends Phaser.Scene {
       },
     });
 
-    this.cameras.main.fadeIn();
-    this.UICamera.fadeIn();
+    this.cameras.main.fadeIn(800);
+    this.UICamera.fadeIn(800);
   }
 
   createLayout() {
@@ -879,9 +882,13 @@ class Day extends Phaser.Scene {
       .setOrigin(1, 0)
       .setName("waveText");
 
-    new CustomText(this, this.windowW * 0.5, 2, `12:00`, "m")
+    new CustomText(this, this.windowW * 0.5, 2, "hello", "l", "c", () => {
+      this.cameras.main.fadeOut(800);
+      this.UICamera.fadeOut(800);
+      this.time.delayedCall(1000, () => this.scene.start("Night"));
+    })
       .setOrigin(0.5, 0)
-      .setName("timeText");
+      .setName("nightButton");
 
     new CustomText(this, this.windowW, this.windowH, "STAY DEAD", "s")
       .setFontFamily("Finger Paint")
@@ -1035,7 +1042,7 @@ const config = {
   },
   pixelArt: true,
   backgroundColor: "#000000",
-  scene: [Night, Day],
+  scene: [Day, Night],
 };
 
 // for zombo states
@@ -1260,6 +1267,8 @@ class CustomText extends Phaser.GameObjects.Text {
   ) {
     super(scene);
 
+    this.clickedOn = false;
+
     const cT = scene.add
       .text(x, y, text, {
         font:
@@ -1277,16 +1286,28 @@ class CustomText extends Phaser.GameObjects.Text {
       .setOrigin(align == "l" ? 0 : align == "c" ? 0.5 : 1, 0.5)
       .setLineSpacing(16);
 
-    // if callback is given, assume it's a button and add callback
+    // if callback is given, assume it's a button and add callback.
+    // fine-tuned this code so button only clicks if player
+    // emits both pointerdown and pointerup events on it
     if (callback) {
-      cT.setInteractive()
+      cT.setInteractive({ useHandCursor: true })
+        .setBackgroundColor("#0000ff")
+        .setPadding(10)
         .on("pointerover", function () {
-          //this.setTint(0xffffcc);
+          this.setTint(0xeeeeee);
         })
         .on("pointerout", function () {
-          //this.setTint(0xffffff);
+          this.setTint(0xffffff).off("pointerup", callback, scene);
         })
-        .on("pointerdown", callback, scene);
+        .on("pointerdown", function () {
+          this.setTint(0xdddddd);
+          if (this.listenerCount("pointerup") < 2) {
+            this.on("pointerup", callback, scene);
+          }
+        })
+        .on("pointerup", function () {
+          this.setTint(0xeeeeee);
+        });
     }
 
     scene.UIContainer.add(cT);
