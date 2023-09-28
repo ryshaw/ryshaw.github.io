@@ -466,13 +466,13 @@ class Night extends Phaser.Scene {
       const offset = new Phaser.Math.Vector2(
         this.player.body.velocity.x,
         this.player.body.velocity.y
-      ).scale(1.7);
+      ).scale(1.4);
       // yeah I'm doing this by hand instead of using custom classes, keep scrolling
       const circle = this.add
         .circle(
           this.player.x + offset.x,
           this.player.y + offset.y,
-          0.5,
+          0.6,
           0xffd166,
           1
         )
@@ -480,7 +480,7 @@ class Night extends Phaser.Scene {
 
       this.matter.add
         .gameObject(circle)
-        .setCircle(0.5)
+        .setCircle(0.6)
         .setFriction(0, 0, 0)
         .setCollidesWith(0);
 
