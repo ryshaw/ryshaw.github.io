@@ -371,7 +371,8 @@ class Night extends Phaser.Scene {
     this.children.getAll().forEach((object) => {
       object.destroy();
     });
-    this.input.keyboard.removeAllListeners();
+    this.input.removeAllListeners();
+    //this.input.keyboard.removeAllListeners();
     this.tweens.killAll();
     this.time.removeAllEvents();
     this.sound.stopAll();
@@ -662,8 +663,8 @@ class Day extends Phaser.Scene {
     this.cameras.main.centerOn(this.gameW / 2, this.gameH / 2);
     this.cameras.main.setBackgroundColor("#9badb7");
 
-    //this.createLayout();
-    //this.createControls();
+    this.createLayout();
+    this.createControls();
 
     // get this all the way off the screen
     // so the UI isn't duplicated on the main camera
@@ -693,15 +694,6 @@ class Day extends Phaser.Scene {
   }
 
   createLayout() {
-    this.boundsGroup = this.matter.world.nextGroup(false);
-
-    this.matter.world.setBounds(0, 0, this.gameW, this.gameH);
-    // this sets the bounds so the player does collide, zombos do NOT collide with bounds
-    Object.values(this.matter.world.walls).forEach((wall) => {
-      wall.collisionFilter.group = this.boundsGroup; // player is in boundsGroup
-      wall.collisionFilter.category = 0; // otherwise, don't collide with anything else
-    });
-
     const map = this.make.tilemap({ key: "map" });
 
     const backgroundLayer = map.createLayer(
@@ -733,7 +725,9 @@ class Day extends Phaser.Scene {
       .setRotation(-Math.PI / 2)
       .setName("gun");
 
-    this.player = this.add.container(20, 100, [car, gun]).setName("player");
+    this.player = this.add
+      .container(this.gameW / 2, this.gameH * 0.88, [car, gun])
+      .setName("player");
     this.matter.add.gameObject(this.player);
     this.player.setRectangle(9, 5).setFriction(0, 0.3, 1);
     this.player.speed = 0;
@@ -746,21 +740,6 @@ class Day extends Phaser.Scene {
       .setName("food");
     this.food.health = 10;
 
-    this.add.existing(new Zombo(this, this.gameW * 0.1, this.gameH * 0.2));
-    this.add.existing(new Zombo(this, this.gameW * 0.2, this.gameH * 0.4));
-
-    // foodDamaged emitted by zombo when attacking food supply
-    this.events.on(
-      "foodDamaged",
-      () => {
-        this.UIContainer.getByName("healthText").setText(
-          `health: ${this.food.health}`
-        );
-        if (this.food.health <= 0) this.gameOver();
-      },
-      this
-    );
-
     this.events.on(
       "waveOver",
       () => {
@@ -769,44 +748,6 @@ class Day extends Phaser.Scene {
       },
       this
     );
-
-    this.matter.world.on("collisionstart", (event) => {
-      this.collisionStartHandler(event);
-    });
-
-    this.matter.world.on("collisionend", (event) => {
-      this.collisionEndHandler(event);
-    });
-
-    // game starts at night, so set the interval and get the night going
-    this.timeInterval = setInterval(() => {
-      this.nightTime += 1;
-      this.UIContainer.getByName("timeText").setText(this.getClockTime());
-      if (this.nightTime >= 36) {
-        clearInterval(this.timeInterval);
-        this.gameState = "day";
-        this.nightTime = 0;
-        this.matter.pause();
-        this.UIContainer.getByName("timeText").setColor("#fcf6bd");
-        this.tweens.addCounter({
-          from: 24,
-          to: 32,
-          duration: 300,
-          yoyo: true,
-          loop: 2,
-          onUpdate: (tween) => {
-            this.UIContainer.getByName("timeText").setFontSize(
-              tween.getValue()
-            );
-          },
-          completeDelay: 500,
-          onComplete: () => {
-            this.cameras.main.fadeOut();
-            this.UICamera.fadeOut();
-          },
-        });
-      }
-    }, 100);
   }
 
   /*
@@ -860,33 +801,23 @@ class Day extends Phaser.Scene {
   update() {}
 
   loadGameUI() {
-    new CustomText(
-      this,
-      5,
-      5,
-      "wasd or arrow keys to move, click to shoot",
-      "s"
-    ).setOrigin(0, 0);
+    new CustomText(this, 15, 5, `day ${this.days}`, "g").setOrigin(0, 0);
 
     new CustomText(
       this,
-      this.windowW - 5,
-      5,
-      `health: ${this.playerHealth}`,
-      "s"
+      this.windowW * 0.5,
+      6,
+      "begin the night!",
+      "l",
+      "c",
+      () => {
+        this.input.removeAllListeners();
+        this.input.enabled = false;
+        this.cameras.main.fadeOut(800);
+        this.UICamera.fadeOut(800);
+        this.time.delayedCall(1000, () => this.scene.start("Night"));
+      }
     )
-      .setOrigin(1, 0)
-      .setName("healthText");
-
-    new CustomText(this, this.windowW - 5, 20, `wave: ${this.wave}`, "s")
-      .setOrigin(1, 0)
-      .setName("waveText");
-
-    new CustomText(this, this.windowW * 0.5, 2, "hello", "l", "c", () => {
-      this.cameras.main.fadeOut(800);
-      this.UICamera.fadeOut(800);
-      this.time.delayedCall(1000, () => this.scene.start("Night"));
-    })
       .setOrigin(0.5, 0)
       .setName("nightButton");
 
@@ -1291,8 +1222,8 @@ class CustomText extends Phaser.GameObjects.Text {
     // emits both pointerdown and pointerup events on it
     if (callback) {
       cT.setInteractive({ useHandCursor: true })
-        .setBackgroundColor("#0000ff")
-        .setPadding(10)
+        .setBackgroundColor("#3c6e71")
+        .setPadding(6)
         .on("pointerover", function () {
           this.setTint(0xeeeeee);
         })
@@ -1308,6 +1239,19 @@ class CustomText extends Phaser.GameObjects.Text {
         .on("pointerup", function () {
           this.setTint(0xeeeeee);
         });
+
+      // create dark green outline.
+      // i don't know how this works.
+      const bounds = cT.getBounds();
+      const rect = scene.add.rectangle(
+        bounds.x + bounds.width / 2,
+        bounds.y + bounds.height,
+        bounds.width + 6,
+        bounds.height + 6,
+        0x284b63,
+        1
+      );
+      scene.UIContainer.add(rect);
     }
 
     scene.UIContainer.add(cT);
