@@ -801,6 +801,50 @@ class Day extends Phaser.Scene {
   update() {}
 
   loadGameUI() {
+    this.UIContainer.add(
+      this.add.rectangle(
+        this.windowW * 0.18,
+        this.windowH * 0.53,
+        this.windowW * 0.35,
+        this.windowH * 0.86,
+        0x284b63,
+        0.85
+      )
+    );
+
+    this.UIContainer.add(
+      this.add.rectangle(
+        this.windowW * 0.18,
+        this.windowH * 0.53,
+        this.windowW * 0.34,
+        this.windowH * 0.84,
+        0x3c6e71,
+        0.85
+      )
+    );
+
+    this.UIContainer.add(
+      this.add.rectangle(
+        this.windowW * 0.82,
+        this.windowH * 0.53,
+        this.windowW * 0.35,
+        this.windowH * 0.86,
+        0x284b63,
+        0.85
+      )
+    );
+
+    this.UIContainer.add(
+      this.add.rectangle(
+        this.windowW * 0.82,
+        this.windowH * 0.53,
+        this.windowW * 0.34,
+        this.windowH * 0.84,
+        0x3c6e71,
+        0.85
+      )
+    );
+
     new CustomText(this, 15, 5, `day ${this.days}`, "g").setOrigin(0, 0);
 
     new CustomText(
