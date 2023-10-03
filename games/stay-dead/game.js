@@ -845,6 +845,30 @@ class Day extends Phaser.Scene {
       )
     );
 
+    new CustomText(
+      this,
+      this.windowW * 0.18,
+      this.windowW * 0.085,
+      "player turrets wall food",
+      "l"
+    ).setOrigin(0.5, 0.5);
+
+    this.UIContainer.add(
+      this.add.rectangle(
+        this.windowW * 0.18,
+        this.windowH * 0.2,
+        this.windowW * 0.33,
+        this.windowH * 0.008,
+        0xffffff,
+        0.85
+      )
+    );
+
+    this.UIContainer.add(this.add.rectangle(70, 109, 112, 42, 0xffffff, 0.1));
+    this.UIContainer.add(this.add.rectangle(202, 109, 132, 42, 0xffffff, 0.1));
+    this.UIContainer.add(this.add.rectangle(315, 109, 80, 42, 0xffffff, 0.1));
+    this.UIContainer.add(this.add.rectangle(405, 109, 80, 42, 0xffffff, 0.1));
+
     new CustomText(this, 15, 5, `day ${this.days}`, "g").setOrigin(0, 0);
 
     new CustomText(
