@@ -864,10 +864,14 @@ class Day extends Phaser.Scene {
       )
     );
 
-    this.UIContainer.add(this.add.rectangle(70, 109, 112, 42, 0xffffff, 0.1));
+    /*this.UIContainer.add(this.add.rectangle(70, 109, 112, 42, 0xffffff, 0.1));
     this.UIContainer.add(this.add.rectangle(202, 109, 132, 42, 0xffffff, 0.1));
     this.UIContainer.add(this.add.rectangle(315, 109, 80, 42, 0xffffff, 0.1));
-    this.UIContainer.add(this.add.rectangle(405, 109, 80, 42, 0xffffff, 0.1));
+    this.UIContainer.add(this.add.rectangle(405, 109, 80, 42, 0xffffff, 0.1));*/
+
+    new CustomUIButton(this, 15, 88, "player", () => {
+      console.log("hi");
+    });
 
     new CustomText(this, 15, 5, `day ${this.days}`, "g").setOrigin(0, 0);
 
@@ -1321,6 +1325,51 @@ class CustomText extends Phaser.GameObjects.Text {
       );
       scene.UIContainer.add(rect);
     }
+
+    scene.UIContainer.add(cT);
+
+    return cT;
+  }
+}
+
+class CustomUIButton extends Phaser.GameObjects.Text {
+  constructor(
+    scene, // always "this" in the scene class
+    x,
+    y,
+    text,
+    callback
+  ) {
+    super(scene);
+
+    const cT = scene.add
+      .text(x, y, text, {
+        font: "32px",
+        fill: "#fff",
+        align: "center",
+      })
+      .setFontFamily("Anonymous Pro");
+
+    // fine-tuned this code so button only clicks if player
+    // emits both pointerdown and pointerup events on it
+    cT.setInteractive({ useHandCursor: true })
+      .setBackgroundColor("rgba(220, 220, 220, 0.1)") // it's just CSS
+      .setPadding(5)
+      .on("pointerover", function () {
+        this.setTint(0xdddddd);
+      })
+      .on("pointerout", function () {
+        this.setTint(0xffffff).off("pointerup", callback, scene);
+      })
+      .on("pointerdown", function () {
+        this.setTint(0xbbbbbb);
+        if (this.listenerCount("pointerup") < 2) {
+          this.on("pointerup", callback, scene);
+        }
+      })
+      .on("pointerup", function () {
+        this.setTint(0xdddddd);
+      });
 
     scene.UIContainer.add(cT);
 
