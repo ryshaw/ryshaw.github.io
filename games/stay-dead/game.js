@@ -600,22 +600,11 @@ class Day extends Phaser.Scene {
   UICamera;
   UIContainer;
   player; // container with the car and the mounted gun
-  arrowKeys;
   sounds;
-  keys;
-  mouseDown;
-  graphics;
-  reloadTime;
-  bullets; // GameObject group
-  zombos; // GameObject group
   food;
   days;
-  wave;
-  gameState; // either "day" (base building time) or "night" (fighting zombos time)
-  nightTime; // timer that ticks during nighttime
-  timeInterval; // controls timeText and switching states
-
-  boundsGroup; // player and bounds collide, nothing else collides with bounds
+  buttons; // player, turrets, wall, and food
+  containers; // player, turrets, wall, and food
 
   constructor() {
     super({ key: "Day" });
@@ -633,7 +622,6 @@ class Day extends Phaser.Scene {
 
     // load sprites
     this.load.image("car", "assets/car.png");
-    this.load.image("zombo", "assets/zombo.png");
     this.load.image("food", "assets/food.png");
 
     this.windowW = game.config.width;
@@ -643,15 +631,7 @@ class Day extends Phaser.Scene {
   }
 
   create() {
-    this.mouseDown = false;
-    this.reloadTime = 0;
-    this.playerHealth = 10;
     this.days = 1;
-    this.wave = 1;
-    this.bullets = this.add.group();
-    this.zombos = this.add.group();
-    this.gameState = "night";
-    this.nightTime = 0;
 
     this.graphics = this.add.graphics({
       lineStyle: { width: 0.2, color: 0xffd166 },
@@ -801,6 +781,19 @@ class Day extends Phaser.Scene {
   update() {}
 
   loadGameUI() {
+    this.createBackground();
+    this.createButtons();
+    this.createDescriptions();
+
+    new CustomText(this, this.windowW, this.windowH, "STAY DEAD", "s")
+      .setFontFamily("Finger Paint")
+      .setOrigin(1, 1)
+      .setColor("#9e2a2b");
+  }
+
+  createBackground() {
+    new CustomText(this, 15, 5, `day ${this.days}`, "g").setOrigin(0, 0);
+
     this.UIContainer.add(
       this.add.rectangle(
         this.windowW * 0.18,
@@ -844,14 +837,6 @@ class Day extends Phaser.Scene {
         0.85
       )
     );
-
-    new CustomText(
-      this,
-      this.windowW * 0.18,
-      this.windowW * 0.085,
-      "player turrets wall food",
-      "l"
-    ).setOrigin(0.5, 0.5);
 
     this.UIContainer.add(
       this.add.rectangle(
@@ -863,17 +848,23 @@ class Day extends Phaser.Scene {
         0.85
       )
     );
+  }
 
-    /*this.UIContainer.add(this.add.rectangle(70, 109, 112, 42, 0xffffff, 0.1));
-    this.UIContainer.add(this.add.rectangle(202, 109, 132, 42, 0xffffff, 0.1));
-    this.UIContainer.add(this.add.rectangle(315, 109, 80, 42, 0xffffff, 0.1));
-    this.UIContainer.add(this.add.rectangle(405, 109, 80, 42, 0xffffff, 0.1));*/
-
-    new CustomUIButton(this, 15, 88, "player", () => {
-      console.log("hi");
-    });
-
-    new CustomText(this, 15, 5, `day ${this.days}`, "g").setOrigin(0, 0);
+  createButtons() {
+    this.buttons = {
+      player: new CustomUIButton(this, 15, 88, "player", () =>
+        this.switchToContainer("player")
+      ),
+      turrets: new CustomUIButton(this, 138, 88, "turrets", () =>
+        this.switchToContainer("turrets")
+      ),
+      wall: new CustomUIButton(this, 277, 88, "wall", () =>
+        this.switchToContainer("wall")
+      ),
+      food: new CustomUIButton(this, 364, 88, "food", () =>
+        this.switchToContainer("food")
+      ),
+    };
 
     new CustomText(
       this,
@@ -892,11 +883,26 @@ class Day extends Phaser.Scene {
     )
       .setOrigin(0.5, 0)
       .setName("nightButton");
+  }
 
-    new CustomText(this, this.windowW, this.windowH, "STAY DEAD", "s")
-      .setFontFamily("Finger Paint")
-      .setOrigin(1, 1)
-      .setColor("#9e2a2b");
+  createDescriptions() {}
+
+  switchToContainer(container) {
+    for (const name in this.buttons) {
+      if (name == container) {
+        this.buttons[name].setBackgroundColor("rgba(220, 220, 220, 0.4)");
+      } else {
+        this.buttons[name].setBackgroundColor("rgba(220, 220, 220, 0.1)");
+      }
+    }
+
+    switch (container) {
+      case "":
+        break;
+
+      default:
+        break;
+    }
   }
 }
 
@@ -1356,19 +1362,19 @@ class CustomUIButton extends Phaser.GameObjects.Text {
       .setBackgroundColor("rgba(220, 220, 220, 0.1)") // it's just CSS
       .setPadding(5)
       .on("pointerover", function () {
-        this.setTint(0xdddddd);
+        this.setTint(0xeeeeee);
       })
       .on("pointerout", function () {
         this.setTint(0xffffff).off("pointerup", callback, scene);
       })
       .on("pointerdown", function () {
-        this.setTint(0xbbbbbb);
+        this.setTint(0xdddddd);
         if (this.listenerCount("pointerup") < 2) {
           this.on("pointerup", callback, scene);
         }
       })
       .on("pointerup", function () {
-        this.setTint(0xdddddd);
+        this.setTint(0xeeeeee);
       });
 
     scene.UIContainer.add(cT);
