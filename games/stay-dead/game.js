@@ -605,6 +605,8 @@ class Day extends Phaser.Scene {
   days;
   buttons; // player, turrets, wall, and food
   containers; // player, turrets, wall, and food
+  leftWindow;
+  rightWindow;
 
   constructor() {
     super({ key: "Day" });
@@ -783,7 +785,7 @@ class Day extends Phaser.Scene {
   loadGameUI() {
     this.createBackground();
     this.createButtons();
-    this.createDescriptions();
+    this.createContainers();
 
     new CustomText(this, this.windowW, this.windowH, "STAY DEAD", "s")
       .setFontFamily("Finger Paint")
@@ -885,7 +887,55 @@ class Day extends Phaser.Scene {
       .setName("nightButton");
   }
 
-  createDescriptions() {}
+  createContainers() {
+    this.leftWindow = this.add.rectangle(
+      this.windowW * 0.18,
+      this.windowH * 0.58,
+      this.windowW * 0.32,
+      this.windowH * 0.71,
+      0xff00ff,
+      0.05
+    );
+
+    this.UIContainer.add(this.leftWindow);
+
+    this.containers = {
+      player: this.add.container(this.leftWindow.x, this.leftWindow.y),
+      turrets: this.add.container(),
+      wall: this.add.container(),
+      food: this.add.container(),
+    };
+
+    this.UIContainer.add(Object.values(this.containers));
+
+    this.containers.player.add([
+      new CustomUIButton(this, 0, -200, "plinker", () => {
+        console.log("hi");
+      })
+        .setOrigin(0.5, 0.5)
+        .setPadding(100, 10, 100, 10),
+      new CustomUIButton(this, 0, -100, "machine gun", () => {
+        console.log("hi");
+      })
+        .setOrigin(0.5, 0.5)
+        .setPadding(100, 10, 100, 10),
+      new CustomUIButton(this, 0, 0, "shotgun", () => {
+        console.log("hi");
+      }).setOrigin(0.5, 0.5),
+      new CustomUIButton(this, 0, 100, "eight-shot", () => {
+        console.log("hi");
+      }).setOrigin(0.5, 0.5),
+      new CustomUIButton(this, 0, 200, "flamethrower", () => {
+        console.log("hi");
+      }).setOrigin(0.5, 0.5),
+    ]);
+
+    console.log(
+      new CustomUIButton(this, 0, -100, "mach gun", () => {
+        console.log("hi");
+      }).setPadding(100, 10, 100, 10).width
+    );
+  }
 
   switchToContainer(container) {
     for (const name in this.buttons) {
