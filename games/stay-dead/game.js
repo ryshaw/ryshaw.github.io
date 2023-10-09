@@ -1,3 +1,5 @@
+const VERSION = "STAY DEAD v0.2";
+
 class Night extends Phaser.Scene {
   // window resolution is 1280x720.
   // game resolution is 320x180.
@@ -517,13 +519,7 @@ class Night extends Phaser.Scene {
   }
 
   loadGameUI() {
-    new CustomText(
-      this,
-      5,
-      5,
-      "wasd or arrow keys to move, click to shoot",
-      "s"
-    ).setOrigin(0, 0);
+    new CustomText(this, 5, 5, `day ${this.days}`, "s").setOrigin(0, 0);
 
     new CustomText(
       this,
@@ -535,15 +531,11 @@ class Night extends Phaser.Scene {
       .setOrigin(1, 0)
       .setName("healthText");
 
-    new CustomText(this, this.windowW - 5, 20, `wave: ${this.wave}`, "s")
-      .setOrigin(1, 0)
-      .setName("waveText");
-
     new CustomText(this, this.windowW * 0.5, 2, "12:00", "m")
       .setOrigin(0.5, 0)
       .setName("timeText");
 
-    new CustomText(this, this.windowW, this.windowH, "STAY DEAD", "s")
+    new CustomText(this, this.windowW, this.windowH, "STAY DEAD v0.2", "s")
       .setFontFamily("Finger Paint")
       .setOrigin(1, 1)
       .setColor("#9e2a2b");
@@ -604,7 +596,8 @@ class Day extends Phaser.Scene {
   food;
   days;
   buttons; // player, turrets, wall, and food
-  containers; // player, turrets, wall, and food
+  leftWindowContainers; // player, turrets, wall, and food
+  rightWindowContainers;
   leftWindow;
   rightWindow;
 
@@ -785,9 +778,10 @@ class Day extends Phaser.Scene {
   loadGameUI() {
     this.createBackground();
     this.createButtons();
-    this.createContainers();
+    this.createLeftWindow();
+    this.createRightWindow();
 
-    new CustomText(this, this.windowW, this.windowH, "STAY DEAD", "s")
+    new CustomText(this, this.windowW, this.windowH, VERSION, "s")
       .setFontFamily("Finger Paint")
       .setOrigin(1, 1)
       .setColor("#9e2a2b");
@@ -843,9 +837,20 @@ class Day extends Phaser.Scene {
     this.UIContainer.add(
       this.add.rectangle(
         this.windowW * 0.18,
-        this.windowH * 0.2,
+        this.windowH * 0.21,
         this.windowW * 0.33,
-        this.windowH * 0.008,
+        this.windowH * 0.005,
+        0xffffff,
+        0.85
+      )
+    );
+
+    this.UIContainer.add(
+      this.add.rectangle(
+        this.windowW * 0.82,
+        this.windowH * 0.21,
+        this.windowW * 0.33,
+        this.windowH * 0.005,
         0xffffff,
         0.85
       )
@@ -854,16 +859,16 @@ class Day extends Phaser.Scene {
 
   createButtons() {
     this.buttons = {
-      player: new CustomUIButton(this, 15, 88, "player", () =>
+      player: new CustomUIButton(this, 15, 90, "player", () =>
         this.switchToContainer("player")
       ),
-      turrets: new CustomUIButton(this, 138, 88, "turrets", () =>
+      turrets: new CustomUIButton(this, 138, 90, "turrets", () =>
         this.switchToContainer("turrets")
       ),
-      wall: new CustomUIButton(this, 277, 88, "wall", () =>
+      wall: new CustomUIButton(this, 277, 90, "wall", () =>
         this.switchToContainer("wall")
       ),
-      food: new CustomUIButton(this, 364, 88, "food", () =>
+      food: new CustomUIButton(this, 364, 90, "food", () =>
         this.switchToContainer("food")
       ),
     };
@@ -887,71 +892,108 @@ class Day extends Phaser.Scene {
       .setName("nightButton");
   }
 
-  createContainers() {
+  createLeftWindow() {
     this.leftWindow = this.add.rectangle(
       this.windowW * 0.18,
       this.windowH * 0.58,
       this.windowW * 0.32,
       this.windowH * 0.71,
       0xff00ff,
-      0.05
+      0.01
     );
 
     this.UIContainer.add(this.leftWindow);
 
-    this.containers = {
+    this.leftWindowContainers = {
       player: this.add.container(this.leftWindow.x, this.leftWindow.y),
-      turrets: this.add.container(),
-      wall: this.add.container(),
-      food: this.add.container(),
+      turrets: this.add.container(this.leftWindow.x, this.leftWindow.y),
+      wall: this.add.container(this.leftWindow.x, this.leftWindow.y),
+      food: this.add.container(this.leftWindow.x, this.leftWindow.y),
     };
 
-    this.UIContainer.add(Object.values(this.containers));
+    this.UIContainer.add(Object.values(this.leftWindowContainers));
 
-    this.containers.player.add([
-      new CustomUIButton(this, 0, -200, "plinker", () => {
+    Object.values(this.leftWindowContainers).forEach((container) =>
+      container.setVisible(false)
+    );
+
+    this.switchToContainer("player");
+
+    this.leftWindowContainers.player.add([
+      new CustomContainerButton(this, 0, -220, "plinker", () => {
         console.log("hi");
-      })
-        .setOrigin(0.5, 0.5)
-        .setPadding(100, 10, 100, 10),
-      new CustomUIButton(this, 0, -100, "machine gun", () => {
+      }),
+      new CustomContainerButton(this, 0, -150, "machine gun", () => {
         console.log("hi");
-      })
-        .setOrigin(0.5, 0.5)
-        .setPadding(100, 10, 100, 10),
-      new CustomUIButton(this, 0, 0, "shotgun", () => {
+      }),
+      new CustomContainerButton(this, 0, -80, "shotgun", () => {
         console.log("hi");
-      }).setOrigin(0.5, 0.5),
-      new CustomUIButton(this, 0, 100, "eight-shot", () => {
+      }),
+      new CustomContainerButton(this, 0, -10, "eight-shot", () => {
         console.log("hi");
-      }).setOrigin(0.5, 0.5),
-      new CustomUIButton(this, 0, 200, "flamethrower", () => {
+      }),
+      new CustomContainerButton(this, 0, 60, "flamethrower", () => {
         console.log("hi");
-      }).setOrigin(0.5, 0.5),
+      }),
     ]);
 
-    console.log(
-      new CustomUIButton(this, 0, -100, "mach gun", () => {
+    this.leftWindowContainers.turrets.add([
+      new CustomContainerButton(
+        this,
+        0,
+        -220,
+        "upgrades coming soon",
+        () => {}
+      ),
+    ]);
+
+    this.leftWindowContainers.wall.add([
+      new CustomContainerButton(
+        this,
+        0,
+        -220,
+        "upgrades coming soon",
+        () => {}
+      ),
+    ]);
+
+    this.leftWindowContainers.food.add([
+      new CustomContainerButton(
+        this,
+        0,
+        -220,
+        "upgrades coming soon",
+        () => {}
+      ),
+    ]);
+  }
+
+  createRightWindow() {
+    this.rightWindowContainers = {
+      title: new CustomText(
+        this,
+        1260,
+        114,
+        "click upgrade to examine",
+        "l",
+        "m"
+      ),
+      description: new CustomText(this, 1040, 188, "description", "l", "m"),
+      button: new CustomContainerButton(this, 1050, 630, "buy", () => {
         console.log("hi");
-      }).setPadding(100, 10, 100, 10).width
-    );
+      }),
+    };
   }
 
   switchToContainer(container) {
     for (const name in this.buttons) {
       if (name == container) {
         this.buttons[name].setBackgroundColor("rgba(220, 220, 220, 0.4)");
+        this.leftWindowContainers[name].setVisible(true);
       } else {
         this.buttons[name].setBackgroundColor("rgba(220, 220, 220, 0.1)");
+        this.leftWindowContainers[name].setVisible(false);
       }
-    }
-
-    switch (container) {
-      case "":
-        break;
-
-      default:
-        break;
     }
   }
 }
@@ -1381,6 +1423,52 @@ class CustomText extends Phaser.GameObjects.Text {
       );
       scene.UIContainer.add(rect);
     }
+
+    scene.UIContainer.add(cT);
+
+    return cT;
+  }
+}
+
+class CustomContainerButton extends Phaser.GameObjects.Text {
+  constructor(
+    scene, // always "this" in the scene class
+    x,
+    y,
+    text,
+    callback
+  ) {
+    super(scene);
+
+    const cT = scene.add
+      .text(x, y, text, {
+        font: "32px",
+        fill: "#fff",
+        align: "center",
+      })
+      .setFontFamily("Anonymous Pro")
+      .setOrigin(0.5, 0.5);
+
+    // fine-tuned this code so button only clicks if player
+    // emits both pointerdown and pointerup events on it
+    cT.setInteractive({ useHandCursor: true })
+      .setPadding((400 - cT.width) / 2, 10, (400 - cT.width) / 2, 10)
+      .setBackgroundColor("rgba(220, 220, 220, 0.1)") // it's just CSS
+      .on("pointerover", function () {
+        this.setTint(0xeeeeee);
+      })
+      .on("pointerout", function () {
+        this.setTint(0xffffff).off("pointerup", callback, scene);
+      })
+      .on("pointerdown", function () {
+        this.setTint(0xdddddd);
+        if (this.listenerCount("pointerup") < 2) {
+          this.on("pointerup", callback, scene);
+        }
+      })
+      .on("pointerup", function () {
+        this.setTint(0xeeeeee);
+      });
 
     scene.UIContainer.add(cT);
 
