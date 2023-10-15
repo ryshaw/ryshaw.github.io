@@ -1,0 +1,10 @@
+{
+  "plinker": {
+    "text": "basic gun\nworthless\nblah blah\nblah blah\nblah blah\nblah blah\nblah blah",
+    "cost": 100
+  },
+  "machine gun": {
+    "text": "machine gun text",
+    "cost": 200
+  }
+}

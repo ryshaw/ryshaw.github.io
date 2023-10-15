@@ -600,6 +600,7 @@ class Day extends Phaser.Scene {
   rightWindowContainers;
   leftWindow;
   rightWindow;
+  itemsData; // json file that contains text and costs for items
 
   constructor() {
     super({ key: "Day" });
@@ -619,6 +620,9 @@ class Day extends Phaser.Scene {
     this.load.image("car", "assets/car.png");
     this.load.image("food", "assets/food.png");
 
+    // load text for items
+    this.load.json("items", "assets/items.json");
+
     this.windowW = game.config.width;
     this.windowH = game.config.height;
     this.gameW = this.windowW / 4;
@@ -631,6 +635,9 @@ class Day extends Phaser.Scene {
     this.graphics = this.add.graphics({
       lineStyle: { width: 0.2, color: 0xffd166 },
     });
+
+    // load json for items
+    this.itemsData = this.cache.json.get("items");
 
     // zoom in camera and reset position
     // bounds of the world are [0, 0, gameW, gameH]
@@ -657,7 +664,14 @@ class Day extends Phaser.Scene {
 
     WebFont.load({
       google: {
-        families: ["IBM Plex Mono", "Finger Paint", "Anonymous Pro"],
+        families: [
+          "IBM Plex Mono",
+          "Finger Paint",
+          "Anonymous Pro",
+          "Ubuntu Mono",
+          "Nanum Gothic Coding",
+          "Handjet",
+        ],
       },
       active: () => {
         this.loadGameUI();
@@ -920,69 +934,48 @@ class Day extends Phaser.Scene {
     this.switchToContainer("player");
 
     this.leftWindowContainers.player.add([
-      new CustomContainerButton(this, 0, -220, "plinker", () => {
-        console.log("hi");
-      }),
-      new CustomContainerButton(this, 0, -150, "machine gun", () => {
-        console.log("hi");
-      }),
-      new CustomContainerButton(this, 0, -80, "shotgun", () => {
-        console.log("hi");
-      }),
-      new CustomContainerButton(this, 0, -10, "eight-shot", () => {
-        console.log("hi");
-      }),
-      new CustomContainerButton(this, 0, 60, "flamethrower", () => {
-        console.log("hi");
-      }),
+      new CustomContainerButton(this, 0, -220, "plinker"),
+      new CustomContainerButton(this, 0, -150, "machine gun"),
+      new CustomContainerButton(this, 0, -80, "shotgun"),
+      new CustomContainerButton(this, 0, -10, "eight-shot"),
+      new CustomContainerButton(this, 0, 60, "flamethrower"),
     ]);
 
     this.leftWindowContainers.turrets.add([
-      new CustomContainerButton(
-        this,
-        0,
-        -220,
-        "upgrades coming soon",
-        () => {}
-      ),
+      new CustomContainerButton(this, 0, -220, "coming soon"),
     ]);
 
     this.leftWindowContainers.wall.add([
-      new CustomContainerButton(
-        this,
-        0,
-        -220,
-        "upgrades coming soon",
-        () => {}
-      ),
+      new CustomContainerButton(this, 0, -220, "coming soon"),
     ]);
 
     this.leftWindowContainers.food.add([
-      new CustomContainerButton(
-        this,
-        0,
-        -220,
-        "upgrades coming soon",
-        () => {}
-      ),
+      new CustomContainerButton(this, 0, -220, "coming soon"),
     ]);
   }
 
   createRightWindow() {
-    this.rightWindowContainers = {
-      title: new CustomText(
-        this,
-        1260,
-        114,
-        "click upgrade to examine",
-        "l",
-        "m"
-      ),
-      description: new CustomText(this, 1040, 188, "description", "l", "m"),
-      button: new CustomContainerButton(this, 1050, 630, "buy", () => {
-        console.log("hi");
-      }),
-    };
+    this.rightWindow = this.add.container(
+      this.windowW * 0.82,
+      this.windowH * 0.52
+    );
+
+    this.UIContainer.add(this.rightWindow);
+
+    this.rightWindow.add([
+      new CustomUIText(this, 0, -260, "title").setName("title"),
+      new CustomUIText(this, 0, -200, "description")
+        .setName("description")
+        .setOrigin(0.5, 0),
+      new CustomUIButton(this, 0, 260, "buy for 100", () => {
+        console.log("bought");
+      })
+        .setName("button")
+        .setOrigin(0.5, 0.5)
+        .setPadding(10)
+        .setFontSize("42px"),
+    ]);
+    this.rightWindow.setVisible(false);
   }
 
   switchToContainer(container) {
@@ -1435,14 +1428,13 @@ class CustomContainerButton extends Phaser.GameObjects.Text {
     scene, // always "this" in the scene class
     x,
     y,
-    text,
-    callback
+    text
   ) {
     super(scene);
 
     const cT = scene.add
       .text(x, y, text, {
-        font: "32px",
+        font: "42px",
         fill: "#fff",
         align: "center",
       })
@@ -1452,18 +1444,34 @@ class CustomContainerButton extends Phaser.GameObjects.Text {
     // fine-tuned this code so button only clicks if player
     // emits both pointerdown and pointerup events on it
     cT.setInteractive({ useHandCursor: true })
-      .setPadding((400 - cT.width) / 2, 10, (400 - cT.width) / 2, 10)
+      .setPadding((400 - cT.width) / 2, 4, (400 - cT.width) / 2, 4)
       .setBackgroundColor("rgba(220, 220, 220, 0.1)") // it's just CSS
       .on("pointerover", function () {
         this.setTint(0xeeeeee);
       })
       .on("pointerout", function () {
-        this.setTint(0xffffff).off("pointerup", callback, scene);
+        this.setTint(0xffffff).off("pointerup");
       })
       .on("pointerdown", function () {
         this.setTint(0xdddddd);
         if (this.listenerCount("pointerup") < 2) {
-          this.on("pointerup", callback, scene);
+          this.on("pointerup", () => {
+            this.parentContainer.iterate((child) => {
+              if (this == child)
+                child.setBackgroundColor("rgba(220, 220, 220, 0.4)");
+              else child.setBackgroundColor("rgba(220, 220, 220, 0.1)");
+            });
+
+            // grab description text and cost number from json
+            const itemData = scene.itemsData[this.text];
+
+            scene.rightWindow.setVisible(true);
+            scene.rightWindow.getByName("title").setText(this.text);
+            scene.rightWindow.getByName("description").setText(itemData.text);
+            scene.rightWindow
+              .getByName("button")
+              .setText("buy for " + itemData.cost);
+          });
         }
       })
       .on("pointerup", function () {
@@ -1514,6 +1522,31 @@ class CustomUIButton extends Phaser.GameObjects.Text {
       .on("pointerup", function () {
         this.setTint(0xeeeeee);
       });
+
+    scene.UIContainer.add(cT);
+
+    return cT;
+  }
+}
+
+class CustomUIText extends Phaser.GameObjects.Text {
+  constructor(
+    scene, // always "this" in the scene class
+    x,
+    y,
+    text
+  ) {
+    super(scene);
+
+    const cT = scene.add
+      .text(x, y, text, {
+        font: "42px",
+        fill: "#fff",
+        align: "center",
+      })
+      .setFontFamily("Anonymous Pro")
+      .setLineSpacing(8)
+      .setOrigin(0.5, 0.5);
 
     scene.UIContainer.add(cT);
 
