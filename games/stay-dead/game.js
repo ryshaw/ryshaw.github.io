@@ -25,6 +25,7 @@ class Night extends Phaser.Scene {
   timeInterval; // controls timeText and switching states
   waveInterval; // spawns zombos throughout the night
   isGameOver;
+  money; // every zombo killed adds to money
 
   boundsGroup; // player and bounds collide, nothing else collides with bounds
 
@@ -65,6 +66,10 @@ class Night extends Phaser.Scene {
     this.nightTime = 0;
     this.isGameOver = false;
 
+    // make doubly sure it's not a string by calling parseInt
+    this.money = parseInt(localStorage.getItem("money")) || parseInt(500);
+    localStorage.setItem("money", parseInt(this.money));
+
     this.graphics = this.add.graphics({
       lineStyle: { width: 0.2, color: 0xffd166 },
       fillStyle: { color: 0xff00ff },
@@ -104,6 +109,10 @@ class Night extends Phaser.Scene {
 
     this.cameras.main.fadeIn(800);
     this.UICamera.fadeIn(800);
+
+    // start the game
+    this.timeInterval = setInterval(() => this.timeHandler(), 500);
+    this.waveInterval = setInterval(() => this.waveHandler(), 2000);
   }
 
   createLayout() {
@@ -188,10 +197,6 @@ class Night extends Phaser.Scene {
     this.matter.world.on("collisionend", (event) => {
       this.collisionEndHandler(event);
     });
-
-    // game starts at night, so set the interval and get the night going
-    this.timeInterval = setInterval(() => this.timeHandler(), 1000);
-    this.waveInterval = setInterval(() => this.waveHandler(), 2500);
   }
 
   // converts the timer during night to clock format so we can display it for player
@@ -211,15 +216,15 @@ class Night extends Phaser.Scene {
       this.UIContainer.getByName("timeText").setColor("#fcf6bd");
       this.tweens.addCounter({
         from: 24,
-        to: 32,
-        duration: 300,
-        yoyo: true,
-        loop: 2,
+        to: 64,
+        duration: 800,
+        ease: "Quad.out",
         onUpdate: (tween) => {
           this.UIContainer.getByName("timeText").setFontSize(tween.getValue());
         },
-        completeDelay: 500,
+        completeDelay: 1000,
         onComplete: () => {
+          localStorage.setItem("money", this.money);
           this.cameras.main.fadeOut(800);
           this.UICamera.fadeOut(800);
           this.time.delayedCall(1000, () => this.scene.start("Day"));
@@ -395,6 +400,7 @@ class Night extends Phaser.Scene {
         this.bullets.remove(bullet, true, true);
         z.gameObject.health -= 1;
         if (z.gameObject.health <= 0) {
+          this.money += 10;
           this.zombos.remove(z.gameObject, true, true);
         }
       });
@@ -512,21 +518,15 @@ class Night extends Phaser.Scene {
     obj.setVelocity(speed2 * Math.sin(direction), speed2 * Math.cos(direction));
   }
 
-  hitZombo(zombo, bullet) {
-    this.bullets.remove(bullet, true, true);
-    zombo.health--;
-    if (zombo.health <= 0) this.zombos.remove(zombo, true, true);
-  }
-
   loadGameUI() {
-    new CustomText(this, 5, 5, `day ${this.days}`, "s").setOrigin(0, 0);
+    new CustomText(this, 5, 5, `day ${this.days}`, "m").setOrigin(0, 0);
 
     new CustomText(
       this,
       this.windowW - 5,
       5,
       `health: ${this.playerHealth}`,
-      "s"
+      "m"
     )
       .setOrigin(1, 0)
       .setName("healthText");
@@ -601,6 +601,8 @@ class Day extends Phaser.Scene {
   leftWindow;
   rightWindow;
   itemsData; // json file that contains text and costs for items
+  ownedItems; // list of items the player already owns
+  money; // how much the player has to spend
 
   constructor() {
     super({ key: "Day" });
@@ -636,8 +638,7 @@ class Day extends Phaser.Scene {
       lineStyle: { width: 0.2, color: 0xffd166 },
     });
 
-    // load json for items
-    this.itemsData = this.cache.json.get("items");
+    this.loadData(); // load json and set up localStorage to keep track of items data
 
     // zoom in camera and reset position
     // bounds of the world are [0, 0, gameW, gameH]
@@ -680,6 +681,22 @@ class Day extends Phaser.Scene {
 
     this.cameras.main.fadeIn(800);
     this.UICamera.fadeIn(800);
+  }
+
+  loadData() {
+    this.itemsData = this.cache.json.get("items");
+
+    this.ownedItems =
+      localStorage.getItem("ownedItems") || new Array("plinker");
+    localStorage.setItem("ownedItems", this.ownedItems);
+
+    // localStorage stores arrays as comma-separated values.
+    if (typeof this.ownedItems == "string") {
+      this.ownedItems = this.ownedItems.split(",");
+    }
+
+    this.money = localStorage.getItem("money") || parseInt(500);
+    localStorage.setItem("money", this.money);
   }
 
   createLayout() {
@@ -803,6 +820,10 @@ class Day extends Phaser.Scene {
 
   createBackground() {
     new CustomText(this, 15, 5, `day ${this.days}`, "g").setOrigin(0, 0);
+
+    new CustomText(this, this.windowW - 15, 5, `money: ${this.money}`, "g")
+      .setOrigin(1, 0)
+      .setName("moneyText");
 
     this.UIContainer.add(
       this.add.rectangle(
@@ -942,15 +963,30 @@ class Day extends Phaser.Scene {
     ]);
 
     this.leftWindowContainers.turrets.add([
-      new CustomContainerButton(this, 0, -220, "coming soon"),
+      new CustomContainerButton(
+        this,
+        0,
+        -220,
+        "coming soon"
+      ).disableInteractive(),
     ]);
 
     this.leftWindowContainers.wall.add([
-      new CustomContainerButton(this, 0, -220, "coming soon"),
+      new CustomContainerButton(
+        this,
+        0,
+        -220,
+        "coming soon"
+      ).disableInteractive(),
     ]);
 
     this.leftWindowContainers.food.add([
-      new CustomContainerButton(this, 0, -220, "coming soon"),
+      new CustomContainerButton(
+        this,
+        0,
+        -220,
+        "coming soon"
+      ).disableInteractive(),
     ]);
   }
 
@@ -968,7 +1004,24 @@ class Day extends Phaser.Scene {
         .setName("description")
         .setOrigin(0.5, 0),
       new CustomUIButton(this, 0, 260, "buy for 100", () => {
-        console.log("bought");
+        const item = this.rightWindow.getByName("title").text;
+        const cost = this.itemsData[item].cost;
+        if (this.money >= cost && this.ownedItems.indexOf(item) == -1) {
+          this.money -= cost;
+          this.UIContainer.getByName("moneyText").setText(
+            `money: ${this.money}`
+          );
+          this.ownedItems.push(item);
+          localStorage.setItem("money", this.money);
+          localStorage.setItem("ownedItems", this.ownedItems);
+
+          // calling an object before it's been instantiated
+          // will definitely not lead to disaster
+          this.rightWindow
+            .getByName("button")
+            .setText("bought")
+            .disableInteractive();
+        }
       })
         .setName("button")
         .setOrigin(0.5, 0.5)
@@ -1136,7 +1189,7 @@ const config = {
   },
   pixelArt: true,
   backgroundColor: "#000000",
-  scene: [Day, Night],
+  scene: [Night, Day],
 };
 
 // for zombo states
@@ -1468,9 +1521,17 @@ class CustomContainerButton extends Phaser.GameObjects.Text {
             scene.rightWindow.setVisible(true);
             scene.rightWindow.getByName("title").setText(this.text);
             scene.rightWindow.getByName("description").setText(itemData.text);
-            scene.rightWindow
-              .getByName("button")
-              .setText("buy for " + itemData.cost);
+            if (scene.ownedItems.indexOf(this.text) == -1) {
+              scene.rightWindow
+                .getByName("button")
+                .setText("buy for " + itemData.cost)
+                .setInteractive();
+            } else {
+              scene.rightWindow
+                .getByName("button")
+                .setText("bought")
+                .disableInteractive();
+            }
           });
         }
       })

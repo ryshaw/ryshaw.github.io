@@ -1,10 +1,26 @@
 {
   "plinker": {
-    "text": "basic gun\nworthless\nblah blah\nblah blah\nblah blah\nblah blah\nblah blah",
+    "text": "good as a starter\nand nothing else",
     "cost": 100
   },
   "machine gun": {
-    "text": "machine gun text",
+    "text": "fires fast but\ndoes low damage\ngood overall",
     "cost": 200
+  },
+  "shotgun": {
+    "text": "fires bursts\ngood up close",
+    "cost": 400
+  },
+  "eight-shot": {
+    "text": "fires in all eight\ndirections at once",
+    "cost": 800
+  },
+  "flamethrower": {
+    "text": "very high damage\nbut only up close",
+    "cost": 1000
+  },
+  "coming soon": {
+    "text": "",
+    "cost": 0
   }
 }
