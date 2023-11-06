@@ -3,29 +3,11 @@ const VERSION = "Snip It! v0.1";
 class Game extends Phaser.Scene {
   // window resolution is 1280x720.
   // game resolution is 320x180.
-  windowW;
-  windowH;
-  gameW;
-  gameH;
-  UICamera;
-  UIContainer;
-  player; // container with the car and the mounted gun
-  arrowKeys;
+  w;
+  h;
   sounds;
   keys;
-  mouseDown;
   graphics;
-  reloadTime;
-  bullets; // GameObject group
-  zombos; // GameObject group
-  food;
-  days;
-  wave;
-  nightTime; // timer that ticks during nighttime, goes from 0 to 36
-  timeInterval; // controls timeText and switching states
-  waveInterval; // spawns zombos throughout the night
-  isGameOver;
-  money; // every zombo killed adds to money
 
   boundsGroup; // player and bounds collide, nothing else collides with bounds
 
@@ -39,10 +21,8 @@ class Game extends Phaser.Scene {
       "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
     );
 
-    this.windowW = game.config.width;
-    this.windowH = game.config.height;
-    this.gameW = this.windowW / 4;
-    this.gameH = this.windowH / 4;
+    this.w = game.config.width;
+    this.h = game.config.height;
   }
 
   create() {
@@ -51,47 +31,62 @@ class Game extends Phaser.Scene {
       fillStyle: { color: 0xff00ff },
     });
 
-    // zoom in camera and reset position
-    // bounds of the world are [0, 0, gameW, gameH]
-    this.cameras.main.setZoom(4);
-    this.cameras.main.centerOn(this.gameW / 2, this.gameH / 2);
-    this.cameras.main.setBackgroundColor("#9badb7");
-
     this.createLayout();
     this.createControls();
 
-    // get this all the way off the screen
-    // so the UI isn't duplicated on the main camera
-    this.UICamera = this.cameras.add(
-      -this.windowW,
-      -this.windowH,
-      this.windowW * 2,
-      this.windowH * 2
-    );
-
-    // adjust position of all UI to match the offset cam
-    this.UIContainer = this.add
-      .container()
-      .setPosition(this.windowW, this.windowH);
-
     WebFont.load({
       google: {
-        families: ["IBM Plex Mono", "Finger Paint", "Anonymous Pro"],
+        families: [
+          "IBM Plex Mono",
+          "Finger Paint",
+          "Anonymous Pro",
+          "Roboto Mono",
+          "PT Sans",
+          "Quicksand",
+          "IBM Plex Sans",
+          "Titillium Web",
+        ],
       },
       active: () => {
         this.loadGameUI();
       },
     });
 
-    console.log(this.windowW, this.windowH, this.gameW, this.gameH);
+    console.log(this.w, this.h);
 
     //this.cameras.main.fadeIn(800);
     //this.UICamera.fadeIn(800);
   }
 
-  createLayout() {}
+  createLayout() {
+    const top = "0x023e8a";
+    const bottom = "0x457b9d";
+    //this.graphics.fillGradientStyle(top, top, bottom, bottom);
+    //this.graphics.fillRect(0, 0, this.w, this.h);
+    const num1 = 0.1;
+    const num2 = 0.9;
+    this.add
+      .image(this.w / 2, this.h / 2, "__WHITE")
+      .setDisplaySize(this.w * 1, this.h * 1)
+      .preFX.addGradient(0x023e8a, 0x457b9d, 0.16, num1, num1, num2, num2, 18);
+  }
 
-  loadGameUI() {}
+  loadGameUI() {
+    new CustomText(
+      this,
+      this.w * 0.04,
+      this.h * 0.2,
+      "vaporwave tracks\nvol. 3",
+      "g",
+      "l"
+    )
+      .setFontSize("100px")
+      .postFX.addGlow(0xffffff, 0.45);
+
+    new CustomText(this, this.w * 0.9, this.h * 0.85, "enrique ramos", "g", "r")
+      .setFontSize("80px")
+      .postFX.addGlow(0xffffff, 0.45);
+  }
 
   /*
   createAudio() {
@@ -326,6 +321,8 @@ class Start extends Phaser.Scene {
 
 const config = {
   type: Phaser.AUTO,
+  width: window.innerWidth,
+  height: window.innerHeight,
   physics: {
     default: "arcade",
     matter: {
@@ -337,7 +334,7 @@ const config = {
     },
   },
   scale: {
-    mode: Phaser.Scale.RESIZE,
+    mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   pixelArt: true,
@@ -370,11 +367,14 @@ class CustomText extends Phaser.GameObjects.Text {
             ? "24px"
             : "16px",
         fill: "#fff",
-        align: "center",
+        align: "left",
       })
-      .setFontFamily("Anonymous Pro")
+      .setFontFamily("Roboto Mono")
       .setOrigin(align == "l" ? 0 : align == "c" ? 0.5 : 1, 0.5)
       .setLineSpacing(16);
+
+    //"IBM Plex Mono", "Finger Paint", "Anonymous Pro"]
+    //"Roboto Mono", "PT Sans", "Quicksand", "IBM Plex Sans", "Titillium Web"
 
     // if callback is given, assume it's a button and add callback.
     // fine-tuned this code so button only clicks if player
@@ -410,11 +410,7 @@ class CustomText extends Phaser.GameObjects.Text {
         0x284b63,
         1
       );
-      scene.UIContainer.add(rect);
     }
-
-    scene.UIContainer.add(cT);
-
     return cT;
   }
 }
@@ -442,7 +438,6 @@ class CustomButton extends Phaser.GameObjects.Image {
         })
         .on("pointerdown", callback, scene);
     }
-
     return cT;
   }
 }
