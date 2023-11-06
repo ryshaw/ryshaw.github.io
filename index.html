@@ -1,4 +1,6 @@
 <!DOCTYPE html>
+
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -9,33 +11,29 @@
   </head>
 
   <body>
-    <main>
-      <h1>ryshaw games and webpages</h1>
-
-      <div id="links"></div>
-    </main>
-
+    <!-- https://stackoverflow.com/questions/39048654/how-to-enable-directory-indexing-on-github-pages -->
+    <!-- directory listing script stolen from this stackoverflow post -->
     <script>
-      const pages = [
-        "bouncy-balls",
-        "crystals-cafe",
-        "dr-enrique",
-        "fishy-sea",
-      ];
+      (async () => {
+        const response = await fetch(
+          "https://api.github.com/repos/ryshaw/ryshaw.github.io/contents/"
+        );
+        const data = await response.json();
+        let htmlString = "<h1>ryshaw games and webpages</h1><ul>";
 
-      pages.forEach((page) => {
-        const h = document.createElement("h3");
+        for (let file of data) {
+          if (
+            file.name != "README.md" &&
+            file.name != "index.html" &&
+            file.name != "styles.css"
+          ) {
+            htmlString += `<li><a href="${file.path}">${file.name}</a></li>`;
+          }
+        }
 
-        const link = document.createElement("a");
-        link.text = page;
-        link.href = `${page}/index.html`;
-        link.target = "_blank";
-        h.appendChild(link);
-
-        const div = document.getElementById("links");
-
-        div.appendChild(h);
-      });
+        htmlString += "</ul>";
+        document.getElementsByTagName("body")[0].innerHTML = htmlString;
+      })();
     </script>
   </body>
 </html>
