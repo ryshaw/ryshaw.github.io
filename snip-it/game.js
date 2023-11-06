@@ -1,18 +1,37 @@
 const VERSION = "Snip It! v0.1";
 
+class Background extends Phaser.Scene {
+  constructor() {
+    super("Background");
+  }
+
+  create() {
+    // add gradient background. this is stolen from a phaser example
+    // https://labs.phaser.io/view.html?src=src/fx\gradient\gradient%20fx.js
+    const num1 = 0.1;
+    const num2 = 0.9;
+    const top = "0x023e8a";
+    const bottom = "0x457b9d";
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    this.add
+      .image(w / 2, h / 2, "__WHITE")
+      .setDisplaySize(w, h)
+      .setName("bg")
+      .preFX.addGradient(top, bottom, 0.16, num1, num1, num2, num2, 18);
+
+    this.scene.launch("Game");
+  }
+}
+
 class Game extends Phaser.Scene {
-  // window resolution is 1280x720.
-  // game resolution is 320x180.
-  w;
-  h;
+  gameW = 640;
+  gameH = 960;
   sounds;
   keys;
-  graphics;
-
-  boundsGroup; // player and bounds collide, nothing else collides with bounds
 
   constructor() {
-    super({ key: "Night" });
+    super("Game");
   }
 
   preload() {
@@ -20,16 +39,28 @@ class Game extends Phaser.Scene {
       "webfont",
       "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
     );
-
-    this.w = game.config.width;
-    this.h = game.config.height;
   }
 
   create() {
-    this.graphics = this.add.graphics({
-      lineStyle: { width: 0.2, color: 0xffd166 },
-      fillStyle: { color: 0xff00ff },
-    });
+    // resizing/camera code stolen from
+    // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
+    const width = this.scale.gameSize.width;
+    const height = this.scale.gameSize.height;
+
+    this.parent = new Phaser.Structs.Size(width, height);
+    this.sizer = new Phaser.Structs.Size(
+      this.gameW,
+      this.gameH,
+      Phaser.Structs.Size.FIT,
+      this.parent
+    );
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+
+    this.scale.on("resize", this.resize, this);
 
     this.createLayout();
     this.createControls();
@@ -52,42 +83,62 @@ class Game extends Phaser.Scene {
       },
     });
 
-    console.log(this.w, this.h);
-
     //this.cameras.main.fadeIn(800);
-    //this.UICamera.fadeIn(800);
   }
 
   createLayout() {
-    const top = "0x023e8a";
-    const bottom = "0x457b9d";
-    //this.graphics.fillGradientStyle(top, top, bottom, bottom);
-    //this.graphics.fillRect(0, 0, this.w, this.h);
-    const num1 = 0.1;
-    const num2 = 0.9;
-    this.add
-      .image(this.w / 2, this.h / 2, "__WHITE")
-      .setDisplaySize(this.w * 1, this.h * 1)
-      .preFX.addGradient(0x023e8a, 0x457b9d, 0.16, num1, num1, num2, num2, 18);
+    this.add.rectangle(
+      this.gameW * 0.5,
+      this.gameH * 0.5,
+      this.gameW,
+      this.gameH,
+      0x000000,
+      0.04
+    );
   }
 
   loadGameUI() {
+    new CustomText(this, this.gameW * 0.5, 20, "snip it!", "g", "l")
+      .setOrigin(0.5, 0)
+      .postFX.addGlow(0xffffff, 0.45);
+
     new CustomText(
       this,
-      this.w * 0.04,
-      this.h * 0.2,
-      "vaporwave tracks\nvol. 3",
-      "g",
-      "l"
+      this.gameW * 0.5,
+      this.gameH - 20,
+      "a game by ryshaw\nmade in phaser 3",
+      "m",
+      "c"
     )
-      .setFontSize("100px")
-      .postFX.addGlow(0xffffff, 0.45);
+      .setOrigin(0.5, 1)
+      .postFX.addGlow(0xffffff, 0.3);
+  }
 
-    new CustomText(this, this.w * 0.9, this.h * 0.85, "enrique ramos", "g", "r")
-      .setFontSize("80px")
-      .postFX.addGlow(0xffffff, 0.45);
+  resize(gameSize) {
+    const width = gameSize.width;
+    const height = gameSize.height;
 
-    //hello
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+  }
+
+  updateCamera() {
+    const camera = this.cameras.main;
+
+    const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
+    const y = 0;
+    const scaleX = this.sizer.width / this.gameW;
+    const scaleY = this.sizer.height / this.gameH;
+
+    camera.setViewport(x, y, this.sizer.width, this.sizer.height);
+    camera.setZoom(Math.max(scaleX, scaleY));
+    camera.centerOn(this.gameW / 2, this.gameH / 2);
+  }
+
+  getZoom() {
+    return this.cameras.main.zoom;
   }
 
   /*
@@ -321,27 +372,32 @@ class Start extends Phaser.Scene {
   }
 }
 
+// stolen from https://labs.phaser.io/100.html?src=src\scalemanager\mobile%20game%20example.js
 const config = {
   type: Phaser.AUTO,
-  width: window.innerWidth,
-  height: window.innerHeight,
-  physics: {
-    default: "arcade",
-    matter: {
-      debug: false,
-      gravity: {
-        x: 0,
-        y: 0,
-      },
+  backgroundColor: "#000000",
+  scale: {
+    mode: Phaser.Scale.RESIZE,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: 640,
+    height: 960,
+    min: {
+      width: 320,
+      height: 480,
+    },
+    max: {
+      width: 1400,
+      height: 1200,
     },
   },
-  scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
+  scene: [Background, Game],
+  physics: {
+    default: "arcade",
+    arcade: {
+      gravity: { y: 100 },
+      debug: false,
+    },
   },
-  pixelArt: true,
-  backgroundColor: "#000000",
-  scene: [Game],
 };
 
 class CustomText extends Phaser.GameObjects.Text {
@@ -443,4 +499,5 @@ class CustomButton extends Phaser.GameObjects.Image {
     return cT;
   }
 }
+
 const game = new Phaser.Game(config);
