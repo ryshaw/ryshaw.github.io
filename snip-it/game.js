@@ -132,7 +132,11 @@ class Game extends Phaser.Scene {
     const scaleX = this.sizer.width / this.gameW;
     const scaleY = this.sizer.height / this.gameH;
 
-    camera.setViewport(x, y, this.sizer.width, this.sizer.height);
+    // offset is comparing the game's height to the window's height,
+    // and centering the game in the middle of the window.
+    const offset = this.parent.height / this.sizer.height;
+
+    camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
     camera.setZoom(Math.max(scaleX, scaleY));
     camera.centerOn(this.gameW / 2, this.gameH / 2);
   }
@@ -418,11 +422,11 @@ class CustomText extends Phaser.GameObjects.Text {
       .text(x, y, text, {
         font:
           size == "g"
-            ? "48px"
+            ? "64px"
             : size == "l"
-            ? "32px"
+            ? "48px"
             : size == "m"
-            ? "24px"
+            ? "32px"
             : "16px",
         fill: "#fff",
         align: "left",
