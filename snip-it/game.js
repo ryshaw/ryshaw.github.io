@@ -12,12 +12,11 @@ class Background extends Phaser.Scene {
     const num2 = 0.9;
     const top = "0x023e8a";
     const bottom = "0x457b9d";
-    const w = window.innerWidth;
+    const w = window.innerWidth; // take up the full browser window
     const h = window.innerHeight;
     this.add
       .image(w / 2, h / 2, "__WHITE")
       .setDisplaySize(w, h)
-      .setName("bg")
       .preFX.addGradient(top, bottom, 0.16, num1, num1, num2, num2, 18);
 
     this.scene.launch("Game");
@@ -29,6 +28,11 @@ class Game extends Phaser.Scene {
   gameH = 960;
   sounds;
   keys;
+  graphics;
+  path;
+  reversePath;
+  player;
+  dir; // either 0 or 1 depending on which direction the player is moving
 
   constructor() {
     super("Game");
@@ -42,7 +46,7 @@ class Game extends Phaser.Scene {
   }
 
   create() {
-    // resizing/camera code stolen from
+    // resolution, resizing, camera code stolen from
     // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
     const width = this.scale.gameSize.width;
     const height = this.scale.gameSize.height;
@@ -82,11 +86,10 @@ class Game extends Phaser.Scene {
         this.loadGameUI();
       },
     });
-
-    //this.cameras.main.fadeIn(800);
   }
 
   createLayout() {
+    // show the "game window" while in development
     this.add.rectangle(
       this.gameW * 0.5,
       this.gameH * 0.5,
@@ -95,6 +98,39 @@ class Game extends Phaser.Scene {
       0x000000,
       0.04
     );
+
+    this.graphics = this.add.graphics();
+
+    this.createPathAndPlayer(
+      this.gameW * 0.2,
+      this.gameH * 0.2,
+      this.gameW * 0.6,
+      this.gameH * 0.5
+    );
+  }
+
+  createPathAndPlayer(x, y, width, length) {
+    this.path = this.add
+      .path(x, y)
+      .lineTo(x + width, y)
+      .lineTo(x + width, y + length)
+      .lineTo(x, y + length)
+      .lineTo(x, y);
+
+    // create simple rectangle texture for player
+    const rectangleDrawer = this.make.graphics(); // disposable graphics obj
+    const playerW = 16;
+    rectangleDrawer.fillStyle(0xffb703, 1);
+    rectangleDrawer.fillRect(0, 0, playerW, playerW);
+    rectangleDrawer.generateTexture("rect", playerW, playerW); /*
+    this.dir = 1;
+    this.player = this.add.follower(this.path, x, y, "rect").startFollow({
+      from: 0,
+      to: 1,
+      duration: this.getDuration(),
+      repeat: -1,
+    });*/
+    this.player = this.physics.add.sprite(x + width / 2, y, "rect");
   }
 
   loadGameUI() {
@@ -145,6 +181,26 @@ class Game extends Phaser.Scene {
     return this.cameras.main.zoom;
   }
 
+  // calculates how fast player should go along the path
+  // speed is 200 units/sec right now
+  getDuration() {
+    if (!this.player) {
+      // if player doesn't exist yet, assume we're starting
+      // at the very beginning of the path. so let t = 0
+      return this.path.getLength() * 2;
+    } else {
+      // alright, this is kinda silly
+      // first, the duration is usually the path length times five
+      const c1 = this.path.getLength() * 2;
+      // but since the player might be on the path already,
+      // with a t value somewhere between 0 and 1,
+      // we need to 'normalize' the duration by multiplying it
+      // by how far the player currently is along the path.
+      const c2 = c1 * Math.abs(this.dir - this.player.pathTween.getValue());
+      return c2;
+    }
+  }
+
   /*
   createAudio() {
     this.sounds = {
@@ -167,9 +223,6 @@ class Game extends Phaser.Scene {
   }*/
 
   createControls() {
-    this.input.on("pointerdown", (p) => (this.mouseDown = true));
-    this.input.on("pointerup", (p) => (this.mouseDown = false));
-
     this.keys = this.input.keyboard.addKeys({
       w: Phaser.Input.Keyboard.KeyCodes.W,
       up: Phaser.Input.Keyboard.KeyCodes.UP,
@@ -181,6 +234,9 @@ class Game extends Phaser.Scene {
       right: Phaser.Input.Keyboard.KeyCodes.RIGHT,
     });
 
+    this.input.keyboard.on("keydown-S", () => {
+      this.player.setVelocity(0, 40);
+    });
     /*
     this.input.keyboard.on("keydown-M", () => {
       const track1 = this.sound.get("track1");
@@ -208,7 +264,48 @@ class Game extends Phaser.Scene {
     this.create();
   }
 
-  update() {}
+  update() {
+    this.graphics.clear();
+    this.graphics.lineStyle(2, 0xffffff, 1);
+    this.path.draw(this.graphics);
+    /*
+    if (Phaser.Input.Keyboard.JustDown(this.keys.d)) {
+      if (this.dir != 1) {
+        this.dir = 1;
+        this.player.setPath(this.path, {
+          from: this.player.pathTween.getValue(),
+          to: 1,
+          duration: this.getDuration(),
+          positionOnPath: true,
+          onComplete: () => {
+            console.log("happy");
+          },
+        });
+      }
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(this.keys.a)) {
+      if (this.dir != 0) {
+        this.dir = 0;
+        this.player.setPath(this.path, {
+          from: this.player.pathTween.getValue(),
+          to: 0,
+          duration: this.getDuration(),
+          positionOnPath: true,
+          repeat: -1,
+        });
+      }
+    }
+
+    const start = this.path.getStartPoint();
+
+    // the next couple lines fix a bug where the player
+    // jumps to the startPoint for one frame before
+    // jumping back to the correct position. it happens
+    // whenever the path is reversed.
+    this.player.x = this.player.pathVector.x;
+    this.player.y = this.player.pathVector.y;*/
+  }
 
   /*gameOver() {
     /*
@@ -376,13 +473,13 @@ class Start extends Phaser.Scene {
   }
 }
 
-// stolen from https://labs.phaser.io/100.html?src=src\scalemanager\mobile%20game%20example.js
+// game configuration also stolen from
+// https://labs.phaser.io/100.html?src=src\scalemanager\mobile%20game%20example.js
 const config = {
   type: Phaser.AUTO,
   backgroundColor: "#000000",
   scale: {
     mode: Phaser.Scale.RESIZE,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
     width: 640,
     height: 960,
     min: {
@@ -398,8 +495,8 @@ const config = {
   physics: {
     default: "arcade",
     arcade: {
-      gravity: { y: 100 },
-      debug: false,
+      gravity: { y: 0 },
+      debug: true,
     },
   },
 };
