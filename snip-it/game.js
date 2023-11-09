@@ -28,6 +28,7 @@ class Game extends Phaser.Scene {
   gameH = 960;
   sounds;
   keys;
+  keysDown;
   graphics;
   path;
   reversePath;
@@ -131,6 +132,14 @@ class Game extends Phaser.Scene {
       repeat: -1,
     });*/
     this.player = this.physics.add.sprite(x + width / 2, y, "rect");
+    this.player.setCollideWorldBounds(true);
+
+    this.physics.world.setBounds(
+      x - playerW / 2,
+      y - playerW / 2,
+      width + playerW,
+      length + playerW
+    );
   }
 
   loadGameUI() {
@@ -223,20 +232,72 @@ class Game extends Phaser.Scene {
   }*/
 
   createControls() {
-    this.keys = this.input.keyboard.addKeys({
-      w: Phaser.Input.Keyboard.KeyCodes.W,
-      up: Phaser.Input.Keyboard.KeyCodes.UP,
-      s: Phaser.Input.Keyboard.KeyCodes.S,
-      down: Phaser.Input.Keyboard.KeyCodes.DOWN,
-      a: Phaser.Input.Keyboard.KeyCodes.A,
-      left: Phaser.Input.Keyboard.KeyCodes.LEFT,
-      d: Phaser.Input.Keyboard.KeyCodes.D,
-      right: Phaser.Input.Keyboard.KeyCodes.RIGHT,
+    this.keysDown = new Phaser.Structs.List();
+
+    this.input.keyboard.on("keydown-W", (event) => {
+      this.keysDown.add("up");
     });
 
-    this.input.keyboard.on("keydown-S", () => {
-      this.player.setVelocity(0, 40);
+    this.input.keyboard.on("keyup-W", (event) => {
+      this.keysDown.remove("up");
     });
+
+    this.input.keyboard.on("keydown-UP", (event) => {
+      this.keysDown.add("up");
+    });
+
+    this.input.keyboard.on("keyup-UP", (event) => {
+      this.keysDown.remove("up");
+    });
+
+    this.input.keyboard.on("keydown-S", (event) => {
+      this.keysDown.add("down");
+    });
+
+    this.input.keyboard.on("keyup-S", (event) => {
+      this.keysDown.remove("down");
+    });
+
+    this.input.keyboard.on("keydown-DOWN", (event) => {
+      this.keysDown.add("down");
+    });
+
+    this.input.keyboard.on("keyup-DOWN", (event) => {
+      this.keysDown.remove("down");
+    });
+
+    this.input.keyboard.on("keydown-A", (event) => {
+      this.keysDown.add("left");
+    });
+
+    this.input.keyboard.on("keyup-A", (event) => {
+      this.keysDown.remove("left");
+    });
+
+    this.input.keyboard.on("keydown-LEFT", (event) => {
+      this.keysDown.add("left");
+    });
+
+    this.input.keyboard.on("keyup-LEFT", (event) => {
+      this.keysDown.remove("left");
+    });
+
+    this.input.keyboard.on("keydown-D", (event) => {
+      this.keysDown.add("right");
+    });
+
+    this.input.keyboard.on("keyup-D", (event) => {
+      this.keysDown.remove("right");
+    });
+
+    this.input.keyboard.on("keydown-RIGHT", (event) => {
+      this.keysDown.add("right");
+    });
+
+    this.input.keyboard.on("keyup-RIGHT", (event) => {
+      this.keysDown.remove("right");
+    });
+
     /*
     this.input.keyboard.on("keydown-M", () => {
       const track1 = this.sound.get("track1");
@@ -268,6 +329,8 @@ class Game extends Phaser.Scene {
     this.graphics.clear();
     this.graphics.lineStyle(2, 0xffffff, 1);
     this.path.draw(this.graphics);
+
+    this.updatePlayerMovement();
     /*
     if (Phaser.Input.Keyboard.JustDown(this.keys.d)) {
       if (this.dir != 1) {
@@ -305,6 +368,30 @@ class Game extends Phaser.Scene {
     // whenever the path is reversed.
     this.player.x = this.player.pathVector.x;
     this.player.y = this.player.pathVector.y;*/
+  }
+
+  updatePlayerMovement() {
+    const speed = 300;
+
+    // player speed is only dictated by the last key held down
+    switch (this.keysDown.last) {
+      case "up":
+        this.player.setVelocity(0, -speed);
+        break;
+      case "down":
+        this.player.setVelocity(0, speed);
+        break;
+      case "left":
+        this.player.setVelocity(-speed, 0);
+        break;
+      case "right":
+        this.player.setVelocity(speed, 0);
+        break;
+      default:
+        // no keys down
+        this.player.setVelocity(0, 0);
+        break;
+    }
   }
 
   /*gameOver() {
