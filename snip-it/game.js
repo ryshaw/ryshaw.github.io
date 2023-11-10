@@ -26,14 +26,14 @@ class Background extends Phaser.Scene {
 class Game extends Phaser.Scene {
   gameW = 640;
   gameH = 960;
-  sounds;
-  keys;
   keysDown;
   graphics;
-  path;
-  reversePath;
+  boundsPath; // path covering the perimeter of the "canvas"
   player;
-  dir; // either 0 or 1 depending on which direction the player is moving
+  bounds; // big rectangle that is the "canvas"
+  side; // where is the player if on the perimeter? top, bottom, left, or right?
+  points; // points in the path that player is drawing
+  direction; // what direction is player going in?
 
   constructor() {
     super("Game");
@@ -102,16 +102,27 @@ class Game extends Phaser.Scene {
 
     this.graphics = this.add.graphics();
 
+    this.bounds = this.add
+      .rectangle(
+        this.gameW * 0.5,
+        this.gameH * 0.49,
+        this.gameW * 0.8,
+        this.gameH * 0.7,
+        0xffc8dd,
+        0.2
+      )
+      .setStrokeStyle(6, 0x023047);
+
     this.createPathAndPlayer(
-      this.gameW * 0.2,
-      this.gameH * 0.2,
-      this.gameW * 0.6,
-      this.gameH * 0.5
+      this.gameW * 0.1,
+      this.gameH * 0.14,
+      this.gameW * 0.8,
+      this.gameH * 0.7
     );
   }
 
   createPathAndPlayer(x, y, width, length) {
-    this.path = this.add
+    this.boundsPath = this.add
       .path(x, y)
       .lineTo(x + width, y)
       .lineTo(x + width, y + length)
@@ -123,16 +134,14 @@ class Game extends Phaser.Scene {
     const playerW = 16;
     rectangleDrawer.fillStyle(0xffb703, 1);
     rectangleDrawer.fillRect(0, 0, playerW, playerW);
-    rectangleDrawer.generateTexture("rect", playerW, playerW); /*
-    this.dir = 1;
-    this.player = this.add.follower(this.path, x, y, "rect").startFollow({
-      from: 0,
-      to: 1,
-      duration: this.getDuration(),
-      repeat: -1,
-    });*/
-    this.player = this.physics.add.sprite(x + width / 2, y, "rect");
+    rectangleDrawer.generateTexture("rect", playerW, playerW);
+    this.player = this.physics.add
+      .sprite(x + width / 2, y, "rect")
+      .setName("player");
     this.player.setCollideWorldBounds(true);
+    this.player.body.onWorldBounds = true;
+
+    this.side = "top";
 
     this.physics.world.setBounds(
       x - playerW / 2,
@@ -140,6 +149,16 @@ class Game extends Phaser.Scene {
       width + playerW,
       length + playerW
     );
+
+    this.physics.world.on("worldbounds", (body, up, down, left, right) => {
+      if (body.gameObject.name == "player") {
+        this.points = new Phaser.Structs.List(); // reset drawing
+        if (up && this.side != "top") this.side = "top";
+        if (down && this.side != "bottom") this.side = "bottom";
+        if (left && this.side != "left") this.side = "left";
+        if (right && this.side != "right") this.side = "right";
+      }
+    });
   }
 
   loadGameUI() {
@@ -179,57 +198,12 @@ class Game extends Phaser.Scene {
 
     // offset is comparing the game's height to the window's height,
     // and centering the game in the middle of the window.
-    const offset = this.parent.height / this.sizer.height;
+    const offset = 1; //this.parent.height / this.sizer.height;
 
     camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
     camera.setZoom(Math.max(scaleX, scaleY));
     camera.centerOn(this.gameW / 2, this.gameH / 2);
   }
-
-  getZoom() {
-    return this.cameras.main.zoom;
-  }
-
-  // calculates how fast player should go along the path
-  // speed is 200 units/sec right now
-  getDuration() {
-    if (!this.player) {
-      // if player doesn't exist yet, assume we're starting
-      // at the very beginning of the path. so let t = 0
-      return this.path.getLength() * 2;
-    } else {
-      // alright, this is kinda silly
-      // first, the duration is usually the path length times five
-      const c1 = this.path.getLength() * 2;
-      // but since the player might be on the path already,
-      // with a t value somewhere between 0 and 1,
-      // we need to 'normalize' the duration by multiplying it
-      // by how far the player currently is along the path.
-      const c2 = c1 * Math.abs(this.dir - this.player.pathTween.getValue());
-      return c2;
-    }
-  }
-
-  /*
-  createAudio() {
-    this.sounds = {
-      Day: this.sound.add("Day"),
-      Night: this.sound.add("Night"),
-      hit: this.sound.add("hit"),
-      lose: this.sound.add("lose"),
-      sfx: this.sound.add("sfx"),
-    };
-
-    this.sound.add("sea").play({
-      volume: 0.8,
-      loop: true,
-    });
-
-    this.sounds["Day"].play({
-      volume: 0.15,
-      loop: true,
-    });
-  }*/
 
   createControls() {
     this.keysDown = new Phaser.Structs.List();
@@ -327,65 +301,78 @@ class Game extends Phaser.Scene {
 
   update() {
     this.graphics.clear();
-    this.graphics.lineStyle(2, 0xffffff, 1);
-    this.path.draw(this.graphics);
+    /*if (this.rectangle) {
+      this.rectangle.setPosition(
+        (this.lineStartPos.x + this.player.x) / 2,
+        (this.lineStartPos.y + this.player.y) / 2
+      );
+
+      if (this.player.body.velocity.x != 0) {
+        this.rectangle.setSize(this.lineStartPos.x - this.player.x, 6);
+        this.rectangle.body.setSize(this.lineStartPos.x - this.player.x, 6);
+      } else if (this.player.body.velocity.y != 0) {
+        this.rectangle.setSize(6, this.lineStartPos.y - this.player.y);
+        this.rectangle.body.setSize(6, this.lineStartPos.y - this.player.y);
+      }
+    }*/
 
     this.updatePlayerMovement();
-    /*
-    if (Phaser.Input.Keyboard.JustDown(this.keys.d)) {
-      if (this.dir != 1) {
-        this.dir = 1;
-        this.player.setPath(this.path, {
-          from: this.player.pathTween.getValue(),
-          to: 1,
-          duration: this.getDuration(),
-          positionOnPath: true,
-          onComplete: () => {
-            console.log("happy");
-          },
-        });
-      }
-    }
-
-    if (Phaser.Input.Keyboard.JustDown(this.keys.a)) {
-      if (this.dir != 0) {
-        this.dir = 0;
-        this.player.setPath(this.path, {
-          from: this.player.pathTween.getValue(),
-          to: 0,
-          duration: this.getDuration(),
-          positionOnPath: true,
-          repeat: -1,
-        });
-      }
-    }
-
-    const start = this.path.getStartPoint();
-
-    // the next couple lines fix a bug where the player
-    // jumps to the startPoint for one frame before
-    // jumping back to the correct position. it happens
-    // whenever the path is reversed.
-    this.player.x = this.player.pathVector.x;
-    this.player.y = this.player.pathVector.y;*/
   }
 
   updatePlayerMovement() {
-    const speed = 300;
+    const speed = 200;
 
     // player speed is only dictated by the last key held down
     switch (this.keysDown.last) {
       case "up":
         this.player.setVelocity(0, -speed);
+        if (this.side == "bottom") {
+          // player was on bottom wall
+          this.points.add(
+            new Phaser.Math.Vector2(this.player.x, this.player.y)
+          );
+          this.side = "none";
+          this.rectangle = this.add
+            .rectangle(0, 0, 0, 0, 0xffffff, 1)
+            .setDepth(-1);
+          this.physics.add.existing(this.rectangle);
+        }
         break;
       case "down":
         this.player.setVelocity(0, speed);
+        if (this.side == "top") {
+          // player was on top wall
+          this.points = new Phaser.Math.Vector2(this.player.x, this.player.y);
+          this.side = "none";
+          this.rectangle = this.add
+            .rectangle(0, 0, 0, 0, 0xffffff, 1)
+            .setDepth(-1);
+          this.physics.add.existing(this.rectangle);
+        }
         break;
       case "left":
         this.player.setVelocity(-speed, 0);
+        if (this.side == "right") {
+          // player was on right wall
+          this.points = new Phaser.Math.Vector2(this.player.x, this.player.y);
+          this.side = "none";
+          this.rectangle = this.add
+            .rectangle(0, 0, 0, 0, 0xffffff, 1)
+            .setDepth(-1);
+          this.physics.add.existing(this.rectangle);
+        }
         break;
       case "right":
         this.player.setVelocity(speed, 0);
+        if (this.side == "left") {
+          // player was on left wall
+          this.points = new Phaser.Math.Vector2(this.player.x, this.player.y);
+          this.side = "none";
+          this.rectangle = this.add
+            .rectangle(0, 0, 0, 0, 0xffffff, 1)
+            .setDepth(-1);
+          this.physics.add.existing(this.rectangle);
+        }
         break;
       default:
         // no keys down
@@ -393,46 +380,6 @@ class Game extends Phaser.Scene {
         break;
     }
   }
-
-  /*gameOver() {
-    /*
-    this.sound.stopAll();
-
-    this.sounds["lose"].play({
-      volume: 0.4,
-    });
-
-    this.matter.pause();
-    this.tweens.killAll();
-    this.anims.pauseAll();
-    this.isGameOver = true;
-    clearInterval(this.timeInterval);
-    clearInterval(this.waveInterval);
-
-    const t = new CustomText(
-      this,
-      this.windowW / 2,
-      this.windowH / 2,
-      `game over!\nyou lasted ${this.days} days\nclick to play again`,
-      "l",
-      "c"
-    )
-      .setColor("#9e2a2b")
-      .setPadding(15)
-      .setBackgroundColor("#f5ebe0")
-      .setLineSpacing(16)
-      .setDepth(2);
-
-    if (this.days == 1) {
-      t.setText(
-        `game over!\nyou lasted ${this.days} day...\nclick to play again`
-      );
-    }
-
-    this.time.delayedCall(500, () =>
-      this.input.once("pointerdown", () => this.restartGame())
-    );
-  }*/
 }
 
 class Start extends Phaser.Scene {
@@ -656,33 +603,6 @@ class CustomText extends Phaser.GameObjects.Text {
         0x284b63,
         1
       );
-    }
-    return cT;
-  }
-}
-
-class CustomButton extends Phaser.GameObjects.Image {
-  constructor(
-    scene, // always "this" in the scene class
-    x,
-    y,
-    key,
-    callback = null // provided only for buttons
-  ) {
-    super(scene);
-
-    const cT = scene.add.image(x, y, key).setDepth(2);
-
-    // if callback is given, assume it's a button and add callback
-    if (callback) {
-      cT.setInteractive()
-        .on("pointerover", function () {
-          this.setTint(0xffffcc);
-        })
-        .on("pointerout", function () {
-          this.setTint(0xffffff);
-        })
-        .on("pointerdown", callback, scene);
     }
     return cT;
   }
