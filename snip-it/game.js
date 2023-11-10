@@ -34,6 +34,7 @@ class Game extends Phaser.Scene {
   side; // where is the player if on the perimeter? top, bottom, left, or right?
   points; // points in the path that player is drawing
   direction; // what direction is player going in?
+  rects; // all rectangles in the current "drawing" player is making
 
   constructor() {
     super("Game");
@@ -68,7 +69,19 @@ class Game extends Phaser.Scene {
     this.scale.on("resize", this.resize, this);
 
     this.createLayout();
+    this.createPathAndPlayer(
+      this.gameW * 0.1,
+      this.gameH * 0.14,
+      this.gameW * 0.8,
+      this.gameH * 0.7
+    );
     this.createControls();
+    this.createPhysics(
+      this.gameW * 0.1,
+      this.gameH * 0.14,
+      this.gameW * 0.8,
+      this.gameH * 0.7
+    );
 
     WebFont.load({
       google: {
@@ -112,13 +125,6 @@ class Game extends Phaser.Scene {
         0.2
       )
       .setStrokeStyle(6, 0x023047);
-
-    this.createPathAndPlayer(
-      this.gameW * 0.1,
-      this.gameH * 0.14,
-      this.gameW * 0.8,
-      this.gameH * 0.7
-    );
   }
 
   createPathAndPlayer(x, y, width, length) {
@@ -142,23 +148,55 @@ class Game extends Phaser.Scene {
     this.player.body.onWorldBounds = true;
 
     this.side = "top";
+    this.points = new Phaser.Structs.List();
+  }
 
+  createPhysics(x, y, width, length) {
     this.physics.world.setBounds(
-      x - playerW / 2,
-      y - playerW / 2,
-      width + playerW,
-      length + playerW
+      x - this.player.width / 2,
+      y - this.player.width / 2,
+      width + this.player.width,
+      length + this.player.width
     );
 
     this.physics.world.on("worldbounds", (body, up, down, left, right) => {
       if (body.gameObject.name == "player") {
-        this.points = new Phaser.Structs.List(); // reset drawing
+        if (this.points.length > 0) {
+          const endP = new Phaser.Math.Vector2(this.player.x, this.player.y);
+
+          this.points.add(endP);
+
+          const color = 0xffff00;
+          const thickness = 4;
+          const alpha = 1;
+
+          this.graphics.lineStyle(thickness, color, alpha);
+          this.graphics.fillStyle(0xff0000, alpha);
+
+          this.graphics.beginPath();
+
+          this.graphics.moveTo(this.points.first.x, this.points.first.y);
+          this.points.list.forEach((p) => {
+            this.graphics.lineTo(p.x, p.y);
+          });
+
+          this.graphics.closePath();
+          this.graphics.fillPath();
+          this.graphics.strokePath();
+          /*
+          const p = this.add.polygon(0, 0, this.points.list, 0xff0000, 1);
+          this.physics.add.existing(p);*/
+          this.points.removeAll(); // reset drawing
+        }
         if (up && this.side != "top") this.side = "top";
         if (down && this.side != "bottom") this.side = "bottom";
         if (left && this.side != "left") this.side = "left";
         if (right && this.side != "right") this.side = "right";
       }
     });
+
+    this.rects = this.physics.add.group();
+    this.physics.add.collider(this.player, this.rects);
   }
 
   loadGameUI() {
@@ -300,47 +338,66 @@ class Game extends Phaser.Scene {
   }
 
   update() {
-    this.graphics.clear();
-    /*if (this.rectangle) {
+    //this.graphics.clear();
+
+    if (this.rectangle && this.points.length > 0) {
+      const p0 = this.points.last;
       this.rectangle.setPosition(
-        (this.lineStartPos.x + this.player.x) / 2,
-        (this.lineStartPos.y + this.player.y) / 2
+        (p0.x + this.player.x) / 2,
+        (p0.y + this.player.y) / 2
       );
 
       if (this.player.body.velocity.x != 0) {
-        this.rectangle.setSize(this.lineStartPos.x - this.player.x, 6);
-        this.rectangle.body.setSize(this.lineStartPos.x - this.player.x, 6);
+        this.rectangle.setSize(p0.x - this.player.x, 4);
+        this.rectangle.body.setSize(p0.x - this.player.x, 4);
       } else if (this.player.body.velocity.y != 0) {
-        this.rectangle.setSize(6, this.lineStartPos.y - this.player.y);
-        this.rectangle.body.setSize(6, this.lineStartPos.y - this.player.y);
+        this.rectangle.setSize(4, p0.y - this.player.y);
+        this.rectangle.body.setSize(4, p0.y - this.player.y);
       }
-    }*/
+    }
 
     this.updatePlayerMovement();
   }
 
   updatePlayerMovement() {
-    const speed = 200;
+    const speed = 150;
 
     // player speed is only dictated by the last key held down
     switch (this.keysDown.last) {
       case "up":
-        this.player.setVelocity(0, -speed);
-        if (this.side == "bottom") {
-          // player was on bottom wall
-          this.points.add(
-            new Phaser.Math.Vector2(this.player.x, this.player.y)
-          );
-          this.side = "none";
-          this.rectangle = this.add
-            .rectangle(0, 0, 0, 0, 0xffffff, 1)
-            .setDepth(-1);
-          this.physics.add.existing(this.rectangle);
+        if (this.direction == "down") {
+          this.player.setVelocity(0, 0); // can't turn around
+          return;
         }
+        if (this.side == "bottom") {
+          // player was on bottom wall, leaving wall now
+          this.side = "none";
+        }
+        if (this.direction != "up" && this.side == "none") {
+          // switched direction, add vertex to drawing
+          // and create new "current" rectangle
+          this.switchedDirection();
+        }
+        this.direction = "up";
+        this.player.setVelocity(0, -speed);
         break;
       case "down":
-        this.player.setVelocity(0, speed);
+        if (this.direction == "up") {
+          this.player.setVelocity(0, 0); // can't turn around
+          return;
+        }
         if (this.side == "top") {
+          // player was on top wall, leaving wall now
+          this.side = "none";
+        }
+        if (this.direction != "down" && this.side == "none") {
+          // switched direction, add vertex to drawing
+          // and create new "current" rectangle
+          this.switchedDirection();
+        }
+        this.direction = "down";
+        this.player.setVelocity(0, speed);
+        /*if (this.side == "top") {
           // player was on top wall
           this.points = new Phaser.Math.Vector2(this.player.x, this.player.y);
           this.side = "none";
@@ -348,11 +405,25 @@ class Game extends Phaser.Scene {
             .rectangle(0, 0, 0, 0, 0xffffff, 1)
             .setDepth(-1);
           this.physics.add.existing(this.rectangle);
-        }
+        }*/
         break;
       case "left":
-        this.player.setVelocity(-speed, 0);
+        if (this.direction == "right") {
+          this.player.setVelocity(0, 0); // can't turn around
+          return;
+        }
         if (this.side == "right") {
+          // player was on right wall, leaving wall now
+          this.side = "none";
+        }
+        if (this.direction != "left" && this.side == "none") {
+          // switched direction, add vertex to drawing
+          // and create new "current" rectangle
+          this.switchedDirection();
+        }
+        this.direction = "left";
+        this.player.setVelocity(-speed, 0);
+        /*if (this.side == "right") {
           // player was on right wall
           this.points = new Phaser.Math.Vector2(this.player.x, this.player.y);
           this.side = "none";
@@ -360,11 +431,25 @@ class Game extends Phaser.Scene {
             .rectangle(0, 0, 0, 0, 0xffffff, 1)
             .setDepth(-1);
           this.physics.add.existing(this.rectangle);
-        }
+        }*/
         break;
       case "right":
-        this.player.setVelocity(speed, 0);
+        if (this.direction == "left") {
+          this.player.setVelocity(0, 0); // can't turn around
+          return;
+        }
         if (this.side == "left") {
+          // player was on left wall, leaving wall now
+          this.side = "none";
+        }
+        if (this.direction != "right" && this.side == "none") {
+          // switched direction, add vertex to drawing
+          // and create new "current" rectangle
+          this.switchedDirection();
+        }
+        this.direction = "right";
+        this.player.setVelocity(speed, 0);
+        /*if (this.side == "left") {
           // player was on left wall
           this.points = new Phaser.Math.Vector2(this.player.x, this.player.y);
           this.side = "none";
@@ -372,12 +457,42 @@ class Game extends Phaser.Scene {
             .rectangle(0, 0, 0, 0, 0xffffff, 1)
             .setDepth(-1);
           this.physics.add.existing(this.rectangle);
-        }
+        }*/
         break;
       default:
         // no keys down
         this.player.setVelocity(0, 0);
         break;
+    }
+  }
+
+  switchedDirection() {
+    this.points.add(new Phaser.Math.Vector2(this.player.x, this.player.y));
+
+    this.rectangle = this.add.rectangle(0, 0, 0, 0, 0xffffff, 1).setDepth(-1);
+    this.physics.add.existing(this.rectangle);
+
+    if (this.points.length < 2) return;
+    const p0 = this.points.getAt(this.points.length - 2);
+    const p1 = this.points.last;
+    const rectX = (p0.x + p1.x) / 2;
+    const rectY = (p0.y + p1.y) / 2;
+    const rectW = Math.abs(p0.x - p1.x);
+    const rectH = Math.abs(p0.y - p1.y);
+
+    // for speed of 150, the "error" looks to be 2.5
+    // so checking which value is small or zero can tell us
+    // what "direction" the rectangle is in
+    if (rectW <= 4) {
+      const r = this.add.rectangle(rectX, rectY, 4, rectH, 0x00ff00, 1);
+      this.physics.add.existing(r);
+      this.rects.add(r);
+      r.body.immovable = true;
+    } else {
+      const r = this.add.rectangle(rectX, rectY, rectW, 4, 0x00ff00, 1);
+      this.physics.add.existing(r);
+      this.rects.add(r);
+      r.body.immovable = true;
     }
   }
 }
