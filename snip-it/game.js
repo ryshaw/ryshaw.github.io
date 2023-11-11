@@ -35,6 +35,14 @@ class Game extends Phaser.Scene {
   points; // points in the path that player is drawing
   direction; // what direction is player going in?
   rects; // all rectangles in the current "drawing" player is making
+  grid; // tile grid for the canvas
+  gridPos; // what grid position is player in
+  gridX = 40; // how many tiles is grid in X direction
+  gridY = 60; // how many tiles is grid in Y direction
+  canMove; // timer that controls how fast player can go across tiles
+  onWall; // is player currently touching wall
+  drawStartPos; // what tile the current player drawing starts on
+  drawEndPos; // what tile the current player drawing ends on
 
   constructor() {
     super("Game");
@@ -125,6 +133,28 @@ class Game extends Phaser.Scene {
         0.2
       )
       .setStrokeStyle(6, 0x023047);
+
+    this.grid = [];
+    const start = this.bounds.getTopLeft();
+    const w = this.bounds.width / this.gridX;
+    const h = this.bounds.height / this.gridY;
+    for (let i = 0; i < this.gridX; i++) {
+      this.grid[i] = [];
+      for (let j = 0; j < this.gridY; j++) {
+        const r = this.add
+          .rectangle(
+            start.x + w / 2 + i * w,
+            start.y + h / 2 + j * h,
+            w,
+            h,
+            0xffff00,
+            0
+          )
+          .setStrokeStyle(1, 0x00ffff, 0.3);
+
+        this.grid[i][j] = r;
+      }
+    }
   }
 
   createPathAndPlayer(x, y, width, length) {
@@ -142,10 +172,15 @@ class Game extends Phaser.Scene {
     rectangleDrawer.fillRect(0, 0, playerW, playerW);
     rectangleDrawer.generateTexture("rect", playerW, playerW);
     this.player = this.physics.add
-      .sprite(x + width / 2, y, "rect")
+      .sprite(this.grid[0][0].x, this.grid[0][0].y, "rect")
       .setName("player");
     this.player.setCollideWorldBounds(true);
     this.player.body.onWorldBounds = true;
+    this.gridPos = new Phaser.Math.Vector2(0, 0);
+    this.canMove = true;
+    this.onWall = true;
+    this.drawStartPos = new Phaser.Math.Vector2(0, 0);
+    setInterval(() => console.log(this.drawStartPos, this.drawEndPos), 800);
 
     this.side = "top";
     this.points = new Phaser.Structs.List();
@@ -160,7 +195,7 @@ class Game extends Phaser.Scene {
     );
 
     this.physics.world.on("worldbounds", (body, up, down, left, right) => {
-      if (body.gameObject.name == "player") {
+      /*if (body.gameObject.name == "player") {
         if (this.points.length > 0) {
           const endP = new Phaser.Math.Vector2(this.player.x, this.player.y);
 
@@ -185,14 +220,13 @@ class Game extends Phaser.Scene {
           this.graphics.strokePath();
           /*
           const p = this.add.polygon(0, 0, this.points.list, 0xff0000, 1);
-          this.physics.add.existing(p);*/
+          this.physics.add.existing(p);
           this.points.removeAll(); // reset drawing
         }
         if (up && this.side != "top") this.side = "top";
         if (down && this.side != "bottom") this.side = "bottom";
         if (left && this.side != "left") this.side = "left";
-        if (right && this.side != "right") this.side = "right";
-      }
+        if (right && this.side != "right") this.side = "right";*/
     });
 
     this.rects = this.physics.add.group();
@@ -339,8 +373,7 @@ class Game extends Phaser.Scene {
 
   update() {
     //this.graphics.clear();
-
-    if (this.rectangle && this.points.length > 0) {
+    /*if (this.rectangle && this.points.length > 0) {
       const p0 = this.points.last;
       this.rectangle.setPosition(
         (p0.x + this.player.x) / 2,
@@ -355,8 +388,8 @@ class Game extends Phaser.Scene {
         this.rectangle.body.setSize(4, p0.y - this.player.y);
       }
     }
-
-    this.updatePlayerMovement();
+*/
+    this.updatePlayerMovement2();
   }
 
   updatePlayerMovement() {
@@ -458,6 +491,126 @@ class Game extends Phaser.Scene {
             .setDepth(-1);
           this.physics.add.existing(this.rectangle);
         }*/
+        break;
+      default:
+        // no keys down
+        this.player.setVelocity(0, 0);
+        break;
+    }
+  }
+
+  updatePlayerMovement2() {
+    // player speed is only dictated by the last key held down
+    const t = 150; // time between moves
+
+    if (
+      this.gridPos.y == 0 ||
+      this.gridPos.y == this.gridY - 1 ||
+      this.gridPos.x == 0 ||
+      this.gridPos.x == this.gridX - 1
+    ) {
+      this.onWall = true;
+    } else {
+      this.onWall = false;
+    }
+
+    if (!this.canMove) return;
+
+    switch (this.keysDown.last) {
+      case "up":
+        if (this.direction == "down") {
+          this.player.setVelocity(0, 0); // can't turn around
+          return;
+        }
+
+        this.direction = "up";
+        if (this.gridPos.y > 0) {
+          const prev = this.grid[this.gridPos.x][this.gridPos.y]; // previous tile
+          prev.setFillStyle(0xd0f4de, 1);
+          this.physics.add.existing(prev);
+          prev.body.immovable = true;
+
+          this.gridPos.y -= 1;
+          const tile = this.grid[this.gridPos.x][this.gridPos.y]; // new tile
+          this.player.setPosition(tile.x, tile.y);
+          this.canMove = false;
+          this.time.delayedCall(t, () => (this.canMove = true));
+
+          //MAKE NEW METHOD WITH ALL THIS STUFF IN IT PLEASE
+          if (this.onWall) {
+            this.drawStartPos = this.gridPos;
+          }
+        }
+        break;
+      case "down":
+        if (this.direction == "up") {
+          this.player.setVelocity(0, 0); // can't turn around
+          return;
+        }
+        this.direction = "down";
+        if (this.gridPos.y < this.gridY - 1) {
+          const prev = this.grid[this.gridPos.x][this.gridPos.y]; // previous tile
+          prev.setFillStyle(0xd0f4de, 1);
+          this.physics.add.existing(prev);
+          prev.body.immovable = true;
+
+          this.gridPos.y += 1;
+          const tile = this.grid[this.gridPos.x][this.gridPos.y];
+          this.player.setPosition(tile.x, tile.y);
+          this.canMove = false;
+          this.time.delayedCall(t, () => (this.canMove = true));
+
+          if (this.gridPos.y == this.gridY - 1) {
+            console.log("hit wall");
+          }
+        }
+        break;
+      case "left":
+        if (this.direction == "right") {
+          this.player.setVelocity(0, 0); // can't turn around
+          return;
+        }
+        this.direction = "left";
+        if (this.gridPos.x > 0) {
+          const prev = this.grid[this.gridPos.x][this.gridPos.y]; // previous tile
+          prev.setFillStyle(0xd0f4de, 1);
+          this.physics.add.existing(prev);
+          prev.body.immovable = true;
+
+          this.gridPos.x -= 1;
+          const tile = this.grid[this.gridPos.x][this.gridPos.y];
+          this.player.setPosition(tile.x, tile.y);
+          this.canMove = false;
+          this.time.delayedCall(t, () => (this.canMove = true));
+
+          if (this.gridPos.x == 0) {
+            console.log("hit wall");
+          }
+        }
+        break;
+      case "right":
+        if (this.direction == "left") {
+          this.player.setVelocity(0, 0); // can't turn around
+          return;
+        }
+        this.direction = "right";
+        //this.player.setVelocity(speed, 0);
+        if (this.gridPos.x < this.gridX - 1) {
+          const prev = this.grid[this.gridPos.x][this.gridPos.y]; // previous tile
+          prev.setFillStyle(0xd0f4de, 1);
+          this.physics.add.existing(prev);
+          prev.body.immovable = true;
+
+          this.gridPos.x += 1;
+          const tile = this.grid[this.gridPos.x][this.gridPos.y];
+          this.player.setPosition(tile.x, tile.y);
+          this.canMove = false;
+          this.time.delayedCall(t, () => (this.canMove = true));
+
+          if (this.gridPos.x == this.gridX - 1) {
+            console.log("hit wall");
+          }
+        }
         break;
       default:
         // no keys down
