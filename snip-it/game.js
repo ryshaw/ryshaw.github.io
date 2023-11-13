@@ -496,7 +496,7 @@ class Game extends Phaser.Scene {
     }
   }
 
-  movePlayer(fromPos, toPos) {
+  async movePlayer(fromPos, toPos) {
     const from = this.grid[fromPos.x][fromPos.y];
     const to = this.grid[toPos.x][toPos.y];
 
@@ -551,8 +551,44 @@ class Game extends Phaser.Scene {
       v.y = Math.round(v.y);
       console.log(v);
 
-      if (v.x == -1) {
+      if (v.y == -1) {
         // blah blah blah keep working here
+        for (let i = 1; i < this.gridX - 1; i++) {
+          let drawing = false;
+
+          for (let j = this.gridY - 2; j > 0; j--) {
+            const position = new Phaser.Math.Vector2(i, j);
+
+            this.points.each((point) => {
+              if (position.equals(point)) {
+                let checkNext = true;
+                const checkNextPoint = new Phaser.Math.Vector2(i, j - 1);
+                const checkPrevPoint = new Phaser.Math.Vector2(i, j + 1);
+                this.points.each((point2) => {
+                  if (checkNextPoint.equals(point2)) {
+                    this.points.each((point3) => {
+                      if (checkPrevPoint.equals(point3)) {
+                        this.grid[i][j].setScale(0.8);
+                      }
+                    });
+                    //checkNext = false;
+                  }
+                });
+
+                if (checkNext) drawing = !drawing;
+              }
+            });
+
+            if (drawing) {
+              const tile = this.grid[i][j];
+              tile.setFillStyle(0xd0f4de, 1);
+              this.physics.add.existing(tile);
+              tile.body.immovable = true;
+            }
+
+            //await new Promise((r) => setTimeout(r, 1));
+          }
+        }
       }
 
       this.points.list.forEach((p) => {
