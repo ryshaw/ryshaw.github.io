@@ -153,6 +153,13 @@ class Game extends Phaser.Scene {
           .setStrokeStyle(1, 0x00ffff, 0.3);
 
         this.grid[i][j] = r;
+
+        // fill up edges
+        if (i == 0 || i == this.gridX - 1 || j == 0 || j == this.gridY - 1) {
+          this.grid[i][j].setFillStyle(0xd0f4de, 1);
+          this.physics.add.existing(this.grid[i][j]);
+          this.grid[i][j].body.immovable = true;
+        }
       }
     }
   }
@@ -182,7 +189,7 @@ class Game extends Phaser.Scene {
     this.drawStartPos = new Phaser.Math.Vector2(0, 0);
     this.drawEndPos = new Phaser.Math.Vector2(0, 0);
 
-    setInterval(() => console.log(this.drawStartPos, this.drawEndPos), 800);
+    //setInterval(() => console.log(this.drawStartPos, this.drawEndPos), 800);
 
     this.side = "top";
     this.points = new Phaser.Structs.List();
@@ -196,40 +203,7 @@ class Game extends Phaser.Scene {
       length + this.player.width
     );
 
-    this.physics.world.on("worldbounds", (body, up, down, left, right) => {
-      /*if (body.gameObject.name == "player") {
-        if (this.points.length > 0) {
-          const endP = new Phaser.Math.Vector2(this.player.x, this.player.y);
-
-          this.points.add(endP);
-
-          const color = 0xffff00;
-          const thickness = 4;
-          const alpha = 1;
-
-          this.graphics.lineStyle(thickness, color, alpha);
-          this.graphics.fillStyle(0xff0000, alpha);
-
-          this.graphics.beginPath();
-
-          this.graphics.moveTo(this.points.first.x, this.points.first.y);
-          this.points.list.forEach((p) => {
-            this.graphics.lineTo(p.x, p.y);
-          });
-
-          this.graphics.closePath();
-          this.graphics.fillPath();
-          this.graphics.strokePath();
-          /*
-          const p = this.add.polygon(0, 0, this.points.list, 0xff0000, 1);
-          this.physics.add.existing(p);
-          this.points.removeAll(); // reset drawing
-        }
-        if (up && this.side != "top") this.side = "top";
-        if (down && this.side != "bottom") this.side = "bottom";
-        if (left && this.side != "left") this.side = "left";
-        if (right && this.side != "right") this.side = "right";*/
-    });
+    this.physics.world.on("worldbounds", (body, up, down, left, right) => {});
 
     this.rects = this.physics.add.group();
     this.physics.add.collider(this.player, this.rects);
@@ -272,7 +246,7 @@ class Game extends Phaser.Scene {
 
     // offset is comparing the game's height to the window's height,
     // and centering the game in the middle of the window.
-    const offset = 1; //this.parent.height / this.sizer.height;
+    const offset = (1 + this.parent.height / this.sizer.height) / 2;
 
     camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
     camera.setZoom(Math.max(scaleX, scaleY));
@@ -374,23 +348,6 @@ class Game extends Phaser.Scene {
   }
 
   update() {
-    //this.graphics.clear();
-    /*if (this.rectangle && this.points.length > 0) {
-      const p0 = this.points.last;
-      this.rectangle.setPosition(
-        (p0.x + this.player.x) / 2,
-        (p0.y + this.player.y) / 2
-      );
-
-      if (this.player.body.velocity.x != 0) {
-        this.rectangle.setSize(p0.x - this.player.x, 4);
-        this.rectangle.body.setSize(p0.x - this.player.x, 4);
-      } else if (this.player.body.velocity.y != 0) {
-        this.rectangle.setSize(4, p0.y - this.player.y);
-        this.rectangle.body.setSize(4, p0.y - this.player.y);
-      }
-    }
-*/
     this.updatePlayerMovement2();
   }
 
@@ -416,6 +373,7 @@ class Game extends Phaser.Scene {
         this.direction = "up";
         this.player.setVelocity(0, -speed);
         break;
+
       case "down":
         if (this.direction == "up") {
           this.player.setVelocity(0, 0); // can't turn around
@@ -432,16 +390,8 @@ class Game extends Phaser.Scene {
         }
         this.direction = "down";
         this.player.setVelocity(0, speed);
-        /*if (this.side == "top") {
-          // player was on top wall
-          this.points = new Phaser.Math.Vector2(this.player.x, this.player.y);
-          this.side = "none";
-          this.rectangle = this.add
-            .rectangle(0, 0, 0, 0, 0xffffff, 1)
-            .setDepth(-1);
-          this.physics.add.existing(this.rectangle);
-        }*/
         break;
+
       case "left":
         if (this.direction == "right") {
           this.player.setVelocity(0, 0); // can't turn around
@@ -458,16 +408,8 @@ class Game extends Phaser.Scene {
         }
         this.direction = "left";
         this.player.setVelocity(-speed, 0);
-        /*if (this.side == "right") {
-          // player was on right wall
-          this.points = new Phaser.Math.Vector2(this.player.x, this.player.y);
-          this.side = "none";
-          this.rectangle = this.add
-            .rectangle(0, 0, 0, 0, 0xffffff, 1)
-            .setDepth(-1);
-          this.physics.add.existing(this.rectangle);
-        }*/
         break;
+
       case "right":
         if (this.direction == "left") {
           this.player.setVelocity(0, 0); // can't turn around
@@ -484,16 +426,8 @@ class Game extends Phaser.Scene {
         }
         this.direction = "right";
         this.player.setVelocity(speed, 0);
-        /*if (this.side == "left") {
-          // player was on left wall
-          this.points = new Phaser.Math.Vector2(this.player.x, this.player.y);
-          this.side = "none";
-          this.rectangle = this.add
-            .rectangle(0, 0, 0, 0, 0xffffff, 1)
-            .setDepth(-1);
-          this.physics.add.existing(this.rectangle);
-        }*/
         break;
+
       default:
         // no keys down
         this.player.setVelocity(0, 0);
@@ -508,75 +442,74 @@ class Game extends Phaser.Scene {
     switch (this.keysDown.last) {
       case "up":
         if (this.direction == "down" && !this.onWall) {
-          this.player.setVelocity(0, 0); // can't turn around
           return;
         }
 
         this.direction = "up";
         if (this.gridPos.y > 0) {
-          const from = this.grid[this.gridPos.x][this.gridPos.y];
+          const from = this.gridPos.clone();
           this.gridPos.y -= 1;
-          const to = this.grid[this.gridPos.x][this.gridPos.y];
+          const to = this.gridPos.clone();
           this.movePlayer(from, to);
         }
         break;
       case "down":
         if (this.direction == "up" && !this.onWall) {
-          this.player.setVelocity(0, 0); // can't turn around
           return;
         }
         this.direction = "down";
         if (this.gridPos.y < this.gridY - 1) {
-          const from = this.grid[this.gridPos.x][this.gridPos.y];
+          const from = this.gridPos.clone();
           this.gridPos.y += 1;
-          const to = this.grid[this.gridPos.x][this.gridPos.y];
+          const to = this.gridPos.clone();
           this.movePlayer(from, to);
         }
         break;
       case "left":
         if (this.direction == "right" && !this.onWall) {
-          this.player.setVelocity(0, 0); // can't turn around
           return;
         }
         this.direction = "left";
         if (this.gridPos.x > 0) {
-          const from = this.grid[this.gridPos.x][this.gridPos.y];
+          const from = this.gridPos.clone();
           this.gridPos.x -= 1;
-          const to = this.grid[this.gridPos.x][this.gridPos.y];
+          const to = this.gridPos.clone();
           this.movePlayer(from, to);
         }
         break;
       case "right":
         if (this.direction == "left" && !this.onWall) {
-          this.player.setVelocity(0, 0); // can't turn around
           return;
         }
         this.direction = "right";
         //this.player.setVelocity(speed, 0);
         if (this.gridPos.x < this.gridX - 1) {
-          const from = this.grid[this.gridPos.x][this.gridPos.y];
+          const from = this.gridPos.clone();
           this.gridPos.x += 1;
-          const to = this.grid[this.gridPos.x][this.gridPos.y];
+          const to = this.gridPos.clone();
           this.movePlayer(from, to);
         }
         break;
       default:
         // no keys down
-        this.player.setVelocity(0, 0);
         break;
     }
   }
 
-  movePlayer(from, to) {
+  movePlayer(fromPos, toPos) {
+    const from = this.grid[fromPos.x][fromPos.y];
+    const to = this.grid[toPos.x][toPos.y];
+
     if (!this.onWall) {
       from.setFillStyle(0xd0f4de, 1);
       this.physics.add.existing(from);
       from.body.immovable = true;
+      this.points.add(fromPos);
     }
 
     this.player.setPosition(to.x, to.y);
     this.canMove = false;
-    this.time.delayedCall(100, () => (this.canMove = true));
+    this.time.delayedCall(80, () => (this.canMove = true));
 
     if (
       this.gridPos.y == 0 ||
@@ -588,10 +521,48 @@ class Game extends Phaser.Scene {
         this.drawEndPos.copy(this.gridPos);
       } else {
         this.drawStartPos.copy(this.gridPos);
+        this.points = new Phaser.Structs.List();
+        this.points.add(this.drawStartPos);
       }
       this.onWall = true;
     } else {
       this.onWall = false;
+    }
+
+    if (this.drawStartPos.length() != 0 && this.drawEndPos.length() != 0) {
+      // complete drawing here
+
+      this.points.add(this.drawEndPos);
+
+      const angle = this.drawEndPos.clone().subtract(this.drawStartPos).angle();
+
+      const startAngle = Phaser.Math.RadToDeg(
+        this.points.getAt(1).clone().subtract(this.drawStartPos).angle()
+      );
+
+      const v = Phaser.Math.Vector2.ZERO.clone();
+      if (startAngle == 0 || startAngle == 180) {
+        v.y = Math.sin(angle);
+      } else {
+        v.x = Math.cos(angle);
+      }
+      v.normalize();
+      v.x = Math.round(v.x);
+      v.y = Math.round(v.y);
+      console.log(v);
+
+      if (v.x == -1) {
+        // blah blah blah keep working here
+      }
+
+      this.points.list.forEach((p) => {
+        const tile = this.grid[p.x][p.y];
+        tile.setFillStyle(0xffff00, 1);
+      });
+
+      this.drawStartPos.reset();
+      this.drawEndPos.reset();
+      this.points.removeAll();
     }
   }
 
