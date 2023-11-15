@@ -549,46 +549,39 @@ class Game extends Phaser.Scene {
       v.normalize();
       v.x = Math.round(v.x);
       v.y = Math.round(v.y);
-      console.log(v);
+      //console.log(v);
 
-      if (v.y == -1) {
-        // blah blah blah keep working here
-        for (let i = 1; i < this.gridX - 1; i++) {
-          let drawing = false;
+      for (let i = 1; i < this.points.length - 1; i++) {
+        const p0 = this.points.getAt(i - 1).clone();
+        const p1 = this.points.getAt(i).clone();
+        const p2 = this.points.getAt(i + 1).clone();
 
-          for (let j = this.gridY - 2; j > 0; j--) {
-            const position = new Phaser.Math.Vector2(i, j);
+        let angle = p2.subtract(p1).angle();
+        let direction = v.clone();
+        direction.rotate(angle);
+        direction.x = Math.round(direction.x);
+        direction.y = Math.round(direction.y);
 
-            this.points.each((point) => {
-              if (position.equals(point)) {
-                let checkNext = true;
-                const checkNextPoint = new Phaser.Math.Vector2(i, j - 1);
-                const checkPrevPoint = new Phaser.Math.Vector2(i, j + 1);
-                this.points.each((point2) => {
-                  if (checkNextPoint.equals(point2)) {
-                    this.points.each((point3) => {
-                      if (checkPrevPoint.equals(point3)) {
-                        this.grid[i][j].setScale(0.8);
-                      }
-                    });
-                    //checkNext = false;
-                  }
-                });
+        let drawAt = p1.clone().add(direction);
+        let tile = this.grid[drawAt.x][drawAt.y];
+        tile.setFillStyle(0xff0000, 1);
 
-                if (checkNext) drawing = !drawing;
-              }
-            });
-
-            if (drawing) {
-              const tile = this.grid[i][j];
-              tile.setFillStyle(0xd0f4de, 1);
-              this.physics.add.existing(tile);
-              tile.body.immovable = true;
-            }
-
-            //await new Promise((r) => setTimeout(r, 1));
-          }
+        let j = 0;
+        while (j < 100 && !tile.body) {
+          j++;
         }
+
+        angle = p0.subtract(p1).angle();
+        const direction2 = v.clone();
+        direction2.negate();
+        direction2.rotate(angle);
+        direction2.x = Math.round(direction2.x);
+        direction2.y = Math.round(direction2.y);
+        drawAt = p1.clone().add(direction2);
+        tile = this.grid[drawAt.x][drawAt.y];
+        tile.setFillStyle(0xff0000, 1);
+
+        await new Promise((r) => setTimeout(r, 50));
       }
 
       this.points.list.forEach((p) => {
