@@ -563,12 +563,13 @@ class Game extends Phaser.Scene {
         direction.y = Math.round(direction.y);
 
         let drawAt = p1.clone().add(direction);
-        let tile = this.grid[drawAt.x][drawAt.y];
-        tile.setFillStyle(0xff0000, 1);
 
-        let j = 0;
-        while (j < 100 && !tile.body) {
-          j++;
+        let tile;
+        while (this.checkInBounds(drawAt)) {
+          tile = this.grid[drawAt.x][drawAt.y];
+          if (tile.body) break;
+          tile.setFillStyle(0xff0000, 1);
+          drawAt.add(direction);
         }
 
         angle = p0.subtract(p1).angle();
@@ -578,10 +579,15 @@ class Game extends Phaser.Scene {
         direction2.x = Math.round(direction2.x);
         direction2.y = Math.round(direction2.y);
         drawAt = p1.clone().add(direction2);
-        tile = this.grid[drawAt.x][drawAt.y];
-        tile.setFillStyle(0xff0000, 1);
 
-        await new Promise((r) => setTimeout(r, 50));
+        while (this.checkInBounds(drawAt)) {
+          tile = this.grid[drawAt.x][drawAt.y];
+          if (tile.body) break;
+          tile.setFillStyle(0xff0000, 1);
+          drawAt.add(direction2);
+        }
+
+        await new Promise((r) => setTimeout(r, 10));
       }
 
       this.points.list.forEach((p) => {
@@ -623,6 +629,15 @@ class Game extends Phaser.Scene {
       this.rects.add(r);
       r.body.immovable = true;
     }
+  }
+
+  checkInBounds(pos) {
+    return !(
+      pos.y == 0 ||
+      pos.y == this.gridY - 1 ||
+      pos.x == 0 ||
+      pos.x == this.gridX - 1
+    );
   }
 }
 
