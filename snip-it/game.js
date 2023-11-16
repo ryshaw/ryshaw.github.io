@@ -37,8 +37,8 @@ class Game extends Phaser.Scene {
   rects; // all rectangles in the current "drawing" player is making
   grid; // tile grid for the canvas
   gridPos; // what grid position is player in
-  gridX = 40; // how many tiles is grid in X direction
-  gridY = 60; // how many tiles is grid in Y direction
+  gridX = 41; // how many tiles is grid in X direction
+  gridY = 61; // how many tiles is grid in Y direction
   canMove; // timer that controls how fast player can go across tiles
   onWall; // is player currently touching wall
   drawStartPos; // what tile the current player drawing starts on
@@ -448,7 +448,7 @@ class Game extends Phaser.Scene {
         this.direction = "up";
         if (this.gridPos.y > 0) {
           const from = this.gridPos.clone();
-          this.gridPos.y -= 1;
+          this.gridPos.y -= 2;
           const to = this.gridPos.clone();
           this.movePlayer(from, to);
         }
@@ -460,7 +460,7 @@ class Game extends Phaser.Scene {
         this.direction = "down";
         if (this.gridPos.y < this.gridY - 1) {
           const from = this.gridPos.clone();
-          this.gridPos.y += 1;
+          this.gridPos.y += 2;
           const to = this.gridPos.clone();
           this.movePlayer(from, to);
         }
@@ -472,7 +472,7 @@ class Game extends Phaser.Scene {
         this.direction = "left";
         if (this.gridPos.x > 0) {
           const from = this.gridPos.clone();
-          this.gridPos.x -= 1;
+          this.gridPos.x -= 2;
           const to = this.gridPos.clone();
           this.movePlayer(from, to);
         }
@@ -485,7 +485,7 @@ class Game extends Phaser.Scene {
         //this.player.setVelocity(speed, 0);
         if (this.gridPos.x < this.gridX - 1) {
           const from = this.gridPos.clone();
-          this.gridPos.x += 1;
+          this.gridPos.x += 2;
           const to = this.gridPos.clone();
           this.movePlayer(from, to);
         }
@@ -496,8 +496,12 @@ class Game extends Phaser.Scene {
     }
   }
 
-  async movePlayer(fromPos, toPos) {
+  movePlayer(fromPos, toPos) {
     const from = this.grid[fromPos.x][fromPos.y];
+    const midPos = new Phaser.Math.Vector2();
+    midPos.x = (fromPos.x + toPos.x) / 2;
+    midPos.y = (fromPos.y + toPos.y) / 2;
+    const mid = this.grid[midPos.x][midPos.y];
     const to = this.grid[toPos.x][toPos.y];
 
     if (!this.onWall) {
@@ -506,6 +510,11 @@ class Game extends Phaser.Scene {
       from.body.immovable = true;
       this.points.add(fromPos);
     }
+
+    mid.setFillStyle(0xd0f4de, 1);
+    this.physics.add.existing(mid);
+    mid.body.immovable = true;
+    this.points.add(midPos);
 
     this.player.setPosition(to.x, to.y);
     this.canMove = false;
@@ -552,46 +561,40 @@ class Game extends Phaser.Scene {
       v.x = Math.round(v.x);
       v.y = Math.round(v.y);
 
-      for (let i = 1; i < this.points.length - 1; i++) {
-        const p0 = this.points.getAt(i - 1).clone();
-        const p1 = this.points.getAt(i).clone();
-        const p2 = this.points.getAt(i + 1).clone();
+      const p1 = this.points.getAt(1).clone();
+      const p2 = this.points.getAt(2).clone();
+      let direction = v.clone().rotate(p2.subtract(p1).angle() - startAngle);
+      direction.x = Math.round(direction.x);
+      direction.y = Math.round(direction.y);
+      let startPos = this.points.getAt(1); //p1.add(direction);
 
-        let angle = p2.subtract(p1).angle() - startAngle;
-        let direction = v.clone();
-        direction.rotate(angle);
-        direction.x = Math.round(direction.x);
-        direction.y = Math.round(direction.y);
+      this.drawingArea = 0;
 
-        let drawAt = p1.clone().add(direction);
+      this.fillInTilesRecursiely(
+        startPos.clone().add(Phaser.Math.Vector2.RIGHT)
+      );
 
-        let tile;
-        while (this.checkInBounds(drawAt)) {
-          tile = this.grid[drawAt.x][drawAt.y];
-          if (tile.body) break;
-          //tile.setFillStyle(0xff0000, 1);
-          this.physics.add.existing(tile);
-          drawAt.add(direction);
-        }
+      console.log(this.drawingArea);
 
-        angle = p0.subtract(p1).angle() - startAngle;
-        const direction2 = v.clone();
-        direction2.negate();
-        direction2.rotate(angle);
-        direction2.x = Math.round(direction2.x);
-        direction2.y = Math.round(direction2.y);
-        drawAt = p1.clone().add(direction2);
+      this.drawingArea = 0;
 
-        while (this.checkInBounds(drawAt)) {
-          tile = this.grid[drawAt.x][drawAt.y];
-          if (tile.body) break;
-          //tile.setFillStyle(0xff0000, 1);
-          this.physics.add.existing(tile);
-          drawAt.add(direction2);
-        }
+      this.fillInTilesRecursiely(startPos.clone().add(Phaser.Math.Vector2.UP));
 
-        //await new Promise((r) => setTimeout(r, 10));
-      }
+      console.log(this.drawingArea);
+
+      this.drawingArea = 0;
+
+      this.fillInTilesRecursiely(
+        startPos.clone().add(Phaser.Math.Vector2.DOWN)
+      );
+
+      console.log(this.drawingArea);
+
+      this.drawingArea = 0;
+
+      this.fillInTilesRecursiely(
+        startPos.clone().add(Phaser.Math.Vector2.LEFT)
+      );
 
       this.points.list.forEach((p) => {
         const tile = this.grid[p.x][p.y];
@@ -602,6 +605,23 @@ class Game extends Phaser.Scene {
       this.drawEndPos.reset();
       this.points.removeAll();
     }
+  }
+
+  fillInTilesRecursiely(pos) {
+    if (this.checkInBounds(pos)) {
+      let tile = this.grid[pos.x][pos.y];
+      if (tile.body) return; // base case!
+      tile.setFillStyle(0x0000aa, 0.2);
+      this.physics.add.existing(tile);
+      this.drawingArea++;
+    } else return;
+
+    //await new Promise((r) => setTimeout(r, 10));
+
+    this.fillInTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.RIGHT));
+    this.fillInTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.UP));
+    this.fillInTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.LEFT));
+    this.fillInTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.DOWN));
   }
 
   switchedDirection() {
