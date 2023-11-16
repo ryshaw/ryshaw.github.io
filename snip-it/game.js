@@ -536,12 +536,14 @@ class Game extends Phaser.Scene {
 
       const angle = this.drawEndPos.clone().subtract(this.drawStartPos).angle();
 
-      const startAngle = Phaser.Math.RadToDeg(
-        this.points.getAt(1).clone().subtract(this.drawStartPos).angle()
-      );
+      const startAngle = this.points
+        .getAt(1)
+        .clone()
+        .subtract(this.drawStartPos)
+        .angle();
 
       const v = Phaser.Math.Vector2.ZERO.clone();
-      if (startAngle == 0 || startAngle == 180) {
+      if (startAngle == 0 || startAngle == Math.PI) {
         v.y = Math.sin(angle);
       } else {
         v.x = Math.cos(angle);
@@ -549,14 +551,13 @@ class Game extends Phaser.Scene {
       v.normalize();
       v.x = Math.round(v.x);
       v.y = Math.round(v.y);
-      //console.log(v);
 
       for (let i = 1; i < this.points.length - 1; i++) {
         const p0 = this.points.getAt(i - 1).clone();
         const p1 = this.points.getAt(i).clone();
         const p2 = this.points.getAt(i + 1).clone();
 
-        let angle = p2.subtract(p1).angle();
+        let angle = p2.subtract(p1).angle() - startAngle;
         let direction = v.clone();
         direction.rotate(angle);
         direction.x = Math.round(direction.x);
@@ -568,11 +569,12 @@ class Game extends Phaser.Scene {
         while (this.checkInBounds(drawAt)) {
           tile = this.grid[drawAt.x][drawAt.y];
           if (tile.body) break;
-          tile.setFillStyle(0xff0000, 1);
+          //tile.setFillStyle(0xff0000, 1);
+          this.physics.add.existing(tile);
           drawAt.add(direction);
         }
 
-        angle = p0.subtract(p1).angle();
+        angle = p0.subtract(p1).angle() - startAngle;
         const direction2 = v.clone();
         direction2.negate();
         direction2.rotate(angle);
@@ -583,11 +585,12 @@ class Game extends Phaser.Scene {
         while (this.checkInBounds(drawAt)) {
           tile = this.grid[drawAt.x][drawAt.y];
           if (tile.body) break;
-          tile.setFillStyle(0xff0000, 1);
+          //tile.setFillStyle(0xff0000, 1);
+          this.physics.add.existing(tile);
           drawAt.add(direction2);
         }
 
-        await new Promise((r) => setTimeout(r, 10));
+        //await new Promise((r) => setTimeout(r, 10));
       }
 
       this.points.list.forEach((p) => {
