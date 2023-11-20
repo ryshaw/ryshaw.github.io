@@ -36,7 +36,10 @@ class Game extends Phaser.Scene {
   gridY; // how many tiles is grid in Y direction
   canMove; // timer that controls how fast player can go across tiles
   edgePoints; // all points on drawn edges that player can walk on and connect to
-  fillColor = 0x272640;
+  fillColor = 0x272640; // colors the filled area and edges the player has drawn
+  drawColor = 0xf8edeb; // colors the line the player is currently drawing
+  areaFilled = 0; // percentage of area that has been drawn in
+  areaText;
 
   constructor() {
     super("Game");
@@ -169,6 +172,7 @@ class Game extends Phaser.Scene {
     this.gridPos = new Phaser.Math.Vector2(0, 0);
     this.canMove = true;
     this.drawing = false;
+    this.edgePoints = new Phaser.Structs.List();
   }
 
   createPhysics() {
@@ -197,6 +201,29 @@ class Game extends Phaser.Scene {
     )
       .setOrigin(0.5, 1)
       .postFX.addGlow(0xffffff, 0.3);
+
+    let count = 0; // count how many tiles we've filled
+    for (let i = 0; i < this.gridX; i++) {
+      for (let j = 0; j < this.gridY; j++) {
+        const t = this.grid[i][j];
+        if (t.body) count++; // count how many tiles we've filled
+      }
+    }
+
+    // display how much area we've covered
+    this.areaFilled =
+      Math.round((100 * count) / (this.gridX * this.gridY)) / 100;
+
+    this.areaText = new CustomText(
+      this,
+      this.gameW * 0.87,
+      this.gameH - 40,
+      `${this.areaFilled * 100}%`,
+      "m",
+      "c"
+    ).setOrigin(0.5, 1);
+
+    this.areaText.postFX.addGlow(0xffffff, 0.3);
   }
 
   resize(gameSize) {
@@ -326,13 +353,16 @@ class Game extends Phaser.Scene {
 
   updatePlayerMovement() {
     // player speed is only dictated by the last key held down
-    if (!this.canMove) return;
-    if (!this.keysDown.last) return;
+    if (!this.canMove) return; // don't move between moves
+    if (!this.keysDown.last) return; // don't move if player isn't holding anything down
 
+    // go two tiles in the direction that the player last keyed in
     const direction = this.keysDown.last.clone().scale(2);
 
+    // grab the player's next intended position
     const nextPos = this.gridPos.clone().add(direction);
 
+    // if that position is out of bounds, don't move
     if (
       nextPos.x < 0 ||
       nextPos.x > this.gridX - 1 ||
@@ -341,14 +371,23 @@ class Game extends Phaser.Scene {
     )
       return;
 
+    // grab the player's intended next tile
     const nextTile = this.grid[nextPos.x][nextPos.y];
 
-    if (this.checkInBounds(nextPos) && nextTile.body) return;
+    // check if we're going to an edge (player is allowed to walk on edges)
+    let edge = false;
+    this.edgePoints.list.forEach((p) => {
+      if (nextPos.x == p.x && nextPos.y == p.y) {
+        edge = true;
+      }
+    });
+    // player is not allowed to move onto any filled area that isn't an edge
+    if (this.checkInBounds(nextPos) && nextTile.body && !edge) return;
 
-    this.movePlayer(this.gridPos, nextPos);
+    this.movePlayer(this.gridPos, nextPos, edge);
   }
 
-  movePlayer(fromPos, toPos) {
+  movePlayer(fromPos, toPos, toEdge) {
     const from = this.grid[fromPos.x][fromPos.y];
     const midPos = new Phaser.Math.Vector2();
     midPos.x = (fromPos.x + toPos.x) / 2;
@@ -356,27 +395,46 @@ class Game extends Phaser.Scene {
     const mid = this.grid[midPos.x][midPos.y];
     const to = this.grid[toPos.x][toPos.y];
 
-    if (this.checkInBounds(fromPos) || this.checkInBounds(toPos)) {
-      from.setFillStyle(this.fillColor, 1);
-      this.physics.add.existing(from);
-      from.body.immovable = true;
-      mid.setFillStyle(this.fillColor, 1);
+    let midEdge = false;
+    let fromEdge = false;
+    this.edgePoints.list.forEach((p) => {
+      if (midPos.x == p.x && midPos.y == p.y) {
+        midEdge = true;
+      }
+      if (fromPos.x == p.x && fromPos.y == p.y) {
+        fromEdge = true;
+      }
+    });
+
+    // only draw if covering undrawn area
+    if (this.checkInBounds(midPos) && !midEdge && !mid.body) {
+      // if we're in completely undrawn area, cover the area we're coming from
+      if (this.checkInBounds(fromPos) && !fromEdge) {
+        from.setFillStyle(this.drawColor, 1);
+        this.physics.add.existing(from);
+        from.body.immovable = true;
+      }
+
+      // draw the middle tile always
+      mid.setFillStyle(this.drawColor, 1);
       this.physics.add.existing(mid);
       mid.body.immovable = true;
-    }
 
-    if (this.checkInBounds(fromPos) && !this.checkInBounds(toPos)) {
-      this.completeDrawing(midPos);
+      // complete drawing if we've hit a wall or an edge
+      if (!this.checkInBounds(toPos) || toEdge) {
+        this.completeDrawing(midPos);
+      }
     }
 
     this.player.setPosition(to.x, to.y);
     this.gridPos.x = toPos.x;
     this.gridPos.y = toPos.y;
     this.canMove = false;
-    this.time.delayedCall(60, () => (this.canMove = true));
+    this.time.delayedCall(80, () => (this.canMove = true));
   }
 
   completeDrawing(startPos) {
+    // determine what direction contains the least amount of area to fill up
     let direction = Phaser.Math.Vector2.UP.clone();
     let minArea = this.gridX * this.gridY;
 
@@ -387,6 +445,7 @@ class Game extends Phaser.Scene {
       dir.x = Math.round(dir.x);
       dir.y = Math.round(dir.y);
 
+      // count how many tiles in this direction
       this.countTilesRecursiely(startPos.clone().add(dir));
       if (this.drawingArea > 0 && this.drawingArea < minArea) {
         minArea = this.drawingArea;
@@ -396,11 +455,39 @@ class Game extends Phaser.Scene {
 
     this.fillInTilesRecursiely(startPos.clone().add(direction));
 
+    // update edge points: filled intiles that are facing undrawn area only
+    this.edgePoints.removeAll();
+
+    let count = 0; // count how many tiles we've filled
     for (let i = 0; i < this.gridX; i++) {
       for (let j = 0; j < this.gridY; j++) {
-        this.grid[i][j].setData("counted", false);
+        const p = new Phaser.Math.Vector2(i, j);
+        const t = this.grid[i][j];
+        t.setData("counted", false);
+        if (t.body) count++; // count how many tiles we've filled
+
+        // check for edge points
+        if (this.checkInBounds(p)) {
+          for (let angle = 0; angle < 360; angle += 45) {
+            let r = Phaser.Math.DegToRad(angle);
+            let v = Phaser.Math.Vector2.UP.clone().rotate(r);
+            v.x = Math.round(v.x);
+            v.y = Math.round(v.y);
+            v.add(p);
+            if (!this.grid[v.x][v.y].body && t.body) {
+              t.setFillStyle(this.fillColor, 1);
+              this.edgePoints.add(p);
+            }
+          }
+        }
       }
     }
+
+    // display how much area we've covered
+    this.areaFilled =
+      Math.round((100 * count) / (this.gridX * this.gridY)) / 100;
+
+    this.areaText.setText(`${this.areaFilled * 100}%`);
   }
 
   fillInTilesRecursiely(pos) {
