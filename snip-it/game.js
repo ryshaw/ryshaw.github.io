@@ -28,21 +28,15 @@ class Game extends Phaser.Scene {
   gameH = 960;
   keysDown;
   graphics;
-  boundsPath; // path covering the perimeter of the "canvas"
   player;
   bounds; // big rectangle that is the "canvas"
-  side; // where is the player if on the perimeter? top, bottom, left, or right?
-  points; // points in the path that player is drawing
-  direction; // what direction is player going in?
-  rects; // all rectangles in the current "drawing" player is making
   grid; // tile grid for the canvas
   gridPos; // what grid position is player in
-  gridX = 41; // how many tiles is grid in X direction
-  gridY = 61; // how many tiles is grid in Y direction
+  gridX; // how many tiles is grid in X direction
+  gridY; // how many tiles is grid in Y direction
   canMove; // timer that controls how fast player can go across tiles
-  onWall; // is player currently touching wall
-  drawStartPos; // what tile the current player drawing starts on
-  drawEndPos; // what tile the current player drawing ends on
+  edgePoints; // all points on drawn edges that player can walk on and connect to
+  fillColor = 0x272640;
 
   constructor() {
     super("Game");
@@ -77,19 +71,9 @@ class Game extends Phaser.Scene {
     this.scale.on("resize", this.resize, this);
 
     this.createLayout();
-    this.createPathAndPlayer(
-      this.gameW * 0.1,
-      this.gameH * 0.14,
-      this.gameW * 0.8,
-      this.gameH * 0.7
-    );
+    this.createPlayer();
     this.createControls();
-    this.createPhysics(
-      this.gameW * 0.1,
-      this.gameH * 0.14,
-      this.gameW * 0.8,
-      this.gameH * 0.7
-    );
+    this.createPhysics();
 
     WebFont.load({
       google: {
@@ -123,21 +107,26 @@ class Game extends Phaser.Scene {
 
     this.graphics = this.add.graphics();
 
-    this.bounds = this.add
-      .rectangle(
-        this.gameW * 0.5,
-        this.gameH * 0.49,
-        this.gameW * 0.8,
-        this.gameH * 0.7,
-        0xffc8dd,
-        0.2
-      )
-      .setStrokeStyle(6, 0x023047);
+    this.bounds = this.add.rectangle(
+      this.gameW * 0.5,
+      this.gameH * 0.49,
+      this.gameW * 0.9,
+      this.gameH * 0.75,
+      0xffffff,
+      0.1
+    );
 
     this.grid = [];
     const start = this.bounds.getTopLeft();
+
+    const aspectRatio = this.bounds.width / this.bounds.height;
+    this.gridY = 81;
+    this.gridX = Math.round(this.gridY * aspectRatio);
+    if (this.gridX % 2 == 0) this.gridX++; // must be odd
+
     const w = this.bounds.width / this.gridX;
     const h = this.bounds.height / this.gridY;
+
     for (let i = 0; i < this.gridX; i++) {
       this.grid[i] = [];
       for (let j = 0; j < this.gridY; j++) {
@@ -150,13 +139,14 @@ class Game extends Phaser.Scene {
             0xffff00,
             0
           )
-          .setStrokeStyle(1, 0x00ffff, 0.3);
+          .setStrokeStyle(0.8, 0xffffff, 0.1)
+          .setData("counted", false);
 
         this.grid[i][j] = r;
 
         // fill up edges
         if (i == 0 || i == this.gridX - 1 || j == 0 || j == this.gridY - 1) {
-          this.grid[i][j].setFillStyle(0xd0f4de, 1);
+          this.grid[i][j].setFillStyle(this.fillColor, 1);
           this.physics.add.existing(this.grid[i][j]);
           this.grid[i][j].body.immovable = true;
         }
@@ -164,18 +154,11 @@ class Game extends Phaser.Scene {
     }
   }
 
-  createPathAndPlayer(x, y, width, length) {
-    this.boundsPath = this.add
-      .path(x, y)
-      .lineTo(x + width, y)
-      .lineTo(x + width, y + length)
-      .lineTo(x, y + length)
-      .lineTo(x, y);
-
+  createPlayer() {
     // create simple rectangle texture for player
     const rectangleDrawer = this.make.graphics(); // disposable graphics obj
-    const playerW = 16;
-    rectangleDrawer.fillStyle(0xffb703, 1);
+    const playerW = 12;
+    rectangleDrawer.fillStyle(0xe0fbfc, 1);
     rectangleDrawer.fillRect(0, 0, playerW, playerW);
     rectangleDrawer.generateTexture("rect", playerW, playerW);
     this.player = this.physics.add
@@ -185,28 +168,18 @@ class Game extends Phaser.Scene {
     this.player.body.onWorldBounds = true;
     this.gridPos = new Phaser.Math.Vector2(0, 0);
     this.canMove = true;
-    this.onWall = true;
-    this.drawStartPos = new Phaser.Math.Vector2(0, 0);
-    this.drawEndPos = new Phaser.Math.Vector2(0, 0);
-
-    //setInterval(() => console.log(this.drawStartPos, this.drawEndPos), 800);
-
-    this.side = "top";
-    this.points = new Phaser.Structs.List();
+    this.drawing = false;
   }
 
-  createPhysics(x, y, width, length) {
+  createPhysics() {
     this.physics.world.setBounds(
-      x - this.player.width / 2,
-      y - this.player.width / 2,
-      width + this.player.width,
-      length + this.player.width
+      this.bounds.getTopLeft().x - this.player.width / 2,
+      this.bounds.getTopLeft().y - this.player.width / 2,
+      this.bounds.width + this.player.width,
+      this.bounds.height + this.player.width
     );
 
     this.physics.world.on("worldbounds", (body, up, down, left, right) => {});
-
-    this.rects = this.physics.add.group();
-    this.physics.add.collider(this.player, this.rects);
   }
 
   loadGameUI() {
@@ -257,67 +230,67 @@ class Game extends Phaser.Scene {
     this.keysDown = new Phaser.Structs.List();
 
     this.input.keyboard.on("keydown-W", (event) => {
-      this.keysDown.add("up");
+      this.keysDown.add(Phaser.Math.Vector2.UP);
     });
 
     this.input.keyboard.on("keyup-W", (event) => {
-      this.keysDown.remove("up");
+      this.keysDown.remove(Phaser.Math.Vector2.UP);
     });
 
     this.input.keyboard.on("keydown-UP", (event) => {
-      this.keysDown.add("up");
+      this.keysDown.add(Phaser.Math.Vector2.UP);
     });
 
     this.input.keyboard.on("keyup-UP", (event) => {
-      this.keysDown.remove("up");
+      this.keysDown.remove(Phaser.Math.Vector2.UP);
     });
 
     this.input.keyboard.on("keydown-S", (event) => {
-      this.keysDown.add("down");
+      this.keysDown.add(Phaser.Math.Vector2.DOWN);
     });
 
     this.input.keyboard.on("keyup-S", (event) => {
-      this.keysDown.remove("down");
+      this.keysDown.remove(Phaser.Math.Vector2.DOWN);
     });
 
     this.input.keyboard.on("keydown-DOWN", (event) => {
-      this.keysDown.add("down");
+      this.keysDown.add(Phaser.Math.Vector2.DOWN);
     });
 
     this.input.keyboard.on("keyup-DOWN", (event) => {
-      this.keysDown.remove("down");
+      this.keysDown.remove(Phaser.Math.Vector2.DOWN);
     });
 
     this.input.keyboard.on("keydown-A", (event) => {
-      this.keysDown.add("left");
+      this.keysDown.add(Phaser.Math.Vector2.LEFT);
     });
 
     this.input.keyboard.on("keyup-A", (event) => {
-      this.keysDown.remove("left");
+      this.keysDown.remove(Phaser.Math.Vector2.LEFT);
     });
 
     this.input.keyboard.on("keydown-LEFT", (event) => {
-      this.keysDown.add("left");
+      this.keysDown.add(Phaser.Math.Vector2.LEFT);
     });
 
     this.input.keyboard.on("keyup-LEFT", (event) => {
-      this.keysDown.remove("left");
+      this.keysDown.remove(Phaser.Math.Vector2.LEFT);
     });
 
     this.input.keyboard.on("keydown-D", (event) => {
-      this.keysDown.add("right");
+      this.keysDown.add(Phaser.Math.Vector2.RIGHT);
     });
 
     this.input.keyboard.on("keyup-D", (event) => {
-      this.keysDown.remove("right");
+      this.keysDown.remove(Phaser.Math.Vector2.RIGHT);
     });
 
     this.input.keyboard.on("keydown-RIGHT", (event) => {
-      this.keysDown.add("right");
+      this.keysDown.add(Phaser.Math.Vector2.RIGHT);
     });
 
     this.input.keyboard.on("keyup-RIGHT", (event) => {
-      this.keysDown.remove("right");
+      this.keysDown.remove(Phaser.Math.Vector2.RIGHT);
     });
 
     /*
@@ -348,152 +321,31 @@ class Game extends Phaser.Scene {
   }
 
   update() {
-    this.updatePlayerMovement2();
+    this.updatePlayerMovement();
   }
 
   updatePlayerMovement() {
-    const speed = 150;
-
-    // player speed is only dictated by the last key held down
-    switch (this.keysDown.last) {
-      case "up":
-        if (this.direction == "down") {
-          this.player.setVelocity(0, 0); // can't turn around
-          return;
-        }
-        if (this.side == "bottom") {
-          // player was on bottom wall, leaving wall now
-          this.side = "none";
-        }
-        if (this.direction != "up" && this.side == "none") {
-          // switched direction, add vertex to drawing
-          // and create new "current" rectangle
-          this.switchedDirection();
-        }
-        this.direction = "up";
-        this.player.setVelocity(0, -speed);
-        break;
-
-      case "down":
-        if (this.direction == "up") {
-          this.player.setVelocity(0, 0); // can't turn around
-          return;
-        }
-        if (this.side == "top") {
-          // player was on top wall, leaving wall now
-          this.side = "none";
-        }
-        if (this.direction != "down" && this.side == "none") {
-          // switched direction, add vertex to drawing
-          // and create new "current" rectangle
-          this.switchedDirection();
-        }
-        this.direction = "down";
-        this.player.setVelocity(0, speed);
-        break;
-
-      case "left":
-        if (this.direction == "right") {
-          this.player.setVelocity(0, 0); // can't turn around
-          return;
-        }
-        if (this.side == "right") {
-          // player was on right wall, leaving wall now
-          this.side = "none";
-        }
-        if (this.direction != "left" && this.side == "none") {
-          // switched direction, add vertex to drawing
-          // and create new "current" rectangle
-          this.switchedDirection();
-        }
-        this.direction = "left";
-        this.player.setVelocity(-speed, 0);
-        break;
-
-      case "right":
-        if (this.direction == "left") {
-          this.player.setVelocity(0, 0); // can't turn around
-          return;
-        }
-        if (this.side == "left") {
-          // player was on left wall, leaving wall now
-          this.side = "none";
-        }
-        if (this.direction != "right" && this.side == "none") {
-          // switched direction, add vertex to drawing
-          // and create new "current" rectangle
-          this.switchedDirection();
-        }
-        this.direction = "right";
-        this.player.setVelocity(speed, 0);
-        break;
-
-      default:
-        // no keys down
-        this.player.setVelocity(0, 0);
-        break;
-    }
-  }
-
-  updatePlayerMovement2() {
     // player speed is only dictated by the last key held down
     if (!this.canMove) return;
+    if (!this.keysDown.last) return;
 
-    switch (this.keysDown.last) {
-      case "up":
-        if (this.direction == "down" && !this.onWall) {
-          return;
-        }
+    const direction = this.keysDown.last.clone().scale(2);
 
-        this.direction = "up";
-        if (this.gridPos.y > 0) {
-          const from = this.gridPos.clone();
-          this.gridPos.y -= 2;
-          const to = this.gridPos.clone();
-          this.movePlayer(from, to);
-        }
-        break;
-      case "down":
-        if (this.direction == "up" && !this.onWall) {
-          return;
-        }
-        this.direction = "down";
-        if (this.gridPos.y < this.gridY - 1) {
-          const from = this.gridPos.clone();
-          this.gridPos.y += 2;
-          const to = this.gridPos.clone();
-          this.movePlayer(from, to);
-        }
-        break;
-      case "left":
-        if (this.direction == "right" && !this.onWall) {
-          return;
-        }
-        this.direction = "left";
-        if (this.gridPos.x > 0) {
-          const from = this.gridPos.clone();
-          this.gridPos.x -= 2;
-          const to = this.gridPos.clone();
-          this.movePlayer(from, to);
-        }
-        break;
-      case "right":
-        if (this.direction == "left" && !this.onWall) {
-          return;
-        }
-        this.direction = "right";
-        //this.player.setVelocity(speed, 0);
-        if (this.gridPos.x < this.gridX - 1) {
-          const from = this.gridPos.clone();
-          this.gridPos.x += 2;
-          const to = this.gridPos.clone();
-          this.movePlayer(from, to);
-        }
-        break;
-      default:
-        // no keys down
-        break;
-    }
+    const nextPos = this.gridPos.clone().add(direction);
+
+    if (
+      nextPos.x < 0 ||
+      nextPos.x > this.gridX - 1 ||
+      nextPos.y < 0 ||
+      nextPos.y > this.gridY - 1
+    )
+      return;
+
+    const nextTile = this.grid[nextPos.x][nextPos.y];
+
+    if (this.checkInBounds(nextPos) && nextTile.body) return;
+
+    this.movePlayer(this.gridPos, nextPos);
   }
 
   movePlayer(fromPos, toPos) {
@@ -504,106 +356,50 @@ class Game extends Phaser.Scene {
     const mid = this.grid[midPos.x][midPos.y];
     const to = this.grid[toPos.x][toPos.y];
 
-    if (!this.onWall) {
-      from.setFillStyle(0xd0f4de, 1);
+    if (this.checkInBounds(fromPos) || this.checkInBounds(toPos)) {
+      from.setFillStyle(this.fillColor, 1);
       this.physics.add.existing(from);
       from.body.immovable = true;
-      this.points.add(fromPos);
+      mid.setFillStyle(this.fillColor, 1);
+      this.physics.add.existing(mid);
+      mid.body.immovable = true;
     }
 
-    mid.setFillStyle(0xd0f4de, 1);
-    this.physics.add.existing(mid);
-    mid.body.immovable = true;
-    this.points.add(midPos);
+    if (this.checkInBounds(fromPos) && !this.checkInBounds(toPos)) {
+      this.completeDrawing(midPos);
+    }
 
     this.player.setPosition(to.x, to.y);
+    this.gridPos.x = toPos.x;
+    this.gridPos.y = toPos.y;
     this.canMove = false;
-    this.time.delayedCall(80, () => (this.canMove = true));
+    this.time.delayedCall(60, () => (this.canMove = true));
+  }
 
-    if (
-      this.gridPos.y == 0 ||
-      this.gridPos.y == this.gridY - 1 ||
-      this.gridPos.x == 0 ||
-      this.gridPos.x == this.gridX - 1
-    ) {
-      if (this.onWall == false) {
-        this.drawEndPos.copy(this.gridPos);
-      } else {
-        this.drawStartPos.copy(this.gridPos);
-        this.points = new Phaser.Structs.List();
-        this.points.add(this.drawStartPos);
+  completeDrawing(startPos) {
+    let direction = Phaser.Math.Vector2.UP.clone();
+    let minArea = this.gridX * this.gridY;
+
+    for (let i = 0; i < 360; i += 90) {
+      this.drawingArea = 0;
+
+      const dir = direction.clone().rotate(Phaser.Math.DegToRad(i));
+      dir.x = Math.round(dir.x);
+      dir.y = Math.round(dir.y);
+
+      this.countTilesRecursiely(startPos.clone().add(dir));
+      if (this.drawingArea > 0 && this.drawingArea < minArea) {
+        minArea = this.drawingArea;
+        direction = dir.clone();
       }
-      this.onWall = true;
-    } else {
-      this.onWall = false;
     }
 
-    if (this.drawStartPos.length() != 0 && this.drawEndPos.length() != 0) {
-      // complete drawing here
+    this.fillInTilesRecursiely(startPos.clone().add(direction));
 
-      this.points.add(this.drawEndPos);
-
-      const angle = this.drawEndPos.clone().subtract(this.drawStartPos).angle();
-
-      const startAngle = this.points
-        .getAt(1)
-        .clone()
-        .subtract(this.drawStartPos)
-        .angle();
-
-      const v = Phaser.Math.Vector2.ZERO.clone();
-      if (startAngle == 0 || startAngle == Math.PI) {
-        v.y = Math.sin(angle);
-      } else {
-        v.x = Math.cos(angle);
+    for (let i = 0; i < this.gridX; i++) {
+      for (let j = 0; j < this.gridY; j++) {
+        this.grid[i][j].setData("counted", false);
       }
-      v.normalize();
-      v.x = Math.round(v.x);
-      v.y = Math.round(v.y);
-
-      const p1 = this.points.getAt(1).clone();
-      const p2 = this.points.getAt(2).clone();
-      let direction = v.clone().rotate(p2.subtract(p1).angle() - startAngle);
-      direction.x = Math.round(direction.x);
-      direction.y = Math.round(direction.y);
-      let startPos = this.points.getAt(1); //p1.add(direction);
-
-      this.drawingArea = 0;
-
-      this.fillInTilesRecursiely(
-        startPos.clone().add(Phaser.Math.Vector2.RIGHT)
-      );
-
-      console.log(this.drawingArea);
-
-      this.drawingArea = 0;
-
-      this.fillInTilesRecursiely(startPos.clone().add(Phaser.Math.Vector2.UP));
-
-      console.log(this.drawingArea);
-
-      this.drawingArea = 0;
-
-      this.fillInTilesRecursiely(
-        startPos.clone().add(Phaser.Math.Vector2.DOWN)
-      );
-
-      console.log(this.drawingArea);
-
-      this.drawingArea = 0;
-
-      this.fillInTilesRecursiely(
-        startPos.clone().add(Phaser.Math.Vector2.LEFT)
-      );
-
-      this.points.list.forEach((p) => {
-        const tile = this.grid[p.x][p.y];
-        tile.setFillStyle(0xffff00, 1);
-      });
-
-      this.drawStartPos.reset();
-      this.drawEndPos.reset();
-      this.points.removeAll();
     }
   }
 
@@ -611,47 +407,28 @@ class Game extends Phaser.Scene {
     if (this.checkInBounds(pos)) {
       let tile = this.grid[pos.x][pos.y];
       if (tile.body) return; // base case!
-      tile.setFillStyle(0x0000aa, 0.2);
+      tile.setFillStyle(this.fillColor, 0.4);
       this.physics.add.existing(tile);
-      this.drawingArea++;
     } else return;
 
-    //await new Promise((r) => setTimeout(r, 10));
-
-    this.fillInTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.RIGHT));
     this.fillInTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.UP));
+    this.fillInTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.RIGHT));
     this.fillInTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.LEFT));
     this.fillInTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.DOWN));
   }
 
-  switchedDirection() {
-    this.points.add(new Phaser.Math.Vector2(this.player.x, this.player.y));
+  countTilesRecursiely(pos) {
+    if (this.checkInBounds(pos)) {
+      let tile = this.grid[pos.x][pos.y];
+      if (tile.body || tile.getData("counted")) return; // base case!
+      tile.setData("counted", true);
+      this.drawingArea++;
+    } else return;
 
-    this.rectangle = this.add.rectangle(0, 0, 0, 0, 0xffffff, 1).setDepth(-1);
-    this.physics.add.existing(this.rectangle);
-
-    if (this.points.length < 2) return;
-    const p0 = this.points.getAt(this.points.length - 2);
-    const p1 = this.points.last;
-    const rectX = (p0.x + p1.x) / 2;
-    const rectY = (p0.y + p1.y) / 2;
-    const rectW = Math.abs(p0.x - p1.x);
-    const rectH = Math.abs(p0.y - p1.y);
-
-    // for speed of 150, the "error" looks to be 2.5
-    // so checking which value is small or zero can tell us
-    // what "direction" the rectangle is in
-    if (rectW <= 4) {
-      const r = this.add.rectangle(rectX, rectY, 4, rectH, 0x00ff00, 1);
-      this.physics.add.existing(r);
-      this.rects.add(r);
-      r.body.immovable = true;
-    } else {
-      const r = this.add.rectangle(rectX, rectY, rectW, 4, 0x00ff00, 1);
-      this.physics.add.existing(r);
-      this.rects.add(r);
-      r.body.immovable = true;
-    }
+    this.countTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.RIGHT));
+    this.countTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.UP));
+    this.countTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.LEFT));
+    this.countTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.DOWN));
   }
 
   checkInBounds(pos) {
@@ -812,7 +589,7 @@ const config = {
     default: "arcade",
     arcade: {
       gravity: { y: 0 },
-      debug: true,
+      debug: false,
     },
   },
 };
