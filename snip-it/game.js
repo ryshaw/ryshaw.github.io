@@ -511,7 +511,7 @@ class Game extends Phaser.Scene {
     this.areaFilled =
       Math.round((100 * count) / (this.gridX * this.gridY)) / 100;
 
-    this.areaText.setText(`${Math.round(this.areaFilled * 100)}%`);
+    this.areaText.setText(`${Math.round(this.areaFilled * 100)}%`); // hello
   }
 
   fillInTilesRecursiely(pos) {
