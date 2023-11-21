@@ -155,6 +155,31 @@ class Game extends Phaser.Scene {
         }
       }
     }
+
+    // update edge points: filled-in tiles that are facing undrawn area only
+    this.edgePoints = new Phaser.Structs.List();
+
+    for (let i = 0; i < this.gridX; i++) {
+      for (let j = 0; j < this.gridY; j++) {
+        const p = new Phaser.Math.Vector2(i, j);
+        const t = this.grid[i][j];
+        t.setData("counted", false);
+
+        // player can only walk on edge points
+        // edge points are the filled points next to unfilled area
+        for (let angle = 0; angle < 360; angle += 45) {
+          let r = Phaser.Math.DegToRad(angle);
+          let v = Phaser.Math.Vector2.UP.clone().rotate(r);
+          v.x = Math.round(v.x);
+          v.y = Math.round(v.y);
+          v.add(p);
+          if (this.checkInBounds(v) && !this.grid[v.x][v.y].body && t.body) {
+            t.setFillStyle(this.fillColor, 1);
+            this.edgePoints.add(p);
+          }
+        }
+      }
+    }
   }
 
   createPlayer() {
@@ -172,7 +197,6 @@ class Game extends Phaser.Scene {
     this.gridPos = new Phaser.Math.Vector2(0, 0);
     this.canMove = true;
     this.drawing = false;
-    this.edgePoints = new Phaser.Structs.List();
   }
 
   createPhysics() {
@@ -332,6 +356,8 @@ class Game extends Phaser.Scene {
     });*/
   }
 
+  createMobileControls() {}
+
   restartGame() {
     this.children.getAll().forEach((object) => {
       object.destroy();
@@ -382,7 +408,9 @@ class Game extends Phaser.Scene {
       }
     });
     // player is not allowed to move onto any filled area that isn't an edge
-    if (this.checkInBounds(nextPos) && nextTile.body && !edge) return;
+    if (nextTile.body && !edge) return;
+
+    // if (this.checkInBounds(nextPos) && nextTile.body && !edge) return;
 
     this.movePlayer(this.gridPos, nextPos, edge);
   }
@@ -455,7 +483,7 @@ class Game extends Phaser.Scene {
 
     this.fillInTilesRecursiely(startPos.clone().add(direction));
 
-    // update edge points: filled intiles that are facing undrawn area only
+    // update edge points: filled-in tiles that are facing undrawn area only
     this.edgePoints.removeAll();
 
     let count = 0; // count how many tiles we've filled
@@ -466,18 +494,17 @@ class Game extends Phaser.Scene {
         t.setData("counted", false);
         if (t.body) count++; // count how many tiles we've filled
 
-        // check for edge points
-        if (this.checkInBounds(p)) {
-          for (let angle = 0; angle < 360; angle += 45) {
-            let r = Phaser.Math.DegToRad(angle);
-            let v = Phaser.Math.Vector2.UP.clone().rotate(r);
-            v.x = Math.round(v.x);
-            v.y = Math.round(v.y);
-            v.add(p);
-            if (!this.grid[v.x][v.y].body && t.body) {
-              t.setFillStyle(this.fillColor, 1);
-              this.edgePoints.add(p);
-            }
+        // player can only walk on edge points
+        // edge points are the filled points next to unfilled area
+        for (let angle = 0; angle < 360; angle += 45) {
+          let r = Phaser.Math.DegToRad(angle);
+          let v = Phaser.Math.Vector2.UP.clone().rotate(r);
+          v.x = Math.round(v.x);
+          v.y = Math.round(v.y);
+          v.add(p);
+          if (this.checkInBounds(v) && !this.grid[v.x][v.y].body && t.body) {
+            t.setFillStyle(this.fillColor, 1);
+            this.edgePoints.add(p);
           }
         }
       }
@@ -487,7 +514,7 @@ class Game extends Phaser.Scene {
     this.areaFilled =
       Math.round((100 * count) / (this.gridX * this.gridY)) / 100;
 
-    this.areaText.setText(`${this.areaFilled * 100}%`);
+    this.areaText.setText(`${Math.round(this.areaFilled * 100)}%`);
   }
 
   fillInTilesRecursiely(pos) {
@@ -520,10 +547,10 @@ class Game extends Phaser.Scene {
 
   checkInBounds(pos) {
     return !(
-      pos.y == 0 ||
-      pos.y == this.gridY - 1 ||
-      pos.x == 0 ||
-      pos.x == this.gridX - 1
+      pos.y <= 0 ||
+      pos.y >= this.gridY - 1 ||
+      pos.x <= 0 ||
+      pos.x >= this.gridX - 1
     );
   }
 }
