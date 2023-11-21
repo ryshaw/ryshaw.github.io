@@ -40,6 +40,7 @@ class Game extends Phaser.Scene {
   drawColor = 0xf8edeb; // colors the line the player is currently drawing
   areaFilled = 0; // percentage of area that has been drawn in
   areaText;
+  pointerDown; // is mouse or touch input down
 
   constructor() {
     super("Game");
@@ -76,6 +77,7 @@ class Game extends Phaser.Scene {
     this.createLayout();
     this.createPlayer();
     this.createControls();
+    this.createMobileControls();
     this.createPhysics();
 
     WebFont.load({
@@ -332,6 +334,12 @@ class Game extends Phaser.Scene {
     });*/
   }
 
+  createMobileControls() {
+    this.pointerDown = false;
+    this.input.on("pointerdown", () => (this.pointerDown = true));
+    this.input.on("pointerup", () => (this.pointerDown = false));
+  }
+
   restartGame() {
     this.children.getAll().forEach((object) => {
       object.destroy();
@@ -352,15 +360,31 @@ class Game extends Phaser.Scene {
   }
 
   updatePlayerMovement() {
-    // player speed is only dictated by the last key held down
+    // player movement dictated by last key held down or touch input
     if (!this.canMove) return; // don't move between moves
-    if (!this.keysDown.last) return; // don't move if player isn't holding anything down
 
-    // go two tiles in the direction that the player last keyed in
-    const direction = this.keysDown.last.clone().scale(2);
+    // check keyboard input first then touch input
+    let direction = undefined;
+    if (this.keysDown.last) direction = this.keysDown.last;
+    else if (this.pointerDown) {
+      // for touch controls
+      const p1 = this.input.activePointer.positionToCamera(this.cameras.main);
+      const p0 = new Phaser.Math.Vector2(this.player.x, this.player.y);
+      const angle = Phaser.Math.RadToDeg(p1.subtract(p0).angle());
 
-    // grab the player's next intended position
-    const nextPos = this.gridPos.clone().add(direction);
+      direction = Phaser.Math.Vector2.UP;
+
+      if (angle >= 315 || angle < 45) {
+        direction = Phaser.Math.Vector2.RIGHT;
+      } else if (angle >= 45 && angle < 135) {
+        direction = Phaser.Math.Vector2.DOWN;
+      } else if (angle >= 135 && angle < 225) {
+        direction = Phaser.Math.Vector2.LEFT;
+      }
+    } else return; // don't move if no input detected
+
+    // grab the player's next intended position, two tile movement
+    const nextPos = this.gridPos.clone().add(direction.clone().scale(2));
 
     // if that position is out of bounds, don't move
     if (
@@ -487,7 +511,7 @@ class Game extends Phaser.Scene {
     this.areaFilled =
       Math.round((100 * count) / (this.gridX * this.gridY)) / 100;
 
-    this.areaText.setText(`${this.areaFilled * 100}%`);
+    this.areaText.setText(`${Math.round(this.areaFilled * 100)}%`);
   }
 
   fillInTilesRecursiely(pos) {
