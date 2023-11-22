@@ -125,7 +125,7 @@ class Game extends Phaser.Scene {
     const start = this.bounds.getTopLeft();
 
     const aspectRatio = this.bounds.width / this.bounds.height;
-    this.gridY = 81;
+    this.gridY = 21;
     this.gridX = Math.round(this.gridY * aspectRatio);
     if (this.gridX % 2 == 0) this.gridX++; // must be odd
 
@@ -216,7 +216,7 @@ class Game extends Phaser.Scene {
     new CustomText(this, this.gameW * 0.5, 20, "snip it!", "g", "l")
       .setOrigin(0.5, 0)
       .postFX.addGlow(0xffffff, 0.45);
-
+    /*
     new CustomText(
       this,
       this.gameW * 0.5,
@@ -227,6 +227,22 @@ class Game extends Phaser.Scene {
     )
       .setOrigin(0.5, 1)
       .postFX.addGlow(0xffffff, 0.3);
+*/
+    /*
+    const errorText = new CustomText(
+      this,
+      this.gameW * 0.5,
+      this.gameH - 50,
+      "a game by ryshaw\nmade in phaser 3",
+      "s",
+      "c"
+    ).setOrigin(0.5, 1);
+
+    window.onerror = (a, b, c, d, e) => {
+      errorText.setText(`${a} ${c}`);
+
+      return true;
+    };*/
 
     let count = 0; // count how many tiles we've filled
     for (let i = 0; i < this.gridX; i++) {
