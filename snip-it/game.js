@@ -125,7 +125,7 @@ class Game extends Phaser.Scene {
     const start = this.bounds.getTopLeft();
 
     const aspectRatio = this.bounds.width / this.bounds.height;
-    this.gridY = 21;
+    this.gridY = 61;
     this.gridX = Math.round(this.gridY * aspectRatio);
     if (this.gridX % 2 == 0) this.gridX++; // must be odd
 
@@ -144,7 +144,7 @@ class Game extends Phaser.Scene {
             0xffff00,
             0
           )
-          .setStrokeStyle(0.8, 0xffffff, 0.1)
+          //.setStrokeStyle(0.8, 0xffffff, 0.1)
           .setData("counted", false);
 
         this.grid[i][j] = r;
@@ -226,23 +226,18 @@ class Game extends Phaser.Scene {
       "c"
     )
       .setOrigin(0.5, 1)
-      .postFX.addGlow(0xffffff, 0.3);
-*/
-    /*
-    const errorText = new CustomText(
+      .postFX.addGlow(0xffffff, 0.3);*/
+
+    new CustomText(
       this,
       this.gameW * 0.5,
-      this.gameH - 50,
-      "a game by ryshaw\nmade in phaser 3",
-      "s",
+      this.gameH - 20,
+      `${this.sys.game.device.os.desktop}`,
+      "m",
       "c"
-    ).setOrigin(0.5, 1);
-
-    window.onerror = (a, b, c, d, e) => {
-      errorText.setText(`${a} ${c}`);
-
-      return true;
-    };*/
+    )
+      .setOrigin(0.5, 1)
+      .postFX.addGlow(0xffffff, 0.3);
 
     let count = 0; // count how many tiles we've filled
     for (let i = 0; i < this.gridX; i++) {
@@ -260,7 +255,7 @@ class Game extends Phaser.Scene {
       this,
       this.gameW * 0.87,
       this.gameH - 40,
-      `${this.areaFilled * 100}%`,
+      `${Math.round(this.areaFilled * 100)}%`,
       "m",
       "c"
     ).setOrigin(0.5, 1);
@@ -385,13 +380,12 @@ class Game extends Phaser.Scene {
       object.destroy();
     });
     this.input.removeAllListeners();
-    //this.input.keyboard.removeAllListeners();
+    this.input.keyboard.removeAllListeners();
     this.tweens.killAll();
     this.time.removeAllEvents();
     this.sound.stopAll();
     this.sound.removeAll();
     this.anims.resumeAll();
-    this.matter.resume();
     this.create();
   }
 
@@ -553,6 +547,9 @@ class Game extends Phaser.Scene {
       Math.round((100 * count) / (this.gridX * this.gridY)) / 100;
 
     this.areaText.setText(`${Math.round(this.areaFilled * 100)}%`);
+
+    //if (this.areaFilled > 0.95) this.gameWin();
+    this.gameWin();
   }
 
   fillInTilesRecursiely(pos) {
@@ -590,6 +587,19 @@ class Game extends Phaser.Scene {
       pos.x <= 0 ||
       pos.x >= this.gridX - 1
     );
+  }
+
+  gameWin() {
+    new CustomText(
+      this,
+      this.gameW * 0.5,
+      this.gameH * 0.5,
+      "picture complete!\n",
+      "m",
+      "c"
+    )
+      .setOrigin(0.5, 1)
+      .postFX.addGlow(0xffffff, 0.3);
   }
 }
 
