@@ -118,7 +118,7 @@ class Game extends Phaser.Scene {
       this.gameW * 0.9,
       this.gameH * 0.75,
       0xffffff,
-      0.1
+      0 //0.04
     );
 
     this.grid = [];
@@ -144,7 +144,7 @@ class Game extends Phaser.Scene {
             0xffff00,
             0
           )
-          //.setStrokeStyle(0.8, 0xffffff, 0.1)
+          .setFillStyle(this.fillColor, 0)
           .setData("counted", false);
 
         this.grid[i][j] = r;
@@ -548,8 +548,8 @@ class Game extends Phaser.Scene {
 
     this.areaText.setText(`${Math.round(this.areaFilled * 100)}%`);
 
-    //if (this.areaFilled > 0.95) this.gameWin();
-    this.gameWin();
+    if (this.areaFilled > 0.95) this.gameWin();
+    //this.gameWin();
   }
 
   fillInTilesRecursiely(pos) {
@@ -590,16 +590,43 @@ class Game extends Phaser.Scene {
   }
 
   gameWin() {
-    new CustomText(
-      this,
-      this.gameW * 0.5,
-      this.gameH * 0.5,
-      "picture complete!\n",
-      "m",
-      "c"
-    )
-      .setOrigin(0.5, 1)
-      .postFX.addGlow(0xffffff, 0.3);
+    for (let i = 0; i < this.gridX; i++) {
+      for (let j = 0; j < this.gridY; j++) {
+        const t = this.grid[i][j];
+        this.tweens.add({
+          targets: t,
+          fillAlpha: 0,
+          delay: i * j + 200,
+          duration: 800,
+        });
+      }
+    }
+    /*
+    this.time.delayedCall(1500, () => {
+      new CustomText(
+        this,
+        this.gameW * 0.5,
+        this.gameH * 0.53,
+        "picture complete!\n",
+        "l",
+        "c"
+      )
+        .setOrigin(0.5, 1)
+        .postFX.addGlow(0xffffff, 0.3);
+    });
+
+    this.time.delayedCall(2500, () => {
+      new CustomText(
+        this,
+        this.gameW * 0.5,
+        this.gameH * 0.54,
+        "press any key to continue",
+        "m",
+        "c"
+      )
+        .setOrigin(0.5, 1)
+        .postFX.addGlow(0xffffff, 0.3);
+    });*/
   }
 }
 
