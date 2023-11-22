@@ -37,10 +37,13 @@ class Game extends Phaser.Scene {
   canMove; // timer that controls how fast player can go across tiles
   edgePoints; // all points on drawn edges that player can walk on and connect to
   fillColor = 0x272640; // colors the filled area and edges the player has drawn
-  drawColor = 0xf8edeb; // colors the line the player is currently drawing
+  drawColor = 0xcfd6ea; // colors the line the player is currently drawing
   areaFilled = 0; // percentage of area that has been drawn in
   areaText;
   pointerDown; // is mouse or touch input down
+  gameOver; // true if game win or game over, false during normal gameplay
+  timer; // if counts down to zero, game over
+  timeText;
 
   constructor() {
     super("Game");
@@ -95,6 +98,7 @@ class Game extends Phaser.Scene {
       },
       active: () => {
         this.loadGameUI();
+        this.startGame();
       },
     });
   }
@@ -125,7 +129,13 @@ class Game extends Phaser.Scene {
     const start = this.bounds.getTopLeft();
 
     const aspectRatio = this.bounds.width / this.bounds.height;
+
+    // if on mobile (not on desktop), size down the game so it doesn't freeze
     this.gridY = 61;
+    if (!this.sys.game.device.os.desktop) {
+      this.gridY = 31;
+    }
+
     this.gridX = Math.round(this.gridY * aspectRatio);
     if (this.gridX % 2 == 0) this.gridX++; // must be odd
 
@@ -188,15 +198,16 @@ class Game extends Phaser.Scene {
     // create simple rectangle texture for player
     const rectangleDrawer = this.make.graphics(); // disposable graphics obj
     const playerW = 12;
-    rectangleDrawer.fillStyle(0xe0fbfc, 1);
+    rectangleDrawer.fillStyle(0xf2f4f3, 1);
     rectangleDrawer.fillRect(0, 0, playerW, playerW);
     rectangleDrawer.generateTexture("rect", playerW, playerW);
+    const centerX = Math.round(this.gridX / 2) - 1;
     this.player = this.physics.add
-      .sprite(this.grid[0][0].x, this.grid[0][0].y, "rect")
+      .sprite(this.grid[centerX][0].x, this.grid[0][0].y, "rect")
       .setName("player");
     this.player.setCollideWorldBounds(true);
     this.player.body.onWorldBounds = true;
-    this.gridPos = new Phaser.Math.Vector2(0, 0);
+    this.gridPos = new Phaser.Math.Vector2(centerX, 0);
     this.canMove = true;
     this.drawing = false;
   }
@@ -216,23 +227,12 @@ class Game extends Phaser.Scene {
     new CustomText(this, this.gameW * 0.5, 20, "snip it!", "g", "l")
       .setOrigin(0.5, 0)
       .postFX.addGlow(0xffffff, 0.45);
-    /*
-    new CustomText(
-      this,
-      this.gameW * 0.5,
-      this.gameH - 20,
-      "a game by ryshaw\nmade in phaser 3",
-      "m",
-      "c"
-    )
-      .setOrigin(0.5, 1)
-      .postFX.addGlow(0xffffff, 0.3);*/
 
     new CustomText(
       this,
       this.gameW * 0.5,
       this.gameH - 20,
-      `${this.sys.game.device.os.desktop}`,
+      "a game by ryshaw\nmade in phaser 3",
       "m",
       "c"
     )
@@ -253,14 +253,50 @@ class Game extends Phaser.Scene {
 
     this.areaText = new CustomText(
       this,
-      this.gameW * 0.87,
+      this.gameW * 0.88,
       this.gameH - 40,
       `${Math.round(this.areaFilled * 100)}%`,
-      "m",
+      "l",
       "c"
     ).setOrigin(0.5, 1);
 
+    // gotta separate it because postFX doesn't return the object
     this.areaText.postFX.addGlow(0xffffff, 0.3);
+
+    this.timeText = new CustomText(
+      this,
+      this.gameW * 0.13,
+      this.gameH - 40,
+      `${this.timer}`,
+      "l",
+      "c"
+    )
+      .setOrigin(0.5, 1)
+      .setVisible(false);
+
+    // gotta separate it because postFX doesn't return the object
+    this.timeText.postFX.addGlow(0xffffff, 0.3);
+  }
+
+  startGame() {
+    this.gameOver = false;
+    this.timer = 20;
+    this.timeText.setVisible(true).setText(`${this.timer}`);
+
+    const interval = setInterval(() => {
+      if (this.gameOver) {
+        clearInterval(interval);
+        return;
+      }
+
+      this.timer--;
+      this.timeText.setText(`${this.timer}`);
+
+      if (this.timer <= 0) {
+        clearInterval(interval);
+        this.gameLose();
+      }
+    }, 1000);
   }
 
   resize(gameSize) {
@@ -390,6 +426,8 @@ class Game extends Phaser.Scene {
   }
 
   update() {
+    if (this.gameOver) return;
+
     this.updatePlayerMovement();
   }
 
@@ -548,7 +586,7 @@ class Game extends Phaser.Scene {
 
     this.areaText.setText(`${Math.round(this.areaFilled * 100)}%`);
 
-    if (this.areaFilled > 0.95) this.gameWin();
+    if (Math.round(this.areaFilled * 100) >= 95) this.gameWin();
     //this.gameWin();
   }
 
@@ -590,32 +628,50 @@ class Game extends Phaser.Scene {
   }
 
   gameWin() {
+    if (this.gameOver) return; // already lost?
+
+    this.gameOver = true;
+
+    this.areaText.setTint(0x85ff9e);
+
+    this.tweens.add({
+      targets: this.player,
+      duration: 1200,
+      angle: 180,
+      scale: 0,
+      delay: (this.gridPos.x + this.gridPos.y) * 15 + 600,
+      ease: "sine.inout",
+    });
+
     for (let i = 0; i < this.gridX; i++) {
       for (let j = 0; j < this.gridY; j++) {
         const t = this.grid[i][j];
         this.tweens.add({
           targets: t,
-          fillAlpha: 0,
-          delay: i * j + 200,
-          duration: 800,
+          fillAlpha: 1,
+          delay: (i + j) * 15 + 600,
+          duration: 1200,
+          angle: 180,
+          scale: 0,
+          ease: "sine.inout",
         });
       }
     }
-    /*
-    this.time.delayedCall(1500, () => {
+
+    let delay = (this.gridX + this.gridY) * 15 + 600;
+
+    this.time.delayedCall(delay + 1500, () => {
       new CustomText(
         this,
         this.gameW * 0.5,
-        this.gameH * 0.53,
-        "picture complete!\n",
+        this.gameH * 0.48,
+        "picture complete!",
         "l",
         "c"
-      )
-        .setOrigin(0.5, 1)
-        .postFX.addGlow(0xffffff, 0.3);
+      ).postFX.addGlow(0xffffff, 0.3);
     });
 
-    this.time.delayedCall(2500, () => {
+    this.time.delayedCall(delay + 2500, () => {
       new CustomText(
         this,
         this.gameW * 0.5,
@@ -623,10 +679,66 @@ class Game extends Phaser.Scene {
         "press any key to continue",
         "m",
         "c"
-      )
-        .setOrigin(0.5, 1)
-        .postFX.addGlow(0xffffff, 0.3);
-    });*/
+      ).postFX.addGlow(0xffffff, 0.3);
+
+      this.input.keyboard.once("keydown", () => this.restartGame());
+      this.input.once("pointerdown", () => this.restartGame());
+    });
+  }
+
+  gameLose() {
+    if (this.gameOver) return; // already won?
+    this.gameOver = true;
+
+    this.timeText.setTint(0xc1121f);
+
+    this.tweens.add({
+      targets: this.player,
+      duration: 1000,
+      angle: 360,
+      scale: 5,
+      alpha: 0,
+      delay: 400,
+      ease: "sine.inout",
+    });
+
+    for (let i = 0; i < this.gridX; i++) {
+      for (let j = 0; j < this.gridY; j++) {
+        const t = this.grid[i][j];
+        this.tweens.add({
+          targets: t,
+          fillAlpha: 0,
+          delay: 800,
+          duration: 1200,
+          ease: "sine.inout",
+        });
+      }
+    }
+
+    this.time.delayedCall(2500, () => {
+      new CustomText(
+        this,
+        this.gameW * 0.5,
+        this.gameH * 0.48,
+        "time ran out!",
+        "l",
+        "c"
+      ).postFX.addGlow(0xffffff, 0.3);
+    });
+
+    this.time.delayedCall(3500, () => {
+      new CustomText(
+        this,
+        this.gameW * 0.5,
+        this.gameH * 0.54,
+        "press any key to try again",
+        "m",
+        "c"
+      ).postFX.addGlow(0xffffff, 0.3);
+
+      this.input.keyboard.once("keydown", () => this.restartGame());
+      this.input.once("pointerdown", () => this.restartGame());
+    });
   }
 }
 
