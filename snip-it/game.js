@@ -141,6 +141,8 @@ class Game extends Phaser.Scene {
 
     const w = this.bounds.width / this.gridX;
     const h = this.bounds.height / this.gridY;
+    // w and h should mathematically be equal
+    // since we adjusted gridX to gridY via the aspect ratio
 
     for (let i = 0; i < this.gridX; i++) {
       this.grid[i] = [];
@@ -197,7 +199,7 @@ class Game extends Phaser.Scene {
   createPlayer() {
     // create simple rectangle texture for player
     const rectangleDrawer = this.make.graphics(); // disposable graphics obj
-    const playerW = 12;
+    const playerW = Math.ceil(this.grid[0][0].width); // match tile width
     rectangleDrawer.fillStyle(0xf2f4f3, 1);
     rectangleDrawer.fillRect(0, 0, playerW, playerW);
     rectangleDrawer.generateTexture("rect", playerW, playerW);
