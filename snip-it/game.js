@@ -44,6 +44,7 @@ class Game extends Phaser.Scene {
   gameOver; // true if game win or game over, false during normal gameplay
   timer; // if counts down to zero, game over
   timeText;
+  gridGroup; // physics group containing all tiles
 
   constructor() {
     super("Game");
@@ -79,6 +80,7 @@ class Game extends Phaser.Scene {
 
     this.createLayout();
     this.createPlayer();
+    this.createEnemies(3);
     this.createControls();
     this.createMobileControls();
     this.createPhysics();
@@ -164,7 +166,7 @@ class Game extends Phaser.Scene {
         // fill up edges
         if (i == 0 || i == this.gridX - 1 || j == 0 || j == this.gridY - 1) {
           this.grid[i][j].setFillStyle(this.fillColor, 1);
-          this.physics.add.existing(this.grid[i][j]);
+          this.physics.add.existing(this.grid[i][j], true);
           this.grid[i][j].body.immovable = true;
         }
       }
@@ -214,6 +216,49 @@ class Game extends Phaser.Scene {
     this.drawing = false;
   }
 
+  createEnemies(num) {
+    this.circles = [];
+
+    const offset = 20; // so circles don't start outside bounds
+    const bounds = new Phaser.Geom.Rectangle(
+      this.bounds.getTopLeft().x + offset,
+      this.bounds.getTopLeft().y + offset,
+      this.bounds.width - offset * 2,
+      this.bounds.height - offset * 2
+    );
+
+    for (let i = 0; i < num; i++) {
+      // assign a random point for circle to appear
+      const p = bounds.getRandomPoint();
+
+      // basic circle, size between 10 and 18
+      const circle = this.add
+        .arc(p.x, p.y, Phaser.Math.Between(6, 12))
+        .setFillStyle(Phaser.Display.Color.RandomRGB().color);
+
+      circle.alive = true; // alive until hit by player
+      this.physics.add.existing(circle);
+
+      circle.body
+        .setVelocity(
+          Phaser.Math.Between(100, 250),
+          Phaser.Math.Between(100, 250)
+        )
+        .setBounce(1)
+        .setCollideWorldBounds(true);
+      circle.body.isCircle = true;
+
+      // random direction
+      if (Math.random() > 0.5) {
+        circle.body.velocity.x *= -1;
+      } else {
+        circle.body.velocity.y *= -1;
+      }
+
+      this.circles.push(circle);
+    }
+  }
+
   createPhysics() {
     this.physics.world.setBounds(
       this.bounds.getTopLeft().x - this.player.width / 2,
@@ -223,6 +268,14 @@ class Game extends Phaser.Scene {
     );
 
     this.physics.world.on("worldbounds", (body, up, down, left, right) => {});
+
+    this.gridGroup = this.physics.add.group();
+
+    for (let i = 0; i < this.gridX; i++) {
+      this.physics.add.collider(this.grid[i], this.circles);
+    }
+
+    this.physics.add.collider(this.circles, this.circles);
   }
 
   loadGameUI() {
@@ -282,7 +335,7 @@ class Game extends Phaser.Scene {
 
   startGame() {
     this.gameOver = false;
-    this.timer = 20;
+    this.timer = 500;
     this.timeText.setVisible(true).setText(`${this.timer}`);
 
     const interval = setInterval(() => {
@@ -511,13 +564,13 @@ class Game extends Phaser.Scene {
       // if we're in completely undrawn area, cover the area we're coming from
       if (this.checkInBounds(fromPos) && !fromEdge) {
         from.setFillStyle(this.drawColor, 1);
-        this.physics.add.existing(from);
+        this.physics.add.existing(from, true);
         from.body.immovable = true;
       }
 
       // draw the middle tile always
       mid.setFillStyle(this.drawColor, 1);
-      this.physics.add.existing(mid);
+      this.physics.add.existing(mid, true);
       mid.body.immovable = true;
 
       // complete drawing if we've hit a wall or an edge
@@ -597,7 +650,7 @@ class Game extends Phaser.Scene {
       let tile = this.grid[pos.x][pos.y];
       if (tile.body) return; // base case!
       tile.setFillStyle(this.fillColor, 0.4);
-      this.physics.add.existing(tile);
+      this.physics.add.existing(tile, true);
     } else return;
 
     this.fillInTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.UP));
@@ -891,7 +944,6 @@ const config = {
   physics: {
     default: "arcade",
     arcade: {
-      gravity: { y: 0 },
       debug: false,
     },
   },
