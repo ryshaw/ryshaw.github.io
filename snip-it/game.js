@@ -135,7 +135,7 @@ class Game extends Phaser.Scene {
     // if on mobile (not on desktop), size down the game so it doesn't freeze
     this.gridY = 61;
     if (!this.sys.game.device.os.desktop) {
-      this.gridY = 31;
+      this.gridY = 21;
     }
 
     this.gridX = Math.round(this.gridY * aspectRatio);
@@ -159,7 +159,8 @@ class Game extends Phaser.Scene {
             0
           )
           .setFillStyle(this.fillColor, 0)
-          .setData("counted", false);
+          .setData("counted", false)
+          .setData("filled", false);
 
         this.grid[i][j] = r;
 
@@ -179,7 +180,6 @@ class Game extends Phaser.Scene {
       for (let j = 0; j < this.gridY; j++) {
         const p = new Phaser.Math.Vector2(i, j);
         const t = this.grid[i][j];
-        t.setData("counted", false);
 
         // player can only walk on edge points
         // edge points are the filled points next to unfilled area
@@ -219,7 +219,7 @@ class Game extends Phaser.Scene {
   createEnemies(num) {
     this.circles = [];
 
-    const offset = 20; // so circles don't start outside bounds
+    const offset = this.grid[0][0].width * 2; // so circles don't start outside bounds
     const bounds = new Phaser.Geom.Rectangle(
       this.bounds.getTopLeft().x + offset,
       this.bounds.getTopLeft().y + offset,
@@ -231,7 +231,6 @@ class Game extends Phaser.Scene {
       // assign a random point for circle to appear
       const p = bounds.getRandomPoint();
 
-      // basic circle, size between 10 and 18
       const circle = this.add
         .arc(p.x, p.y, Phaser.Math.Between(6, 12))
         .setFillStyle(Phaser.Display.Color.RandomRGB().color);
@@ -268,8 +267,6 @@ class Game extends Phaser.Scene {
     );
 
     this.physics.world.on("worldbounds", (body, up, down, left, right) => {});
-
-    this.gridGroup = this.physics.add.group();
 
     for (let i = 0; i < this.gridX; i++) {
       this.physics.add.collider(this.grid[i], this.circles);
@@ -532,11 +529,18 @@ class Game extends Phaser.Scene {
         edge = true;
       }
     });
+
     // player is not allowed to move onto any filled area that isn't an edge
-    if (nextTile.body && !edge) return;
+    if ((nextTile.getData("filled") || nextTile.body) && !edge) return;
 
-    // if (this.checkInBounds(nextPos) && nextTile.body && !edge) return;
+    // this last check fixes a bug where the player could go out one tile
+    // and immediately come back in, but if the player starts drawing
+    // then the player can never go backwards, so we stop it
+    const midPos = this.gridPos.clone().add(direction.clone());
+    const mid = this.grid[midPos.x][midPos.y];
+    if (mid.body && !mid.getData("filled")) return;
 
+    // all checks pass, move the player
     this.movePlayer(this.gridPos, nextPos, edge);
   }
 
@@ -617,7 +621,7 @@ class Game extends Phaser.Scene {
         const p = new Phaser.Math.Vector2(i, j);
         const t = this.grid[i][j];
         t.setData("counted", false);
-        if (t.body) count++; // count how many tiles we've filled
+        if (t.body || t.getData("filled")) count++; // count how many tiles we've filled
 
         // player can only walk on edge points
         // edge points are the filled points next to unfilled area
@@ -627,8 +631,13 @@ class Game extends Phaser.Scene {
           v.x = Math.round(v.x);
           v.y = Math.round(v.y);
           v.add(p);
-          if (this.checkInBounds(v) && !this.grid[v.x][v.y].body && t.body) {
+          if (
+            this.checkInBounds(v) &&
+            !this.grid[v.x][v.y].getData("filled") &&
+            t.body
+          ) {
             t.setFillStyle(this.fillColor, 1);
+            t.setData("filled", true);
             this.edgePoints.add(p);
           }
         }
@@ -648,9 +657,10 @@ class Game extends Phaser.Scene {
   fillInTilesRecursiely(pos) {
     if (this.checkInBounds(pos)) {
       let tile = this.grid[pos.x][pos.y];
-      if (tile.body) return; // base case!
+      if (tile.body || tile.getData("filled")) return; // base case!
       tile.setFillStyle(this.fillColor, 0.4);
-      this.physics.add.existing(tile, true);
+      tile.setData("filled", true);
+      //this.physics.add.existing(tile, true);
     } else return;
 
     this.fillInTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.UP));
@@ -944,7 +954,7 @@ const config = {
   physics: {
     default: "arcade",
     arcade: {
-      debug: false,
+      debug: true,
     },
   },
 };
