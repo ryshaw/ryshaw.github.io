@@ -80,7 +80,7 @@ class Game extends Phaser.Scene {
 
     this.createLayout();
     this.createPlayer();
-    this.createEnemies(3);
+    this.createEnemies(4);
     this.createControls();
     this.createMobileControls();
     this.createPhysics();
@@ -217,7 +217,7 @@ class Game extends Phaser.Scene {
   }
 
   createEnemies(num) {
-    this.circles = [];
+    this.circles = this.physics.add.group();
 
     const offset = this.grid[0][0].width * 2; // so circles don't start outside bounds
     const bounds = new Phaser.Geom.Rectangle(
@@ -234,6 +234,8 @@ class Game extends Phaser.Scene {
       const circle = this.add
         .arc(p.x, p.y, Phaser.Math.Between(6, 12))
         .setFillStyle(Phaser.Display.Color.RandomRGB().color);
+
+      this.circles.add(circle);
 
       circle.alive = true; // alive until hit by player
       this.physics.add.existing(circle);
@@ -253,8 +255,6 @@ class Game extends Phaser.Scene {
       } else {
         circle.body.velocity.y *= -1;
       }
-
-      this.circles.push(circle);
     }
   }
 
@@ -269,7 +269,13 @@ class Game extends Phaser.Scene {
     this.physics.world.on("worldbounds", (body, up, down, left, right) => {});
 
     for (let i = 0; i < this.gridX; i++) {
-      this.physics.add.collider(this.grid[i], this.circles);
+      this.physics.add.collider(
+        this.circles,
+        this.grid[i],
+        this.circleHitEdge,
+        undefined,
+        this
+      );
     }
 
     this.physics.add.collider(this.circles, this.circles);
@@ -332,7 +338,7 @@ class Game extends Phaser.Scene {
 
   startGame() {
     this.gameOver = false;
-    this.timer = 500;
+    this.timer = 30;
     this.timeText.setVisible(true).setText(`${this.timer}`);
 
     const interval = setInterval(() => {
@@ -346,7 +352,9 @@ class Game extends Phaser.Scene {
 
       if (this.timer <= 0) {
         clearInterval(interval);
-        this.gameLose();
+        this.gameLose("time");
+      } else if (this.timer <= 10) {
+        this.timeText.setTint(0xc1121f); // time's boutta run out
       }
     }, 1000);
   }
@@ -644,6 +652,9 @@ class Game extends Phaser.Scene {
       }
     }
 
+    // destroy any enemies we've trapped in the drawing
+    this.destroyEnemies();
+
     // display how much area we've covered
     this.areaFilled =
       Math.round((100 * count) / (this.gridX * this.gridY)) / 100;
@@ -690,6 +701,51 @@ class Game extends Phaser.Scene {
       pos.x <= 0 ||
       pos.x >= this.gridX - 1
     );
+  }
+
+  circleHitEdge(tile, circle) {
+    // if we hit a line the player is currently drawing, they die
+    // before a drawing is completed,
+    // the player's drawing is colored in drawColor
+    if (tile.fillColor == this.drawColor) {
+      tile.fillColor = 0xc1121f;
+      this.tweens.add({
+        targets: tile,
+        angle: 360,
+        duration: 400,
+        alpha: 0,
+        scale: 2,
+      });
+      this.gameLose("enemy");
+    }
+  }
+
+  destroyEnemies() {
+    // after a drawing is completed, check for any enemies within the drawing
+    // if there are any, destroy them
+    const toRemove = [];
+
+    this.circles.getChildren().forEach((c) => {
+      const pos = this.convertWorldToGrid(c.x, c.y);
+      if (this.grid[pos.x][pos.y].getData("filled")) toRemove.push(c);
+    });
+
+    toRemove.forEach((c) => this.circles.remove(c, true, true));
+  }
+
+  convertWorldToGrid(x, y) {
+    // converts a position in the world to a position on the grid
+    // for enemies to check where they are on the grid to see if it's filled
+    const b = this.bounds.getBounds();
+    if (!Phaser.Geom.Rectangle.Contains(b, x, y)) return;
+
+    const topLeft = this.bounds.getTopLeft();
+    const w = this.grid[0][0].width;
+    const h = this.grid[0][0].height;
+    x = Math.floor((x - topLeft.x) / w);
+    y = Math.floor((y - topLeft.y) / h);
+
+    return new Phaser.Math.Vector2(x, y);
   }
 
   gameWin() {
@@ -751,11 +807,9 @@ class Game extends Phaser.Scene {
     });
   }
 
-  gameLose() {
-    if (this.gameOver) return; // already won?
+  gameLose(condition) {
+    if (this.gameOver) return; // already lost?
     this.gameOver = true;
-
-    this.timeText.setTint(0xc1121f);
 
     this.tweens.add({
       targets: this.player,
@@ -780,12 +834,15 @@ class Game extends Phaser.Scene {
       }
     }
 
+    let conditionText = "time ran out!";
+    if (condition == "enemy") conditionText = "you got snipped!";
+
     this.time.delayedCall(2500, () => {
       new CustomText(
         this,
         this.gameW * 0.5,
         this.gameH * 0.48,
-        "time ran out!",
+        conditionText,
         "l",
         "c"
       ).postFX.addGlow(0xffffff, 0.3);
@@ -954,7 +1011,7 @@ const config = {
   physics: {
     default: "arcade",
     arcade: {
-      debug: true,
+      debug: false,
     },
   },
 };
