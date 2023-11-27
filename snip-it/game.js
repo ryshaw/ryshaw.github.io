@@ -1,4 +1,4 @@
-const VERSION = "Snip It! v0.1";
+const VERSION = "Snip It! v0.3";
 
 class Background extends Phaser.Scene {
   constructor() {
@@ -22,6 +22,9 @@ class Background extends Phaser.Scene {
     this.scene.launch("Game");
   }
 }
+
+// turns off enemies, sets timer high, and turns on physics debug
+const DEBUG_MODE = false;
 
 class Game extends Phaser.Scene {
   gameW = 640;
@@ -80,10 +83,11 @@ class Game extends Phaser.Scene {
 
     this.createLayout();
     this.createPlayer();
-    this.createEnemies(4);
     this.createControls();
     this.createMobileControls();
     this.createPhysics();
+
+    if (!DEBUG_MODE) this.createEnemies(4);
 
     WebFont.load({
       google: {
@@ -217,8 +221,6 @@ class Game extends Phaser.Scene {
   }
 
   createEnemies(num) {
-    this.circles = this.physics.add.group();
-
     const offset = this.grid[0][0].width * 2; // so circles don't start outside bounds
     const bounds = new Phaser.Geom.Rectangle(
       this.bounds.getTopLeft().x + offset,
@@ -267,6 +269,8 @@ class Game extends Phaser.Scene {
     );
 
     this.physics.world.on("worldbounds", (body, up, down, left, right) => {});
+
+    this.circles = this.physics.add.group();
 
     for (let i = 0; i < this.gridX; i++) {
       this.physics.add.collider(
@@ -334,11 +338,28 @@ class Game extends Phaser.Scene {
 
     // gotta separate it because postFX doesn't return the object
     this.timeText.postFX.addGlow(0xffffff, 0.3);
+
+    const fpsText = new CustomText(
+      this,
+      this.gameW * 0.1,
+      this.gameH * 0.08,
+      `${this.sys.game.loop.actualFps}`,
+      "l",
+      "c"
+    );
+
+    setInterval(
+      () => fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`),
+      200
+    );
   }
 
   startGame() {
     this.gameOver = false;
+
     this.timer = 30;
+    if (DEBUG_MODE) this.timer = 300;
+
     this.timeText.setVisible(true).setText(`${this.timer}`);
 
     const interval = setInterval(() => {
@@ -530,23 +551,23 @@ class Game extends Phaser.Scene {
     // grab the player's intended next tile
     const nextTile = this.grid[nextPos.x][nextPos.y];
 
+    // must also check that the midpoint (one tile forward) is an edge
+    const midPos = this.gridPos.clone().add(direction.clone());
+    const mid = this.grid[midPos.x][midPos.y];
+
     // check if we're going to an edge (player is allowed to walk on edges)
     let edge = false;
+    let midEdge = false;
     this.edgePoints.list.forEach((p) => {
-      if (nextPos.x == p.x && nextPos.y == p.y) {
-        edge = true;
-      }
+      if (nextPos.x == p.x && nextPos.y == p.y) edge = true;
+      if (midPos.x == p.x && midPos.y == p.y) midEdge = true;
     });
 
     // player is not allowed to move onto any filled area that isn't an edge
     if ((nextTile.getData("filled") || nextTile.body) && !edge) return;
 
-    // this last check fixes a bug where the player could go out one tile
-    // and immediately come back in, but if the player starts drawing
-    // then the player can never go backwards, so we stop it
-    const midPos = this.gridPos.clone().add(direction.clone());
-    const mid = this.grid[midPos.x][midPos.y];
-    if (mid.body && !mid.getData("filled")) return;
+    // check midpoint as well
+    if ((mid.body || mid.getData("filled")) && !midEdge) return;
 
     // all checks pass, move the player
     this.movePlayer(this.gridPos, nextPos, edge);
@@ -639,9 +660,11 @@ class Game extends Phaser.Scene {
           v.x = Math.round(v.x);
           v.y = Math.round(v.y);
           v.add(p);
+
           if (
             this.checkInBounds(v) &&
             !this.grid[v.x][v.y].getData("filled") &&
+            !this.grid[v.x][v.y].body &&
             t.body
           ) {
             t.setFillStyle(this.fillColor, 1);
@@ -989,7 +1012,7 @@ class Start extends Phaser.Scene {
   }
 }
 
-// game configuration also stolen from
+// game scale configuration also stolen from
 // https://labs.phaser.io/100.html?src=src\scalemanager\mobile%20game%20example.js
 const config = {
   type: Phaser.AUTO,
@@ -1011,9 +1034,11 @@ const config = {
   physics: {
     default: "arcade",
     arcade: {
-      debug: false,
+      debug: DEBUG_MODE,
     },
   },
+  title: VERSION,
+  autoFocus: true,
 };
 
 class CustomText extends Phaser.GameObjects.Text {
