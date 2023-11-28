@@ -287,6 +287,7 @@ class Game extends Phaser.Scene {
   }
 
   loadGameUI() {
+    /*
     new CustomText(this, this.gameW * 0.5, 20, "snip it!", "g", "l")
       .setOrigin(0.5, 0)
       .postFX.addGlow(0xffffff, 0.45);
@@ -338,7 +339,7 @@ class Game extends Phaser.Scene {
       .setVisible(false);
 
     // gotta separate it because postFX doesn't return the object
-    this.timeText.postFX.addGlow(0xffffff, 0.3);
+    this.timeText.postFX.addGlow(0xffffff, 0.3);*/
 
     const fpsText = new CustomText(
       this,
@@ -361,7 +362,7 @@ class Game extends Phaser.Scene {
     this.timer = 40;
     if (DEBUG_MODE) this.timer = 300;
 
-    this.timeText.setVisible(true).setText(`${this.timer}`);
+    // this.timeText.setVisible(true).setText(`${this.timer}`);
 
     const interval = setInterval(() => {
       if (this.gameOver) {
@@ -370,7 +371,7 @@ class Game extends Phaser.Scene {
       }
 
       this.timer--;
-      this.timeText.setText(`${this.timer}`);
+      //this.timeText.setText(`${this.timer}`);
 
       if (this.timer <= 0) {
         clearInterval(interval);
@@ -686,7 +687,7 @@ class Game extends Phaser.Scene {
     this.areaFilled =
       Math.round((100 * count) / (this.gridX * this.gridY)) / 100;
 
-    this.areaText.setText(`${Math.round(this.areaFilled * 100)}%`);
+    // this.areaText.setText(`${Math.round(this.areaFilled * 100)}%`);
 
     if (Math.round(this.areaFilled * 100) >= 15) this.gameWin();
     //this.gameWin();
@@ -781,7 +782,7 @@ class Game extends Phaser.Scene {
     this.gameOver = true;
     this.physics.pause();
 
-    this.areaText.setTint(0x85ff9e);
+    //this.areaText.setTint(0x85ff9e);
 
     this.tweens.add({
       targets: this.player,
