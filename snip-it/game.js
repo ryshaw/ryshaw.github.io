@@ -148,10 +148,9 @@ class Game extends Phaser.Scene {
 
     const aspectRatio = this.bounds.width / this.bounds.height;
 
-    // if on mobile (not on desktop), size down the game so it doesn't freeze
     this.gridY = 61;
     if (!this.sys.game.device.os.desktop) {
-      this.gridY = 41;
+      this.gridY = 51;
     }
 
     this.gridX = Math.round(this.gridY * aspectRatio);
