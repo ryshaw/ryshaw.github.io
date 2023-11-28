@@ -20,6 +20,7 @@ class Background extends Phaser.Scene {
       .preFX.addGradient(top, bottom, 0.16, num1, num1, num2, num2, 18);
 
     this.scene.launch("Game");
+    this.scene.stop();
   }
 }
 
@@ -81,13 +82,13 @@ class Game extends Phaser.Scene {
 
     this.scale.on("resize", this.resize, this);
 
-    //this.createLayout();
-    //this.createPlayer();
-    //this.createControls();
-    //this.createMobileControls();
-    //this.createPhysics();
+    this.createLayout();
+    this.createPlayer();
+    this.createControls();
+    this.createMobileControls();
+    this.createPhysics();
 
-    //if (!DEBUG_MODE) this.createEnemies(5);
+    if (!DEBUG_MODE) this.createEnemies(5);
 
     WebFont.load({
       google: {
@@ -104,7 +105,7 @@ class Game extends Phaser.Scene {
       },
       active: () => {
         this.loadGameUI();
-        //this.startGame();
+        this.startGame();
       },
     });
   }
@@ -286,7 +287,7 @@ class Game extends Phaser.Scene {
   }
 
   loadGameUI() {
-    /* new CustomText(this, this.gameW * 0.5, 20, "snip it!", "g", "l")
+    new CustomText(this, this.gameW * 0.5, 20, "snip it!", "g", "l")
       .setOrigin(0.5, 0)
       .postFX.addGlow(0xffffff, 0.45);
 
@@ -338,7 +339,7 @@ class Game extends Phaser.Scene {
 
     // gotta separate it because postFX doesn't return the object
     this.timeText.postFX.addGlow(0xffffff, 0.3);
-*/
+
     const fpsText = new CustomText(
       this,
       this.gameW * 0.1,
@@ -503,6 +504,7 @@ class Game extends Phaser.Scene {
     this.sound.stopAll();
     this.sound.removeAll();
     this.anims.resumeAll();
+    this.physics.resume();
     this.create();
   }
 
@@ -1058,9 +1060,7 @@ const config = {
       height: 1200,
     },
   },
-  //scene: [Background, Game],
-  scene: [Game],
-
+  scene: [Background, Game],
   physics: {
     default: "arcade",
     arcade: {
