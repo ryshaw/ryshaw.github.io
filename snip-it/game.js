@@ -246,8 +246,8 @@ class Game extends Phaser.Scene {
 
       const circle = this.add
         .arc(p.x, p.y, Phaser.Math.Between(6, 12))
-        .setFillStyle(Phaser.Display.Color.RandomRGB().color)
-        .setStrokeStyle(2, 0x272640, 0);
+        .setFillStyle(Phaser.Display.Color.RandomRGB().color);
+      //.setStrokeStyle(1, this.fillColor, 0.1);
 
       this.circles.add(circle);
 
@@ -255,7 +255,7 @@ class Game extends Phaser.Scene {
       this.physics.add.existing(circle);
 
       circle.body
-        .setVelocity(Phaser.Math.Between(60, 180), Phaser.Math.Between(60, 180))
+        .setVelocity(Phaser.Math.Between(80, 180), Phaser.Math.Between(80, 180))
         .setBounce(1)
         .setCollideWorldBounds(true);
       circle.body.isCircle = true;
