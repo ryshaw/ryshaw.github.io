@@ -24,7 +24,7 @@ class Background extends Phaser.Scene {
 }
 
 // turns off enemies, sets timer high, and turns on physics debug
-const DEBUG_MODE = true;
+const DEBUG_MODE = false;
 
 class Game extends Phaser.Scene {
   gameW = 640;
@@ -87,7 +87,7 @@ class Game extends Phaser.Scene {
     //this.createMobileControls();
     //this.createPhysics();
 
-    //if (!DEBUG_MODE) this.createEnemies(4);
+    //if (!DEBUG_MODE) this.createEnemies(5);
 
     WebFont.load({
       google: {
@@ -286,8 +286,7 @@ class Game extends Phaser.Scene {
   }
 
   loadGameUI() {
-    /*
-    new CustomText(this, this.gameW * 0.5, 20, "snip it!", "g", "l")
+    /* new CustomText(this, this.gameW * 0.5, 20, "snip it!", "g", "l")
       .setOrigin(0.5, 0)
       .postFX.addGlow(0xffffff, 0.45);
 
@@ -338,8 +337,8 @@ class Game extends Phaser.Scene {
       .setVisible(false);
 
     // gotta separate it because postFX doesn't return the object
-    this.timeText.postFX.addGlow(0xffffff, 0.3);*/
-
+    this.timeText.postFX.addGlow(0xffffff, 0.3);
+*/
     const fpsText = new CustomText(
       this,
       this.gameW * 0.1,
@@ -358,7 +357,7 @@ class Game extends Phaser.Scene {
   startGame() {
     this.gameOver = false;
 
-    this.timer = 30;
+    this.timer = 40;
     if (DEBUG_MODE) this.timer = 300;
 
     this.timeText.setVisible(true).setText(`${this.timer}`);
@@ -687,7 +686,7 @@ class Game extends Phaser.Scene {
 
     this.areaText.setText(`${Math.round(this.areaFilled * 100)}%`);
 
-    if (Math.round(this.areaFilled * 100) >= 95) this.gameWin();
+    if (Math.round(this.areaFilled * 100) >= 15) this.gameWin();
     //this.gameWin();
   }
 
@@ -778,6 +777,7 @@ class Game extends Phaser.Scene {
     if (this.gameOver) return; // already lost?
 
     this.gameOver = true;
+    this.physics.pause();
 
     this.areaText.setTint(0x85ff9e);
 
@@ -788,6 +788,18 @@ class Game extends Phaser.Scene {
       scale: 0,
       delay: (this.gridPos.x + this.gridPos.y) * 15 + 600,
       ease: "sine.inout",
+    });
+
+    this.circles.getChildren().forEach((c) => {
+      const pos = this.convertWorldToGrid(c.x, c.y);
+      this.tweens.add({
+        targets: c,
+        duration: 1200,
+        angle: 180,
+        scale: 0,
+        delay: (pos.x + pos.y) * 15 + 600,
+        ease: "sine.inout",
+      });
     });
 
     for (let i = 0; i < this.gridX; i++) {
@@ -835,7 +847,9 @@ class Game extends Phaser.Scene {
 
   gameLose(condition) {
     if (this.gameOver) return; // already lost?
+
     this.gameOver = true;
+    this.physics.pause();
 
     this.tweens.add({
       targets: this.player,
@@ -845,6 +859,17 @@ class Game extends Phaser.Scene {
       alpha: 0,
       delay: 400,
       ease: "sine.inout",
+    });
+
+    this.circles.getChildren().forEach((c) => {
+      this.tweens.add({
+        targets: c,
+        duration: 1000,
+        angle: 180,
+        scale: 0,
+        delay: 600,
+        ease: "sine.inout",
+      });
     });
 
     for (let i = 0; i < this.gridX; i++) {
@@ -1033,7 +1058,9 @@ const config = {
       height: 1200,
     },
   },
-  scene: [Background, Game],
+  //scene: [Background, Game],
+  scene: [Game],
+
   physics: {
     default: "arcade",
     arcade: {
