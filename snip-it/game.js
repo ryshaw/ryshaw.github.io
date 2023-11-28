@@ -81,13 +81,13 @@ class Game extends Phaser.Scene {
 
     this.scale.on("resize", this.resize, this);
 
-    this.createLayout();
-    this.createPlayer();
-    this.createControls();
-    this.createMobileControls();
-    this.createPhysics();
+    //this.createLayout();
+    //this.createPlayer();
+    //this.createControls();
+    //this.createMobileControls();
+    //this.createPhysics();
 
-    if (!DEBUG_MODE) this.createEnemies(4);
+    //if (!DEBUG_MODE) this.createEnemies(4);
 
     WebFont.load({
       google: {
@@ -139,7 +139,7 @@ class Game extends Phaser.Scene {
     // if on mobile (not on desktop), size down the game so it doesn't freeze
     this.gridY = 61;
     if (!this.sys.game.device.os.desktop) {
-      this.gridY = 21;
+      this.gridY = 41;
     }
 
     this.gridX = Math.round(this.gridY * aspectRatio);
