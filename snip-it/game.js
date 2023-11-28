@@ -8,19 +8,30 @@ class Background extends Phaser.Scene {
   create() {
     // add gradient background. this is stolen from a phaser example
     // https://labs.phaser.io/view.html?src=src/fx\gradient\gradient%20fx.js
-    const num1 = 0.1;
-    const num2 = 0.9;
-    const top = "0x023e8a";
-    const bottom = "0x457b9d";
+
+    // for gradients
+    const top = 0x023e8a;
+    const bottom = 0x457b9d;
     const w = window.innerWidth; // take up the full browser window
     const h = window.innerHeight;
-    this.add
-      .image(w / 2, h / 2, "__WHITE")
-      .setDisplaySize(w, h)
-      .preFX.addGradient(top, bottom, 0.16, num1, num1, num2, num2, 18);
 
+    // if on desktop, render the pretty gradient
+    if (this.sys.game.device.os.desktop) {
+      const num1 = 0.1;
+      const num2 = 0.9;
+
+      this.add
+        .image(w / 2, h / 2, "__WHITE")
+        .setDisplaySize(w, h)
+        .preFX.addGradient(top, bottom, 0.16, num1, num1, num2, num2, 18);
+    } else {
+      // otherwise, render the mid gradient
+      const graphics = this.add.graphics();
+
+      graphics.fillGradientStyle(top, top, top, bottom, 0.8);
+      graphics.fillRect(0, 0, w, h);
+    }
     this.scene.launch("Game");
-    this.scene.stop();
   }
 }
 
@@ -88,7 +99,7 @@ class Game extends Phaser.Scene {
     this.createMobileControls();
     this.createPhysics();
 
-    if (!DEBUG_MODE) this.createEnemies(5);
+    if (!DEBUG_MODE) this.createEnemies(3);
 
     WebFont.load({
       google: {
@@ -236,7 +247,8 @@ class Game extends Phaser.Scene {
 
       const circle = this.add
         .arc(p.x, p.y, Phaser.Math.Between(6, 12))
-        .setFillStyle(Phaser.Display.Color.RandomRGB().color);
+        .setFillStyle(Phaser.Display.Color.RandomRGB().color)
+        .setStrokeStyle(2, 0x272640, 0);
 
       this.circles.add(circle);
 
@@ -244,10 +256,7 @@ class Game extends Phaser.Scene {
       this.physics.add.existing(circle);
 
       circle.body
-        .setVelocity(
-          Phaser.Math.Between(100, 250),
-          Phaser.Math.Between(100, 250)
-        )
+        .setVelocity(Phaser.Math.Between(60, 180), Phaser.Math.Between(60, 180))
         .setBounce(1)
         .setCollideWorldBounds(true);
       circle.body.isCircle = true;
@@ -287,21 +296,23 @@ class Game extends Phaser.Scene {
   }
 
   loadGameUI() {
-    /*
-    new CustomText(this, this.gameW * 0.5, 20, "snip it!", "g", "l")
-      .setOrigin(0.5, 0)
-      .postFX.addGlow(0xffffff, 0.45);
+    const t1 = new CustomText(
+      this,
+      this.gameW * 0.5,
+      20,
+      "snip it!",
+      "g",
+      "l"
+    ).setOrigin(0.5, 0);
 
-    new CustomText(
+    const t2 = new CustomText(
       this,
       this.gameW * 0.5,
       this.gameH - 20,
       "a game by ryshaw\nmade in phaser 3",
       "m",
       "c"
-    )
-      .setOrigin(0.5, 1)
-      .postFX.addGlow(0xffffff, 0.3);
+    ).setOrigin(0.5, 1);
 
     let count = 0; // count how many tiles we've filled
     for (let i = 0; i < this.gridX; i++) {
@@ -324,9 +335,6 @@ class Game extends Phaser.Scene {
       "c"
     ).setOrigin(0.5, 1);
 
-    // gotta separate it because postFX doesn't return the object
-    this.areaText.postFX.addGlow(0xffffff, 0.3);
-
     this.timeText = new CustomText(
       this,
       this.gameW * 0.13,
@@ -337,9 +345,6 @@ class Game extends Phaser.Scene {
     )
       .setOrigin(0.5, 1)
       .setVisible(false);
-
-    // gotta separate it because postFX doesn't return the object
-    this.timeText.postFX.addGlow(0xffffff, 0.3);*/
 
     const fpsText = new CustomText(
       this,
@@ -354,6 +359,14 @@ class Game extends Phaser.Scene {
       () => fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`),
       200
     );
+
+    // add fx here for desktop only, not mobile
+    if (this.sys.game.device.os.desktop) {
+      t1.postFX.addGlow(0xffffff, 0.45);
+      t2.postFX.addGlow(0xffffff, 0.3);
+      this.areaText.postFX.addGlow(0xffffff, 0.3);
+      this.timeText.postFX.addGlow(0xffffff, 0.3);
+    }
   }
 
   startGame() {
@@ -362,7 +375,7 @@ class Game extends Phaser.Scene {
     this.timer = 40;
     if (DEBUG_MODE) this.timer = 300;
 
-    // this.timeText.setVisible(true).setText(`${this.timer}`);
+    this.timeText.setVisible(true).setText(`${this.timer}`);
 
     const interval = setInterval(() => {
       if (this.gameOver) {
@@ -371,7 +384,7 @@ class Game extends Phaser.Scene {
       }
 
       this.timer--;
-      //this.timeText.setText(`${this.timer}`);
+      this.timeText.setText(`${this.timer}`);
 
       if (this.timer <= 0) {
         clearInterval(interval);
@@ -687,10 +700,9 @@ class Game extends Phaser.Scene {
     this.areaFilled =
       Math.round((100 * count) / (this.gridX * this.gridY)) / 100;
 
-    // this.areaText.setText(`${Math.round(this.areaFilled * 100)}%`);
+    this.areaText.setText(`${Math.round(this.areaFilled * 100)}%`);
 
-    if (Math.round(this.areaFilled * 100) >= 15) this.gameWin();
-    //this.gameWin();
+    if (Math.round(this.areaFilled * 100) >= 95) this.gameWin();
   }
 
   fillInTilesRecursiely(pos) {
@@ -782,7 +794,7 @@ class Game extends Phaser.Scene {
     this.gameOver = true;
     this.physics.pause();
 
-    //this.areaText.setTint(0x85ff9e);
+    this.areaText.setTint(0x85ff9e);
 
     this.tweens.add({
       targets: this.player,
@@ -823,25 +835,33 @@ class Game extends Phaser.Scene {
     let delay = (this.gridX + this.gridY) * 15 + 600;
 
     this.time.delayedCall(delay + 1500, () => {
-      new CustomText(
+      const t = new CustomText(
         this,
         this.gameW * 0.5,
         this.gameH * 0.48,
         "picture complete!",
         "l",
         "c"
-      ).postFX.addGlow(0xffffff, 0.3);
+      );
+
+      if (this.sys.game.device.os.desktop) {
+        t.postFX.addGlow(0xffffff, 0.3);
+      }
     });
 
     this.time.delayedCall(delay + 2500, () => {
-      new CustomText(
+      const t = new CustomText(
         this,
         this.gameW * 0.5,
         this.gameH * 0.54,
         "press any key to continue",
         "m",
         "c"
-      ).postFX.addGlow(0xffffff, 0.3);
+      );
+
+      if (this.sys.game.device.os.desktop) {
+        t.postFX.addGlow(0xffffff, 0.3);
+      }
 
       this.input.keyboard.once("keydown", () => this.restartGame());
       this.input.once("pointerdown", () => this.restartGame());
@@ -891,26 +911,34 @@ class Game extends Phaser.Scene {
     let conditionText = "time ran out!";
     if (condition == "enemy") conditionText = "you got snipped!";
 
-    this.time.delayedCall(2500, () => {
-      new CustomText(
+    this.time.delayedCall(2200, () => {
+      const t = new CustomText(
         this,
         this.gameW * 0.5,
         this.gameH * 0.48,
         conditionText,
         "l",
         "c"
-      ).postFX.addGlow(0xffffff, 0.3);
+      );
+
+      if (this.sys.game.device.os.desktop) {
+        t.postFX.addGlow(0xffffff, 0.3);
+      }
     });
 
-    this.time.delayedCall(3500, () => {
-      new CustomText(
+    this.time.delayedCall(3000, () => {
+      const t = new CustomText(
         this,
         this.gameW * 0.5,
         this.gameH * 0.54,
         "press any key to try again",
         "m",
         "c"
-      ).postFX.addGlow(0xffffff, 0.3);
+      );
+
+      if (this.sys.game.device.os.desktop) {
+        t.postFX.addGlow(0xffffff, 0.3);
+      }
 
       this.input.keyboard.once("keydown", () => this.restartGame());
       this.input.once("pointerdown", () => this.restartGame());
@@ -1047,7 +1075,7 @@ class Start extends Phaser.Scene {
 // https://labs.phaser.io/100.html?src=src\scalemanager\mobile%20game%20example.js
 const config = {
   type: Phaser.AUTO,
-  backgroundColor: "#000000",
+  backgroundColor: 0xffffff,
   scale: {
     mode: Phaser.Scale.RESIZE,
     width: 640,
