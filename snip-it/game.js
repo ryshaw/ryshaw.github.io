@@ -24,7 +24,7 @@ class Background extends Phaser.Scene {
 }
 
 // turns off enemies, sets timer high, and turns on physics debug
-const DEBUG_MODE = false;
+const DEBUG_MODE = true;
 
 class Game extends Phaser.Scene {
   gameW = 640;
@@ -104,7 +104,7 @@ class Game extends Phaser.Scene {
       },
       active: () => {
         this.loadGameUI();
-        this.startGame();
+        //this.startGame();
       },
     });
   }
@@ -286,6 +286,7 @@ class Game extends Phaser.Scene {
   }
 
   loadGameUI() {
+    /*
     new CustomText(this, this.gameW * 0.5, 20, "snip it!", "g", "l")
       .setOrigin(0.5, 0)
       .postFX.addGlow(0xffffff, 0.45);
@@ -337,7 +338,7 @@ class Game extends Phaser.Scene {
       .setVisible(false);
 
     // gotta separate it because postFX doesn't return the object
-    this.timeText.postFX.addGlow(0xffffff, 0.3);
+    this.timeText.postFX.addGlow(0xffffff, 0.3);*/
 
     const fpsText = new CustomText(
       this,
@@ -524,6 +525,8 @@ class Game extends Phaser.Scene {
       const p1 = this.input.activePointer.positionToCamera(this.cameras.main);
       const p0 = new Phaser.Math.Vector2(this.player.x, this.player.y);
       const angle = Phaser.Math.RadToDeg(p1.subtract(p0).angle());
+
+      if (p1.length() < this.grid[0][0].width) return; // too short of a distance to move
 
       direction = Phaser.Math.Vector2.UP;
 
