@@ -36,7 +36,7 @@ class Background extends Phaser.Scene {
 }
 
 // turns off enemies, sets timer high, and turns on physics debug
-const DEBUG_MODE = false;
+const DEBUG_MODE = true;
 
 class Game extends Phaser.Scene {
   gameW = 640;
@@ -59,7 +59,8 @@ class Game extends Phaser.Scene {
   gameOver; // true if game win or game over, false during normal gameplay
   timer; // if counts down to zero, game over
   timeText;
-  gridGroup; // physics group containing all tiles
+  circles; // physics group with the circle enemies
+  squares; // physics group with the square enemies
 
   constructor() {
     super("Game");
@@ -99,7 +100,8 @@ class Game extends Phaser.Scene {
     this.createMobileControls();
     this.createPhysics();
 
-    if (!DEBUG_MODE) this.createEnemies(3);
+    if (!DEBUG_MODE) this.createCircles(4);
+    this.createSquares(1);
 
     WebFont.load({
       google: {
@@ -231,7 +233,7 @@ class Game extends Phaser.Scene {
     this.drawing = false;
   }
 
-  createEnemies(num) {
+  createCircles(num) {
     const offset = this.grid[0][0].width * 2; // so circles don't start outside bounds
     const bounds = new Phaser.Geom.Rectangle(
       this.bounds.getTopLeft().x + offset,
@@ -269,6 +271,49 @@ class Game extends Phaser.Scene {
     }
   }
 
+  createSquares(num) {
+    const size = this.grid[0][0].width;
+
+    for (let i = 0; i < num; i++) {
+      // create moving squares along the border
+      let p = this.edgePoints.getRandom();
+      // ensure it doesn't spawn too close to player
+      while (p.y == 0) p = this.edgePoints.getRandom();
+
+      const tile = this.grid[p.x][p.y];
+
+      const square = this.add.rectangle(
+        tile.x,
+        tile.y,
+        size,
+        size,
+        Phaser.Display.Color.RandomRGB().color
+      );
+
+      this.squares.add(square);
+
+      this.physics.add.existing(square);
+
+      for (let angle = 0; angle < 360; angle += 90) {
+        let r = Phaser.Math.DegToRad(angle);
+        let v = Phaser.Math.Vector2.UP.clone().rotate(r);
+        v.x = Math.round(v.x);
+        v.y = Math.round(v.y);
+        v.add(p);
+
+        this.edgePoints.list.forEach((edge) => {
+          if (v.x == edge.x && v.y == edge.y) {
+            console.log(v);
+          }
+        });
+      }
+
+      // PICK RANDOM DIRECTION TO GO IN
+
+      setInterval(() => {}, 1000);
+    }
+  }
+
   createPhysics() {
     this.physics.world.setBounds(
       this.bounds.getTopLeft().x - this.player.width / 2,
@@ -280,6 +325,7 @@ class Game extends Phaser.Scene {
     this.physics.world.on("worldbounds", (body, up, down, left, right) => {});
 
     this.circles = this.physics.add.group();
+    this.squares = this.physics.add.group();
 
     for (let i = 0; i < this.gridX; i++) {
       this.physics.add.collider(
@@ -344,7 +390,7 @@ class Game extends Phaser.Scene {
     )
       .setOrigin(0.5, 1)
       .setVisible(false);
-
+    /*
     const fpsText = new CustomText(
       this,
       this.gameW * 0.1,
@@ -356,8 +402,8 @@ class Game extends Phaser.Scene {
 
     setInterval(
       () => fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`),
-      200
-    );
+      1000
+    );*/
 
     // add fx here for desktop only, not mobile
     if (this.sys.game.device.os.desktop) {
