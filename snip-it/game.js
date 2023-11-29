@@ -36,7 +36,7 @@ class Background extends Phaser.Scene {
 }
 
 // turns off enemies, sets timer high, and turns on physics debug
-const DEBUG_MODE = true;
+const DEBUG_MODE = false;
 
 class Game extends Phaser.Scene {
   gameW = 640;
@@ -272,7 +272,7 @@ class Game extends Phaser.Scene {
   }
 
   createSquares(num) {
-    const size = this.grid[0][0].width;
+    const size = this.grid[0][0].width * 1.4;
 
     for (let i = 0; i < num; i++) {
       // create moving squares along the border
@@ -309,7 +309,10 @@ class Game extends Phaser.Scene {
 
       let dir = directions.getRandom();
 
-      const interval = setInterval(() => {
+      square.interval = setInterval(() => {
+        // if ded, stop its update loop
+        if (!square.active) clearInterval(square.interval);
+
         // if not in grid or edge anymore, change direction
         if (
           !this.checkInGrid(p.clone().add(dir)) ||
@@ -341,7 +344,7 @@ class Game extends Phaser.Scene {
         p.add(dir);
         const nextTile = this.grid[p.x][p.y];
         square.copyPosition(nextTile);
-      }, 100);
+      }, 500);
     }
   }
 
@@ -369,6 +372,14 @@ class Game extends Phaser.Scene {
     }
 
     this.physics.add.collider(this.circles, this.circles);
+
+    this.physics.add.overlap(
+      this.squares,
+      this.player,
+      this.squareHitPlayer,
+      undefined,
+      this
+    );
   }
 
   loadGameUI() {
@@ -832,10 +843,11 @@ class Game extends Phaser.Scene {
 
   checkIfEdge(pos) {
     // is this position an edge point?
+    let onEdge = false;
     this.edgePoints.list.forEach((edge) => {
-      if (pos.x == edge.x && pos.y == edge.y) return true;
+      if (pos.x == edge.x && pos.y == edge.y) onEdge = true;
     });
-    return false;
+    return onEdge;
   }
 
   circleHitEdge(tile, circle) {
@@ -855,6 +867,19 @@ class Game extends Phaser.Scene {
     }
   }
 
+  squareHitPlayer(player, square) {
+    clearInterval(square.interval);
+    square.fillColor = 0xc1121f;
+    this.tweens.add({
+      targets: square,
+      angle: 360,
+      duration: 400,
+      alpha: 0,
+      scale: 2,
+    });
+    this.gameLose("enemy");
+  }
+
   destroyEnemies() {
     // after a drawing is completed, check for any enemies within the drawing
     // if there are any, destroy them
@@ -866,6 +891,15 @@ class Game extends Phaser.Scene {
     });
 
     toRemove.forEach((c) => this.circles.remove(c, true, true));
+
+    toRemove.length = 0; // this clears an array in js.
+
+    this.squares.getChildren().forEach((s) => {
+      const pos = this.convertWorldToGrid(s.x, s.y);
+      if (!this.checkIfEdge(pos)) toRemove.push(s);
+    });
+
+    toRemove.forEach((s) => this.squares.remove(s, true, true));
   }
 
   convertWorldToGrid(x, y) {
