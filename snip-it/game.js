@@ -292,25 +292,56 @@ class Game extends Phaser.Scene {
 
       this.squares.add(square);
 
-      this.physics.add.existing(square);
+      const directions = new Phaser.Structs.List(); // what directions can we move in?
 
       for (let angle = 0; angle < 360; angle += 90) {
         let r = Phaser.Math.DegToRad(angle);
         let v = Phaser.Math.Vector2.UP.clone().rotate(r);
         v.x = Math.round(v.x);
         v.y = Math.round(v.y);
-        v.add(p);
 
         this.edgePoints.list.forEach((edge) => {
-          if (v.x == edge.x && v.y == edge.y) {
-            console.log(v);
+          if (v.clone().add(p).x == edge.x && v.clone().add(p).y == edge.y) {
+            directions.add(v); // we can move in this direction
           }
         });
       }
 
-      // PICK RANDOM DIRECTION TO GO IN
+      let dir = directions.getRandom();
 
-      setInterval(() => {}, 1000);
+      const interval = setInterval(() => {
+        // if not in grid or edge anymore, change direction
+        if (
+          !this.checkInGrid(p.clone().add(dir)) ||
+          !this.checkIfEdge(p.clone().add(dir))
+        ) {
+          const left = dir.clone().rotate(Phaser.Math.DegToRad(-90));
+          const right = dir.clone().rotate(Phaser.Math.DegToRad(90));
+          left.x = Math.round(left.x);
+          left.y = Math.round(left.y);
+          right.x = Math.round(right.x);
+          right.y = Math.round(right.y);
+
+          this.edgePoints.list.forEach((edge) => {
+            if (
+              p.clone().add(left).x == edge.x &&
+              p.clone().add(left).y == edge.y
+            ) {
+              dir = left;
+            } else if (
+              p.clone().add(right).x == edge.x &&
+              p.clone().add(right).y == edge.y
+            ) {
+              dir = right;
+            }
+          });
+        }
+
+        // move to next tile
+        p.add(dir);
+        const nextTile = this.grid[p.x][p.y];
+        square.copyPosition(nextTile);
+      }, 100);
     }
   }
 
@@ -780,12 +811,31 @@ class Game extends Phaser.Scene {
   }
 
   checkInBounds(pos) {
+    // check if inside canvas (not on the border)
     return !(
       pos.y <= 0 ||
       pos.y >= this.gridY - 1 ||
       pos.x <= 0 ||
       pos.x >= this.gridX - 1
     );
+  }
+
+  checkInGrid(pos) {
+    // is this a valid grid position at all?
+    return (
+      pos.x >= 0 &&
+      pos.x <= this.gridX - 1 &&
+      pos.y >= 0 &&
+      pos.y <= this.gridY - 1
+    );
+  }
+
+  checkIfEdge(pos) {
+    // is this position an edge point?
+    this.edgePoints.list.forEach((edge) => {
+      if (pos.x == edge.x && pos.y == edge.y) return true;
+    });
+    return false;
   }
 
   circleHitEdge(tile, circle) {
