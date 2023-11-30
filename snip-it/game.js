@@ -36,7 +36,7 @@ class Background extends Phaser.Scene {
 }
 
 // turns off enemies, sets timer high, and turns on physics debug
-const DEBUG_MODE = false;
+const DEBUG_MODE = true;
 
 class Game extends Phaser.Scene {
   gameW = 640;
@@ -54,6 +54,7 @@ class Game extends Phaser.Scene {
   fillColor = 0x272640; // colors the filled area and edges the player has drawn
   drawColor = 0xcfd6ea; // colors the line the player is currently drawing
   areaFilled = 0; // percentage of area that has been drawn in
+  totalDrawingArea; // the area of the grid minus the perimeter which is already filled in, so don't count the perimeter
   areaText;
   pointerDown; // is mouse or touch input down
   gameOver; // true if game win or game over, false during normal gameplay
@@ -157,6 +158,14 @@ class Game extends Phaser.Scene {
 
     this.gridX = Math.round(this.gridY * aspectRatio);
     if (this.gridX % 2 == 0) this.gridX++; // must be odd
+
+    const perimeter = 2 * (this.gridX + this.gridY) - 4;
+    // minus four to account for the four corner tiles,
+    // so they won't be counted twice
+
+    // this is the total area the player is drawing in
+    // since the bounds of the rectangle are already filled in
+    this.totalDrawingArea = this.gridX * this.gridY - perimeter;
 
     const w = this.bounds.width / this.gridX;
     const h = this.bounds.height / this.gridY;
@@ -404,14 +413,14 @@ class Game extends Phaser.Scene {
     let count = 0; // count how many tiles we've filled
     for (let i = 0; i < this.gridX; i++) {
       for (let j = 0; j < this.gridY; j++) {
+        const p = new Phaser.Math.Vector2(i, j);
         const t = this.grid[i][j];
-        if (t.body) count++; // count how many tiles we've filled
+        if ((t.body || t.getData("filled")) && this.checkInBounds(p)) count++; // count how many tiles we've filled      }
       }
     }
 
     // display how much area we've covered
-    this.areaFilled =
-      Math.round((100 * count) / (this.gridX * this.gridY)) / 100;
+    this.areaFilled = Math.round((100 * count) / this.totalDrawingArea) / 100;
 
     this.areaText = new CustomText(
       this,
@@ -755,7 +764,7 @@ class Game extends Phaser.Scene {
         const p = new Phaser.Math.Vector2(i, j);
         const t = this.grid[i][j];
         t.setData("counted", false);
-        if (t.body || t.getData("filled")) count++; // count how many tiles we've filled
+        if ((t.body || t.getData("filled")) && this.checkInBounds(p)) count++; // count how many tiles we've filled
 
         // player can only walk on edge points
         // edge points are the filled points next to unfilled area
@@ -784,8 +793,7 @@ class Game extends Phaser.Scene {
     this.destroyEnemies();
 
     // display how much area we've covered
-    this.areaFilled =
-      Math.round((100 * count) / (this.gridX * this.gridY)) / 100;
+    this.areaFilled = Math.round((100 * count) / this.totalDrawingArea) / 100;
 
     this.areaText.setText(`${Math.round(this.areaFilled * 100)}%`);
 
