@@ -272,7 +272,7 @@ class Game extends Phaser.Scene {
   }
 
   createSquares(num) {
-    const size = this.grid[0][0].width * 1.4;
+    const size = this.grid[0][0].width * 1.6;
 
     for (let i = 0; i < num; i++) {
       // create moving squares along the border
