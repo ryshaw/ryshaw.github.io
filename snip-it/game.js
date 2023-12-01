@@ -62,12 +62,15 @@ class Game extends Phaser.Scene {
   timeText;
   circles; // physics group with the circle enemies
   squares; // physics group with the square enemies
+  level; // the level of the game, contained in localStorage
 
   constructor() {
     super("Game");
   }
 
   preload() {
+    this.level = localStorage.getItem("level") || 1;
+
     this.load.script(
       "webfont",
       "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
@@ -101,8 +104,13 @@ class Game extends Phaser.Scene {
     this.createMobileControls();
     this.createPhysics();
 
-    this.createCircles(2);
-    this.createSquares(1);
+    this.level = this.level / 1; // make sure it's a number
+    const numCircles = (this.level + 2) / 2 - 1;
+    const numSquares = (this.level + 2) / 2 - 2;
+    console.log(this.level, numCircles, numSquares);
+
+    this.createCircles(numCircles);
+    this.createSquares(numSquares);
 
     WebFont.load({
       google: {
@@ -258,15 +266,19 @@ class Game extends Phaser.Scene {
       const circle = this.add
         .arc(p.x, p.y, Phaser.Math.Between(6, 12))
         .setFillStyle(Phaser.Display.Color.RandomRGB().color);
-      //.setStrokeStyle(1, this.fillColor, 0.1);
 
       this.circles.add(circle);
 
       circle.alive = true; // alive until hit by player
       this.physics.add.existing(circle);
 
+      const minMaxSpeed = [50 + this.level * 10, 150 + this.level * 20];
+
       circle.body
-        .setVelocity(Phaser.Math.Between(80, 180), Phaser.Math.Between(80, 180))
+        .setVelocity(
+          Phaser.Math.Between(minMaxSpeed[0], minMaxSpeed[1]),
+          Phaser.Math.Between(minMaxSpeed[0], minMaxSpeed[1])
+        )
         .setBounce(1)
         .setCollideWorldBounds(true);
       circle.body.isCircle = true;
@@ -400,7 +412,7 @@ class Game extends Phaser.Scene {
   }
 
   loadGameUI() {
-    const t1 = new CustomText(
+    const title = new CustomText(
       this,
       this.gameW * 0.5,
       20,
@@ -408,13 +420,31 @@ class Game extends Phaser.Scene {
       "g",
       "l"
     ).setOrigin(0.5, 0);
-
+    /*
     const t2 = new CustomText(
       this,
       this.gameW * 0.5,
       this.gameH - 20,
       "a game by ryshaw\nmade in phaser 3",
       "m",
+      "c"
+    ).setOrigin(0.5, 1);*/
+
+    const levelNum = new CustomText(
+      this,
+      this.gameW * 0.15,
+      this.gameH - 20,
+      `${this.level}`,
+      "g",
+      "c"
+    ).setOrigin(0.5, 1);
+
+    const levelT = new CustomText(
+      this,
+      levelNum.getTopCenter().x,
+      levelNum.getTopCenter().y,
+      "level",
+      "s",
       "c"
     ).setOrigin(0.5, 1);
 
@@ -432,23 +462,41 @@ class Game extends Phaser.Scene {
 
     this.areaText = new CustomText(
       this,
-      this.gameW * 0.88,
-      this.gameH - 40,
+      this.gameW * 0.85,
+      this.gameH - 20,
       `${Math.round(this.areaFilled * 100)}%`,
-      "l",
+      "g",
+      "c"
+    ).setOrigin(0.5, 1);
+
+    const areaT = new CustomText(
+      this,
+      this.areaText.getTopCenter().x,
+      this.areaText.getTopCenter().y,
+      "filled area",
+      "s",
       "c"
     ).setOrigin(0.5, 1);
 
     this.timeText = new CustomText(
       this,
-      this.gameW * 0.13,
-      this.gameH - 40,
+      this.gameW * 0.5,
+      this.gameH - 20,
       `${this.timer}`,
-      "l",
+      "g",
       "c"
     )
       .setOrigin(0.5, 1)
       .setVisible(false);
+
+    const timeT = new CustomText(
+      this,
+      this.timeText.getTopCenter().x,
+      this.timeText.getTopCenter().y,
+      "time left",
+      "s",
+      "c"
+    ).setOrigin(0.5, 1);
     /*
     const fpsText = new CustomText(
       this,
@@ -466,8 +514,11 @@ class Game extends Phaser.Scene {
 
     // add fx here for desktop only, not mobile
     if (this.sys.game.device.os.desktop) {
-      t1.postFX.addGlow(0xffffff, 0.45);
-      t2.postFX.addGlow(0xffffff, 0.3);
+      title.postFX.addGlow(0xffffff, 0.5);
+      areaT.postFX.addGlow(0xffffff, 0.1);
+      timeT.postFX.addGlow(0xffffff, 0.1);
+      levelT.postFX.addGlow(0xffffff, 0.1);
+      levelNum.postFX.addGlow(0xffffff, 0.3);
       this.areaText.postFX.addGlow(0xffffff, 0.3);
       this.timeText.postFX.addGlow(0xffffff, 0.3);
     }
@@ -493,7 +544,7 @@ class Game extends Phaser.Scene {
       if (this.timer <= 0) {
         clearInterval(interval);
         this.gameLose("time");
-      } else if (this.timer <= 10) {
+      } else if (this.timer <= 9) {
         this.timeText.setTint(0xc1121f); // time's boutta run out
       }
     }, 1000);
@@ -805,7 +856,7 @@ class Game extends Phaser.Scene {
 
     this.areaText.setText(`${Math.round(this.areaFilled * 100)}%`);
 
-    if (Math.round(this.areaFilled * 100) >= 95) this.gameWin();
+    if (Math.round(this.areaFilled * 100) >= 9) this.gameWin();
   }
 
   fillInTilesRecursiely(pos) {
@@ -938,6 +989,8 @@ class Game extends Phaser.Scene {
 
     this.gameOver = true;
     this.physics.pause();
+    this.level++;
+    localStorage.setItem("level", this.level);
 
     this.areaText.setTint(0x85ff9e);
 
