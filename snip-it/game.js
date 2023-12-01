@@ -35,8 +35,8 @@ class Background extends Phaser.Scene {
   }
 }
 
-// turns off enemies, sets timer high, and turns on physics debug
-const DEBUG_MODE = true;
+// sets timer high, and turns on physics debug
+const DEBUG_MODE = false;
 
 class Game extends Phaser.Scene {
   gameW = 640;
@@ -101,8 +101,8 @@ class Game extends Phaser.Scene {
     this.createMobileControls();
     this.createPhysics();
 
-    if (!DEBUG_MODE) this.createCircles(2);
-    this.createSquares(10);
+    this.createCircles(2);
+    this.createSquares(1);
 
     WebFont.load({
       google: {
@@ -140,7 +140,7 @@ class Game extends Phaser.Scene {
     this.bounds = this.add.rectangle(
       this.gameW * 0.5,
       this.gameH * 0.49,
-      this.gameW * 0.9,
+      this.gameW * 0.85,
       this.gameH * 0.75,
       0xffffff,
       0 //0.04
@@ -231,7 +231,7 @@ class Game extends Phaser.Scene {
     rectangleDrawer.fillStyle(0xf2f4f3, 1);
     rectangleDrawer.fillRect(0, 0, playerW, playerW);
     rectangleDrawer.generateTexture("rect", playerW, playerW);
-    const centerX = Math.round(this.gridX / 2) - 1;
+    const centerX = Math.round(this.gridX / 2);
     this.player = this.physics.add
       .sprite(this.grid[centerX][0].x, this.grid[0][0].y, "rect")
       .setName("player");
@@ -281,13 +281,13 @@ class Game extends Phaser.Scene {
   }
 
   createSquares(num) {
-    const size = this.grid[0][0].width * 1.1;
+    const size = this.grid[0][0].width * 1;
 
     for (let i = 0; i < num; i++) {
       // create moving squares along the border
-      let p = this.edgePoints.getRandom();
+      let p = this.edgePoints.getRandom().clone();
       // ensure it doesn't spawn too close to player
-      while (p.y == 0) p = this.edgePoints.getRandom();
+      while (p.y == 0) p = this.edgePoints.getRandom().clone();
 
       const tile = this.grid[p.x][p.y];
 
