@@ -36,7 +36,7 @@ class Background extends Phaser.Scene {
 }
 
 // turns off enemies, sets timer high, and turns on physics debug
-const DEBUG_MODE = false;
+const DEBUG_MODE = true;
 
 class Game extends Phaser.Scene {
   gameW = 640;
@@ -102,7 +102,7 @@ class Game extends Phaser.Scene {
     this.createPhysics();
 
     if (!DEBUG_MODE) this.createCircles(2);
-    this.createSquares(5);
+    this.createSquares(10);
 
     WebFont.load({
       google: {
@@ -319,7 +319,7 @@ class Game extends Phaser.Scene {
       let dir = directions.getRandom();
 
       // how fast every interval is. lower is faster
-      const duration = Phaser.Math.Between(300, 1000);
+      const time = Phaser.Math.Between(200, 500);
 
       square.interval = setInterval(() => {
         // if ded, stop its update loop
@@ -359,9 +359,9 @@ class Game extends Phaser.Scene {
           targets: square,
           x: nextTile.x,
           y: nextTile.y,
-          duration: duration,
+          duration: time,
         });
-      }, duration);
+      }, time);
     }
   }
 
