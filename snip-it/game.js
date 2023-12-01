@@ -36,7 +36,7 @@ class Background extends Phaser.Scene {
 }
 
 // turns off enemies, sets timer high, and turns on physics debug
-const DEBUG_MODE = true;
+const DEBUG_MODE = false;
 
 class Game extends Phaser.Scene {
   gameW = 640;
@@ -101,8 +101,8 @@ class Game extends Phaser.Scene {
     this.createMobileControls();
     this.createPhysics();
 
-    if (!DEBUG_MODE) this.createCircles(4);
-    this.createSquares(1);
+    if (!DEBUG_MODE) this.createCircles(2);
+    this.createSquares(5);
 
     WebFont.load({
       google: {
@@ -281,7 +281,7 @@ class Game extends Phaser.Scene {
   }
 
   createSquares(num) {
-    const size = this.grid[0][0].width * 1.6;
+    const size = this.grid[0][0].width * 1.1;
 
     for (let i = 0; i < num; i++) {
       // create moving squares along the border
@@ -318,6 +318,9 @@ class Game extends Phaser.Scene {
 
       let dir = directions.getRandom();
 
+      // how fast every interval is. lower is faster
+      const duration = Phaser.Math.Between(300, 1000);
+
       square.interval = setInterval(() => {
         // if ded, stop its update loop
         if (!square.active) clearInterval(square.interval);
@@ -352,8 +355,13 @@ class Game extends Phaser.Scene {
         // move to next tile
         p.add(dir);
         const nextTile = this.grid[p.x][p.y];
-        square.copyPosition(nextTile);
-      }, 500);
+        this.tweens.add({
+          targets: square,
+          x: nextTile.x,
+          y: nextTile.y,
+          duration: duration,
+        });
+      }, duration);
     }
   }
 
@@ -382,7 +390,7 @@ class Game extends Phaser.Scene {
 
     this.physics.add.collider(this.circles, this.circles);
 
-    this.physics.add.overlap(
+    this.physics.add.collider(
       this.squares,
       this.player,
       this.squareHitPlayer,
@@ -637,7 +645,7 @@ class Game extends Phaser.Scene {
       const p0 = new Phaser.Math.Vector2(this.player.x, this.player.y);
       const angle = Phaser.Math.RadToDeg(p1.subtract(p0).angle());
 
-      if (p1.length() < this.grid[0][0].width) return; // too short of a distance to move
+      if (p1.length() < this.grid[0][0].width * 1.2) return; // too short of a distance to move
 
       direction = Phaser.Math.Vector2.UP;
 
@@ -954,6 +962,19 @@ class Game extends Phaser.Scene {
       });
     });
 
+    this.squares.getChildren().forEach((s) => {
+      clearInterval(s.interval);
+      const pos = this.convertWorldToGrid(s.x, s.y);
+      this.tweens.add({
+        targets: s,
+        duration: 1200,
+        angle: 180,
+        scale: 0,
+        delay: (pos.x + pos.y) * 15 + 600,
+        ease: "sine.inout",
+      });
+    });
+
     for (let i = 0; i < this.gridX; i++) {
       for (let j = 0; j < this.gridY; j++) {
         const t = this.grid[i][j];
@@ -1024,6 +1045,18 @@ class Game extends Phaser.Scene {
     this.circles.getChildren().forEach((c) => {
       this.tweens.add({
         targets: c,
+        duration: 1000,
+        angle: 180,
+        scale: 0,
+        delay: 600,
+        ease: "sine.inout",
+      });
+    });
+
+    this.squares.getChildren().forEach((s) => {
+      clearInterval(s.interval);
+      this.tweens.add({
+        targets: s,
         duration: 1000,
         angle: 180,
         scale: 0,
