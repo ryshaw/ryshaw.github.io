@@ -78,6 +78,7 @@ class Game extends Phaser.Scene {
   }
 
   create() {
+    this.level = 25;
     // resolution, resizing, camera code stolen from
     // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
     const width = this.scale.gameSize.width;
@@ -105,8 +106,8 @@ class Game extends Phaser.Scene {
     this.createPhysics();
 
     this.level = this.level / 1; // make sure it's a number
-    const numCircles = (this.level + 2) / 2 - 1;
-    const numSquares = (this.level + 2) / 2 - 2;
+    const numCircles = (this.level + 3) / 2 - 1;
+    const numSquares = (this.level + 3) / 2 - 2;
     console.log(this.level, numCircles, numSquares);
 
     this.createCircles(numCircles);
@@ -259,6 +260,12 @@ class Game extends Phaser.Scene {
       this.bounds.height - offset * 2
     );
 
+    const minMaxSpeed = [
+      50 + (this.level - 1) * 10,
+      150 + (this.level - 1) * 10,
+    ];
+    console.log(minMaxSpeed);
+
     for (let i = 0; i < num; i++) {
       // assign a random point for circle to appear
       const p = bounds.getRandomPoint();
@@ -271,8 +278,6 @@ class Game extends Phaser.Scene {
 
       circle.alive = true; // alive until hit by player
       this.physics.add.existing(circle);
-
-      const minMaxSpeed = [50 + this.level * 10, 150 + this.level * 20];
 
       circle.body
         .setVelocity(
@@ -294,6 +299,18 @@ class Game extends Phaser.Scene {
 
   createSquares(num) {
     const size = this.grid[0][0].width * 1;
+
+    const minMaxTime = [
+      200 - (this.level - 1) * 10,
+      400 - (this.level - 1) * 10,
+    ];
+
+    if (this.level > 20) {
+      minMaxTime[0] = 10;
+      minMaxTime[1] = 200;
+    }
+
+    console.log(minMaxTime);
 
     for (let i = 0; i < num; i++) {
       // create moving squares along the border
@@ -331,7 +348,7 @@ class Game extends Phaser.Scene {
       let dir = directions.getRandom();
 
       // how fast every interval is. lower is faster
-      const time = Phaser.Math.Between(200, 500);
+      const time = Phaser.Math.Between(minMaxTime[0], minMaxTime[1]);
 
       square.interval = setInterval(() => {
         // if ded, stop its update loop
@@ -367,6 +384,7 @@ class Game extends Phaser.Scene {
         // move to next tile
         p.add(dir);
         const nextTile = this.grid[p.x][p.y];
+        if (!nextTile) console.log("no next tile");
         this.tweens.add({
           targets: square,
           x: nextTile.x,
@@ -527,7 +545,8 @@ class Game extends Phaser.Scene {
   startGame() {
     this.gameOver = false;
 
-    this.timer = 40;
+    // every two levels, up the second count by 5
+    this.timer = 60 + Math.floor(this.level / 2) * 5;
     if (DEBUG_MODE) this.timer = 300;
 
     this.timeText.setVisible(true).setText(`${this.timer}`);
@@ -856,7 +875,7 @@ class Game extends Phaser.Scene {
 
     this.areaText.setText(`${Math.round(this.areaFilled * 100)}%`);
 
-    if (Math.round(this.areaFilled * 100) >= 9) this.gameWin();
+    if (Math.round(this.areaFilled * 100) >= 95) this.gameWin();
   }
 
   fillInTilesRecursiely(pos) {
