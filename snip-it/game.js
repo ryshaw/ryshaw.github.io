@@ -78,7 +78,6 @@ class Game extends Phaser.Scene {
   }
 
   create() {
-    this.level = 25;
     // resolution, resizing, camera code stolen from
     // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
     const width = this.scale.gameSize.width;
@@ -106,8 +105,8 @@ class Game extends Phaser.Scene {
     this.createPhysics();
 
     this.level = this.level / 1; // make sure it's a number
-    const numCircles = (this.level + 3) / 2 - 1;
-    const numSquares = (this.level + 3) / 2 - 2;
+    const numCircles = Math.floor(this.level / 4) + 1;
+    const numSquares = Math.floor((this.level + 3) / 2) - 2;
     console.log(this.level, numCircles, numSquares);
 
     this.createCircles(numCircles);
@@ -260,10 +259,7 @@ class Game extends Phaser.Scene {
       this.bounds.height - offset * 2
     );
 
-    const minMaxSpeed = [
-      50 + (this.level - 1) * 10,
-      150 + (this.level - 1) * 10,
-    ];
+    const minMaxSpeed = [20 + (this.level - 1) * 5, 100 + (this.level - 1) * 5];
     console.log(minMaxSpeed);
 
     for (let i = 0; i < num; i++) {
@@ -298,17 +294,9 @@ class Game extends Phaser.Scene {
   }
 
   createSquares(num) {
-    const size = this.grid[0][0].width * 1;
+    const size = this.grid[0][0].width * 1.05;
 
-    const minMaxTime = [
-      200 - (this.level - 1) * 10,
-      400 - (this.level - 1) * 10,
-    ];
-
-    if (this.level > 20) {
-      minMaxTime[0] = 10;
-      minMaxTime[1] = 200;
-    }
+    const minMaxTime = [200 - (this.level - 1) * 5, 400 - (this.level - 1) * 5];
 
     console.log(minMaxTime);
 
@@ -384,13 +372,15 @@ class Game extends Phaser.Scene {
         // move to next tile
         p.add(dir);
         const nextTile = this.grid[p.x][p.y];
-        if (!nextTile) console.log("no next tile");
-        this.tweens.add({
-          targets: square,
-          x: nextTile.x,
-          y: nextTile.y,
-          duration: time,
-        });
+        if (nextTile) {
+          // sometimes there's no tile if player just cut them off
+          this.tweens.add({
+            targets: square,
+            x: nextTile.x,
+            y: nextTile.y,
+            duration: time,
+          });
+        }
       }, time);
     }
   }
@@ -546,7 +536,7 @@ class Game extends Phaser.Scene {
     this.gameOver = false;
 
     // every two levels, up the second count by 5
-    this.timer = 60 + Math.floor(this.level / 2) * 5;
+    this.timer = 60 + Math.floor(this.level / 3) * 5;
     if (DEBUG_MODE) this.timer = 300;
 
     this.timeText.setVisible(true).setText(`${this.timer}`);
@@ -808,7 +798,7 @@ class Game extends Phaser.Scene {
     this.gridPos.x = toPos.x;
     this.gridPos.y = toPos.y;
     this.canMove = false;
-    this.time.delayedCall(80, () => (this.canMove = true));
+    this.time.delayedCall(80 - this.level * 1.6, () => (this.canMove = true));
   }
 
   completeDrawing(startPos) {
@@ -1008,8 +998,12 @@ class Game extends Phaser.Scene {
 
     this.gameOver = true;
     this.physics.pause();
-    this.level++;
-    localStorage.setItem("level", this.level);
+
+    // last level is 25
+    if (this.level < 25) {
+      this.level++;
+      localStorage.setItem("level", this.level);
+    }
 
     this.areaText.setTint(0x85ff9e);
 
