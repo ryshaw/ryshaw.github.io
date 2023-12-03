@@ -158,7 +158,7 @@ class Game extends Phaser.Scene {
 
     this.gridY = 83;
     if (!this.sys.game.device.os.desktop) {
-      //this.gridY = 65;
+      this.gridY = 51;
     }
 
     this.gridX = Math.round(this.gridY * aspectRatio);
