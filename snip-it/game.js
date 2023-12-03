@@ -90,8 +90,9 @@ class Game extends Phaser.Scene {
 
     this.createLayout();
     this.createPlayer();
-    this.createControls();
-    this.createMobileControls();
+    this.createPlayerControls();
+    this.createMouseControls();
+    this.createUIControls();
     if (DEV_MODE) this.createLevelSelectControls();
     this.createPhysics();
 
@@ -100,6 +101,13 @@ class Game extends Phaser.Scene {
     const numSquares = Math.floor(this.level * (0.03 * this.level + 0.45));
     this.createCircles(numCircles);
     this.createSquares(numSquares);
+
+    this.game.events.addListener(Phaser.Core.Events.BLUR, () => {
+      if (this.gameOver || this.scene.isPaused("Game")) return; // can't pause when ded
+      console.log(this.scene.isPaused("Game"), this.scene.isActive("Game"));
+      this.scene.launch("Pause");
+      this.scene.pause("Game");
+    });
 
     WebFont.load({
       google: {
@@ -329,6 +337,9 @@ class Game extends Phaser.Scene {
         // if ded, stop its update loop
         if (!square.active) clearInterval(square.interval);
 
+        // if game is paused, don't do anything
+        if (this.scene.isPaused("Game")) return;
+
         // if not in grid or edge anymore, change direction
         if (
           !this.checkInGrid(p.clone().add(dir)) ||
@@ -501,7 +512,7 @@ class Game extends Phaser.Scene {
         this,
         this.gameW * 0.1,
         this.gameH * 0.08,
-        `${this.sys.game.loop.actualFps}`,
+        `${Math.round(this.sys.game.loop.actualFps)}`,
         "l",
         "c"
       );
@@ -552,6 +563,8 @@ class Game extends Phaser.Scene {
         return;
       }
 
+      if (this.scene.isPaused("Game")) return; // if game is paused, don't do anything
+
       this.timer--;
       this.timeText.setText(`${this.timer}`);
 
@@ -591,7 +604,7 @@ class Game extends Phaser.Scene {
     camera.centerOn(this.gameW / 2, this.gameH / 2);
   }
 
-  createControls() {
+  createPlayerControls() {
     this.keysDown = new Phaser.Structs.List();
 
     this.input.keyboard.on("keydown-W", (event) => {
@@ -670,7 +683,7 @@ class Game extends Phaser.Scene {
     });*/
   }
 
-  createMobileControls() {
+  createMouseControls() {
     this.pointerDown = false;
     this.input.on("pointerdown", () => (this.pointerDown = true));
     this.input.on("pointerup", () => (this.pointerDown = false));
@@ -698,6 +711,14 @@ class Game extends Phaser.Scene {
       }
 
       this.levelSelectText.text = this.levelSelect;
+    });
+  }
+
+  createUIControls() {
+    this.input.keyboard.on("keyup-ESC", () => {
+      if (this.gameOver) return; // can't pause when ded
+      this.scene.launch("Pause");
+      this.scene.pause("Game");
     });
   }
 
@@ -1212,6 +1233,55 @@ class Game extends Phaser.Scene {
   }
 }
 
+class Pause extends Phaser.Scene {
+  constructor() {
+    super({ key: "Pause" });
+  }
+
+  preload() {
+    // load google's library for the font, GFS Didot
+    this.load.script(
+      "webfont",
+      "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
+    );
+  }
+
+  create() {
+    WebFont.load({
+      google: {
+        families: ["Press Start 2P"],
+      },
+      active: () => {
+        this.loadText();
+      },
+    });
+  }
+
+  loadText() {
+    const w = window.innerWidth; // take up the full browser window
+    const h = window.innerHeight;
+
+    const t1 = new CustomText(this, w * 0.5, h * 0.5, "game paused", "g")
+      .setOrigin(0.5, 0.5)
+      .setPadding(20)
+      .setBackgroundColor("#0077b6");
+
+    this.tweens.add({
+      targets: t1,
+      y: t1.y - 20,
+      yoyo: true,
+      duration: 1600,
+      loop: -1,
+      ease: "sine.inout",
+    });
+
+    this.input.keyboard.on("keyup-ESC", () => {
+      this.scene.resume("Game");
+      this.scene.stop("Pause");
+    });
+  }
+}
+
 class Start extends Phaser.Scene {
   width;
   height;
@@ -1355,7 +1425,7 @@ const config = {
       height: 1200,
     },
   },
-  scene: [Background, Game],
+  scene: [Background, Game, Pause],
   physics: {
     default: "arcade",
     arcade: {
