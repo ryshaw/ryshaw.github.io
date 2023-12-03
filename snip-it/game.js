@@ -21,7 +21,7 @@ class Background extends Phaser.Scene {
 }
 
 // sets timer high, enables level select, turns on FPS, and turns on physics debug
-const DEV_MODE = true;
+const DEV_MODE = false;
 const MAX_LEVEL = 25;
 
 class Game extends Phaser.Scene {
