@@ -6,37 +6,23 @@ class Background extends Phaser.Scene {
   }
 
   create() {
-    // add gradient background. this is stolen from a phaser example
-    // https://labs.phaser.io/view.html?src=src/fx\gradient\gradient%20fx.js
-
     // for gradients
-    const top = 0x023e8a;
-    const bottom = 0x457b9d;
+    const top = 0x3f8efc; //0x023e8a;
+    const bottom = 0x7de2d1; //0x457b9d;
     const w = window.innerWidth; // take up the full browser window
     const h = window.innerHeight;
 
-    // if on desktop, render the pretty gradient
-    if (this.sys.game.device.os.desktop) {
-      const num1 = 0.1;
-      const num2 = 0.9;
+    const graphics = this.add.graphics();
 
-      this.add
-        .image(w / 2, h / 2, "__WHITE")
-        .setDisplaySize(w, h)
-        .preFX.addGradient(top, bottom, 0.16, num1, num1, num2, num2, 18);
-    } else {
-      // otherwise, render the mid gradient
-      const graphics = this.add.graphics();
-
-      graphics.fillGradientStyle(top, top, top, bottom, 0.8);
-      graphics.fillRect(0, 0, w, h);
-    }
+    graphics.fillGradientStyle(top, top, bottom, bottom, 0.9);
+    graphics.fillRect(0, 0, w, h);
     this.scene.launch("Game");
   }
 }
 
-// sets timer high, and turns on physics debug
-const DEBUG_MODE = false;
+// sets timer high, enables level select, turns on FPS, and turns on physics debug
+const DEV_MODE = true;
+const MAX_LEVEL = 25;
 
 class Game extends Phaser.Scene {
   gameW = 640;
@@ -51,26 +37,28 @@ class Game extends Phaser.Scene {
   gridY; // how many tiles is grid in Y direction
   canMove; // timer that controls how fast player can go across tiles
   edgePoints; // all points on drawn edges that player can walk on and connect to
-  fillColor = 0x272640; // colors the filled area and edges the player has drawn
-  drawColor = 0xcfd6ea; // colors the line the player is currently drawing
+  fillColor = 0x070600; // colors the filled area and edges the player has drawn
+  drawColor = 0xfffbfc; //0xfdd35d; //0xfdca40; // colors the line the player is currently drawing
   areaFilled = 0; // percentage of area that has been drawn in
   totalDrawingArea; // the area of the grid minus the perimeter which is already filled in, so don't count the perimeter
   areaText;
   pointerDown; // is mouse or touch input down
   gameOver; // true if game win or game over, false during normal gameplay
   timer; // if counts down to zero, game over
+  timeInterval; // for handling the countdown
   timeText;
   circles; // physics group with the circle enemies
   squares; // physics group with the square enemies
   level; // the level of the game, contained in localStorage
+  levelSelect; // type in number of level and hit enter and it'll load that level
+  // only enabled in dev mode
+  levelSelectText;
 
   constructor() {
     super("Game");
   }
 
   preload() {
-    this.level = localStorage.getItem("level") || 1;
-
     this.load.script(
       "webfont",
       "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
@@ -78,6 +66,8 @@ class Game extends Phaser.Scene {
   }
 
   create() {
+    this.level = localStorage.getItem("level") || 1;
+
     // resolution, resizing, camera code stolen from
     // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
     const width = this.scale.gameSize.width;
@@ -102,13 +92,12 @@ class Game extends Phaser.Scene {
     this.createPlayer();
     this.createControls();
     this.createMobileControls();
+    if (DEV_MODE) this.createLevelSelectControls();
     this.createPhysics();
 
     this.level = this.level / 1; // make sure it's a number
-    const numCircles = Math.floor(this.level / 4) + 1;
-    const numSquares = Math.floor((this.level + 3) / 2) - 2;
-    console.log(this.level, numCircles, numSquares);
-
+    const numCircles = Math.floor(Math.sqrt(2.8 * this.level));
+    const numSquares = Math.floor(this.level * (0.03 * this.level + 0.45));
     this.createCircles(numCircles);
     this.createSquares(numSquares);
 
@@ -159,9 +148,9 @@ class Game extends Phaser.Scene {
 
     const aspectRatio = this.bounds.width / this.bounds.height;
 
-    this.gridY = 61;
+    this.gridY = 83;
     if (!this.sys.game.device.os.desktop) {
-      this.gridY = 51;
+      //this.gridY = 65;
     }
 
     this.gridX = Math.round(this.gridY * aspectRatio);
@@ -235,15 +224,16 @@ class Game extends Phaser.Scene {
   createPlayer() {
     // create simple rectangle texture for player
     const rectangleDrawer = this.make.graphics(); // disposable graphics obj
-    const playerW = Math.ceil(this.grid[0][0].width); // match tile width
-    rectangleDrawer.fillStyle(0xf2f4f3, 1);
-    rectangleDrawer.fillRect(0, 0, playerW, playerW);
+    const playerW = Math.ceil(this.grid[0][0].width * 1.2); // match tile width
+    rectangleDrawer.lineStyle(4, 0xfffbfc, 1);
+    rectangleDrawer.strokeRect(0, 0, playerW, playerW);
     rectangleDrawer.generateTexture("rect", playerW, playerW);
     const centerX = Math.round(this.gridX / 2);
     this.player = this.physics.add
       .sprite(this.grid[centerX][0].x, this.grid[0][0].y, "rect")
       .setName("player");
-    this.player.setCollideWorldBounds(true);
+
+    this.player.body.collideWorldBounds = true;
     this.player.body.onWorldBounds = true;
     this.gridPos = new Phaser.Math.Vector2(centerX, 0);
     this.canMove = true;
@@ -260,7 +250,6 @@ class Game extends Phaser.Scene {
     );
 
     const minMaxSpeed = [20 + (this.level - 1) * 5, 100 + (this.level - 1) * 5];
-    console.log(minMaxSpeed);
 
     for (let i = 0; i < num; i++) {
       // assign a random point for circle to appear
@@ -268,7 +257,7 @@ class Game extends Phaser.Scene {
 
       const circle = this.add
         .arc(p.x, p.y, Phaser.Math.Between(6, 12))
-        .setFillStyle(Phaser.Display.Color.RandomRGB().color);
+        .setFillStyle(Phaser.Display.Color.RandomRGB(150, 255).color);
 
       this.circles.add(circle);
 
@@ -296,9 +285,7 @@ class Game extends Phaser.Scene {
   createSquares(num) {
     const size = this.grid[0][0].width * 1.05;
 
-    const minMaxTime = [200 - (this.level - 1) * 5, 400 - (this.level - 1) * 5];
-
-    console.log(minMaxTime);
+    const minMaxTime = [150 - (this.level - 1) * 5, 200 - (this.level - 1) * 5];
 
     for (let i = 0; i < num; i++) {
       // create moving squares along the border
@@ -313,7 +300,7 @@ class Game extends Phaser.Scene {
         tile.y,
         size,
         size,
-        Phaser.Display.Color.RandomRGB().color
+        Phaser.Display.Color.RandomRGB(150, 255).color
       );
 
       this.squares.add(square);
@@ -371,15 +358,18 @@ class Game extends Phaser.Scene {
 
         // move to next tile
         p.add(dir);
-        const nextTile = this.grid[p.x][p.y];
-        if (nextTile) {
-          // sometimes there's no tile if player just cut them off
-          this.tweens.add({
-            targets: square,
-            x: nextTile.x,
-            y: nextTile.y,
-            duration: time,
-          });
+        if (this.grid[p.x]) {
+          // okay...
+          const nextTile = this.grid[p.x][p.y];
+          if (nextTile) {
+            // sometimes there's no tile if player just cut them off
+            this.tweens.add({
+              targets: square,
+              x: nextTile.x,
+              y: nextTile.y,
+              duration: time,
+            });
+          }
         }
       }, time);
     }
@@ -505,20 +495,33 @@ class Game extends Phaser.Scene {
       "s",
       "c"
     ).setOrigin(0.5, 1);
-    /*
-    const fpsText = new CustomText(
+
+    if (DEV_MODE) {
+      const fpsText = new CustomText(
+        this,
+        this.gameW * 0.1,
+        this.gameH * 0.08,
+        `${this.sys.game.loop.actualFps}`,
+        "l",
+        "c"
+      );
+
+      const interval = setInterval(() => {
+        if (fpsText.displayList) {
+          // if still displaying (game not restarted yet)
+          fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`);
+        } else clearInterval(interval); // otherwise clear interval
+      }, 1000);
+    }
+
+    this.levelSelectText = new CustomText(
       this,
-      this.gameW * 0.1,
-      this.gameH * 0.08,
-      `${this.sys.game.loop.actualFps}`,
+      this.gameW * 0.88,
+      25,
+      "",
       "l",
       "c"
-    );
-
-    setInterval(
-      () => fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`),
-      1000
-    );*/
+    ).setOrigin(0.5, 0);
 
     // add fx here for desktop only, not mobile
     if (this.sys.game.device.os.desktop) {
@@ -533,17 +536,19 @@ class Game extends Phaser.Scene {
   }
 
   startGame() {
+    if (this.gameOver) clearInterval(this.timeInterval); // just making sure we get it
+
     this.gameOver = false;
 
     // every two levels, up the second count by 5
-    this.timer = 60 + Math.floor(this.level / 3) * 5;
-    if (DEBUG_MODE) this.timer = 300;
+    this.timer = 40 + Math.floor(this.level / 3) * 5;
+    if (DEV_MODE) this.timer = 300;
 
     this.timeText.setVisible(true).setText(`${this.timer}`);
 
-    const interval = setInterval(() => {
+    this.timeInterval = setInterval(() => {
       if (this.gameOver) {
-        clearInterval(interval);
+        clearInterval(this.timeInterval);
         return;
       }
 
@@ -551,7 +556,7 @@ class Game extends Phaser.Scene {
       this.timeText.setText(`${this.timer}`);
 
       if (this.timer <= 0) {
-        clearInterval(interval);
+        clearInterval(this.timeInterval);
         this.gameLose("time");
       } else if (this.timer <= 9) {
         this.timeText.setTint(0xc1121f); // time's boutta run out
@@ -669,6 +674,31 @@ class Game extends Phaser.Scene {
     this.pointerDown = false;
     this.input.on("pointerdown", () => (this.pointerDown = true));
     this.input.on("pointerup", () => (this.pointerDown = false));
+  }
+
+  createLevelSelectControls() {
+    this.levelSelect = "";
+    this.input.keyboard.on("keydown", (event) => {
+      if (event.code.includes("Digit")) {
+        this.levelSelect += event.key;
+      } else if (event.code.includes("Backspace")) {
+        this.levelSelect = this.levelSelect.substr(
+          0,
+          this.levelSelect.length - 1
+        );
+      } else if (event.code.includes("Enter")) {
+        if (this.levelSelect / 1 <= MAX_LEVEL && this.levelSelect / 1 > 0) {
+          this.level = this.levelSelect / 1;
+          localStorage.setItem("level", this.level);
+          this.gameOver = true;
+          this.restartGame();
+          return;
+        }
+        this.levelSelect = "";
+      }
+
+      this.levelSelectText.text = this.levelSelect;
+    });
   }
 
   restartGame() {
@@ -872,7 +902,7 @@ class Game extends Phaser.Scene {
     if (this.checkInBounds(pos)) {
       let tile = this.grid[pos.x][pos.y];
       if (tile.body || tile.getData("filled")) return; // base case!
-      tile.setFillStyle(this.fillColor, 0.4);
+      tile.setFillStyle(this.fillColor, 0.2);
       tile.setData("filled", true);
       //this.physics.add.existing(tile, true);
     } else return;
@@ -963,7 +993,7 @@ class Game extends Phaser.Scene {
 
     this.circles.getChildren().forEach((c) => {
       const pos = this.convertWorldToGrid(c.x, c.y);
-      if (this.grid[pos.x][pos.y].getData("filled")) toRemove.push(c);
+      if (pos && this.grid[pos.x][pos.y].getData("filled")) toRemove.push(c);
     });
 
     toRemove.forEach((c) => this.circles.remove(c, true, true));
@@ -1000,7 +1030,7 @@ class Game extends Phaser.Scene {
     this.physics.pause();
 
     // last level is 25
-    if (this.level < 25) {
+    if (this.level < MAX_LEVEL) {
       this.level++;
       localStorage.setItem("level", this.level);
     }
@@ -1311,7 +1341,7 @@ class Start extends Phaser.Scene {
 // https://labs.phaser.io/100.html?src=src\scalemanager\mobile%20game%20example.js
 const config = {
   type: Phaser.AUTO,
-  backgroundColor: 0xffffff,
+  backgroundColor: 0x000000,
   scale: {
     mode: Phaser.Scale.RESIZE,
     width: 640,
@@ -1329,7 +1359,7 @@ const config = {
   physics: {
     default: "arcade",
     arcade: {
-      debug: DEBUG_MODE,
+      debug: DEV_MODE,
     },
   },
   title: VERSION,
