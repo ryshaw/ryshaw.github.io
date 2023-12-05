@@ -53,6 +53,7 @@ class Game extends Phaser.Scene {
   levelSelect; // type in number of level and hit enter and it'll load that level
   // only enabled in dev mode
   levelSelectText;
+  paused; // see the method createPause for why we need a separate variable for this
 
   constructor() {
     super("Game");
@@ -63,6 +64,13 @@ class Game extends Phaser.Scene {
       "webfont",
       "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
     );
+
+    this.load.setPath("assets");
+    this.load.image("pause", "pause.png");
+    this.load.image("play", "forward.png");
+    this.load.image("musicOn", "musicOn.png");
+    this.load.image("musicOff", "musicOff.png");
+    this.load.image("return", "return.png");
   }
 
   create() {
@@ -92,7 +100,7 @@ class Game extends Phaser.Scene {
     this.createPlayer();
     this.createPlayerControls();
     this.createMouseControls();
-    this.createUIControls();
+    this.createPause();
     if (DEV_MODE) this.createLevelSelectControls();
     this.createPhysics();
 
@@ -101,13 +109,6 @@ class Game extends Phaser.Scene {
     const numSquares = Math.floor(this.level * (0.03 * this.level + 0.45));
     this.createCircles(numCircles);
     this.createSquares(numSquares);
-
-    this.game.events.addListener(Phaser.Core.Events.BLUR, () => {
-      if (this.gameOver || this.scene.isPaused("Game")) return; // can't pause when ded
-      console.log(this.scene.isPaused("Game"), this.scene.isActive("Game"));
-      this.scene.launch("Pause");
-      this.scene.pause("Game");
-    });
 
     WebFont.load({
       google: {
@@ -338,7 +339,7 @@ class Game extends Phaser.Scene {
         if (!square.active) clearInterval(square.interval);
 
         // if game is paused, don't do anything
-        if (this.scene.isPaused("Game")) return;
+        if (this.paused) return;
 
         // if not in grid or edge anymore, change direction
         if (
@@ -563,7 +564,7 @@ class Game extends Phaser.Scene {
         return;
       }
 
-      if (this.scene.isPaused("Game")) return; // if game is paused, don't do anything
+      if (this.paused) return; // if game is paused, don't do anything
 
       this.timer--;
       this.timeText.setText(`${this.timer}`);
@@ -714,12 +715,52 @@ class Game extends Phaser.Scene {
     });
   }
 
-  createUIControls() {
-    this.input.keyboard.on("keyup-ESC", () => {
+  createPause() {
+    /* phaser has isActive(scene) or isPaused(scene) to check whether a scene
+    is paused or not. however, that information is not immediately updated if
+    the user clicks away from the page. we have intervals that we run in the game 
+    (the timer and the squares) and they will keep running if the user clicks
+    onto a different tab if we use isActive() or isPaused() as our check.
+    so, instead, we have a variable called paused that updates immediately
+    upon blur and resume, so all timers use this variable to check if they
+    should still be running or not. */
+    this.paused = false;
+
+    let pauseButton, playButton;
+
+    pauseButton = new CustomButton(this, this.gameW * 0.85, 60, "pause", () => {
       if (this.gameOver) return; // can't pause when ded
+      this.paused = true;
+      pauseButton.setVisible(false);
+      playButton.setVisible(true);
       this.scene.launch("Pause");
       this.scene.pause("Game");
     });
+
+    playButton = new CustomButton(this, this.gameW * 0.85, 60, "play", () => {
+      playButton.setVisible(false);
+      pauseButton.setVisible(true);
+      this.scene.resume("Game");
+      this.scene.stop("Pause");
+    }).setVisible(false);
+
+    this.input.keyboard.on("keyup-ESC", () => {
+      if (this.gameOver) return; // can't pause when ded
+      this.paused = true;
+      this.scene.launch("Pause");
+      this.scene.pause("Game");
+    });
+
+    // when clicked away, turn on paused so intervals stop
+    this.game.events.addListener(Phaser.Core.Events.BLUR, () => {
+      if (this.gameOver || this.paused) return;
+      this.paused = true;
+      this.scene.launch("Pause");
+      this.scene.pause("Game");
+    });
+
+    // on resume, turn off paused
+    this.events.on("resume", () => (this.paused = false));
   }
 
   restartGame() {
@@ -1506,6 +1547,32 @@ class CustomText extends Phaser.GameObjects.Text {
       );
     }
     return cT;
+  }
+}
+
+class CustomButton extends Phaser.GameObjects.Image {
+  constructor(
+    scene, // always "this" in the scene class
+    x,
+    y,
+    key,
+    callback // provided only for buttons
+  ) {
+    super(scene);
+
+    const cB = scene.add.image(x, y, key);
+
+    // if callback is given, assume it's a button and add callback
+    cB.setInteractive()
+      .on("pointerover", function () {
+        this.setTint(0xffffcc);
+      })
+      .on("pointerout", function () {
+        this.setTint(0xffffff);
+      })
+      .on("pointerdown", callback, scene);
+
+    return cB;
   }
 }
 
