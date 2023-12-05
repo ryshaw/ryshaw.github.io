@@ -1274,6 +1274,9 @@ class Game extends Phaser.Scene {
   }
 }
 
+////////////////////////////// TODO
+// made this into a whole nother UI scene and have it call functions
+// in the game scene using this.scene.get("Game").action()
 class Pause extends Phaser.Scene {
   constructor() {
     super({ key: "Pause" });
