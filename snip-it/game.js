@@ -1,4 +1,16 @@
 const VERSION = "Snip It! v0.3";
+const DEV_MODE = false; // sets timer high, enables level select, turns on FPS, and turns on physics debug
+const MAX_LEVEL = 25;
+const FONTS = [
+  "IBM Plex Mono",
+  "Finger Paint",
+  "Anonymous Pro",
+  "Roboto Mono",
+  "PT Sans",
+  "Quicksand",
+  "IBM Plex Sans",
+  "Titillium Web",
+];
 
 class Background extends Phaser.Scene {
   constructor() {
@@ -17,12 +29,9 @@ class Background extends Phaser.Scene {
     graphics.fillGradientStyle(top, top, bottom, bottom, 0.9);
     graphics.fillRect(0, 0, w, h);
     this.scene.launch("Game");
+    this.scene.launch("MainUI");
   }
 }
-
-// sets timer high, enables level select, turns on FPS, and turns on physics debug
-const DEV_MODE = false;
-const MAX_LEVEL = 25;
 
 class Game extends Phaser.Scene {
   gameW = 640;
@@ -60,23 +69,44 @@ class Game extends Phaser.Scene {
   }
 
   preload() {
+    // load google's library for the various fonts we want to use
     this.load.script(
       "webfont",
       "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
     );
-
-    this.load.setPath("assets");
-    this.load.image("pause", "pause.png");
-    this.load.image("play", "forward.png");
-    this.load.image("musicOn", "musicOn.png");
-    this.load.image("musicOff", "musicOff.png");
-    this.load.image("return", "return.png");
   }
 
   create() {
     this.level = localStorage.getItem("level") || 1;
 
-    // resolution, resizing, camera code stolen from
+    this.createResolution();
+    this.createLayout();
+    this.createPlayer();
+    this.createPlayerControls();
+    this.createMouseControls();
+    this.createEvents();
+    if (DEV_MODE) this.createLevelSelectControls();
+    this.createPhysics();
+
+    this.level = this.level / 1; // make sure it's a number
+    const numCircles = Math.floor(Math.sqrt(2.8 * this.level));
+    const numSquares = Math.floor(this.level * (0.03 * this.level + 0.45));
+    this.createCircles(numCircles);
+    this.createSquares(numSquares);
+
+    WebFont.load({
+      google: {
+        families: FONTS,
+      },
+      active: () => {
+        this.loadGameText();
+        this.startGame();
+      },
+    });
+  }
+
+  createResolution() {
+    // I don't know how this code works but it's magic. I also stole it from here:
     // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
     const width = this.scale.gameSize.width;
     const height = this.scale.gameSize.height;
@@ -95,39 +125,6 @@ class Game extends Phaser.Scene {
     this.updateCamera();
 
     this.scale.on("resize", this.resize, this);
-
-    this.createLayout();
-    this.createPlayer();
-    this.createPlayerControls();
-    this.createMouseControls();
-    this.createPause();
-    if (DEV_MODE) this.createLevelSelectControls();
-    this.createPhysics();
-
-    this.level = this.level / 1; // make sure it's a number
-    const numCircles = Math.floor(Math.sqrt(2.8 * this.level));
-    const numSquares = Math.floor(this.level * (0.03 * this.level + 0.45));
-    this.createCircles(numCircles);
-    this.createSquares(numSquares);
-
-    WebFont.load({
-      google: {
-        families: [
-          "IBM Plex Mono",
-          "Finger Paint",
-          "Anonymous Pro",
-          "Roboto Mono",
-          "PT Sans",
-          "Quicksand",
-          "IBM Plex Sans",
-          "Titillium Web",
-        ],
-      },
-      active: () => {
-        this.loadGameUI();
-        this.startGame();
-      },
-    });
   }
 
   createLayout() {
@@ -421,7 +418,7 @@ class Game extends Phaser.Scene {
     );
   }
 
-  loadGameUI() {
+  loadGameText() {
     const title = new CustomText(
       this,
       this.gameW * 0.5,
@@ -597,7 +594,7 @@ class Game extends Phaser.Scene {
     const scaleY = this.sizer.height / this.gameH;
 
     // offset is comparing the game's height to the window's height,
-    // and centering the game in the middle of the window.
+    // and centering the game in (kind of) the middle of the window.
     const offset = (1 + this.parent.height / this.sizer.height) / 2;
 
     camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
@@ -715,7 +712,7 @@ class Game extends Phaser.Scene {
     });
   }
 
-  createPause() {
+  createEvents() {
     /* phaser has isActive(scene) or isPaused(scene) to check whether a scene
     is paused or not. however, that information is not immediately updated if
     the user clicks away from the page. we have intervals that we run in the game 
@@ -726,40 +723,7 @@ class Game extends Phaser.Scene {
     should still be running or not. */
     this.paused = false;
 
-    let pauseButton, playButton;
-
-    pauseButton = new CustomButton(this, this.gameW * 0.85, 60, "pause", () => {
-      if (this.gameOver) return; // can't pause when ded
-      this.paused = true;
-      pauseButton.setVisible(false);
-      playButton.setVisible(true);
-      this.scene.launch("Pause");
-      this.scene.pause("Game");
-    });
-
-    playButton = new CustomButton(this, this.gameW * 0.85, 60, "play", () => {
-      playButton.setVisible(false);
-      pauseButton.setVisible(true);
-      this.scene.resume("Game");
-      this.scene.stop("Pause");
-    }).setVisible(false);
-
-    this.input.keyboard.on("keyup-ESC", () => {
-      if (this.gameOver) return; // can't pause when ded
-      this.paused = true;
-      this.scene.launch("Pause");
-      this.scene.pause("Game");
-    });
-
-    // when clicked away, turn on paused so intervals stop
-    this.game.events.addListener(Phaser.Core.Events.BLUR, () => {
-      if (this.gameOver || this.paused) return;
-      this.paused = true;
-      this.scene.launch("Pause");
-      this.scene.pause("Game");
-    });
-
-    // on resume, turn off paused
+    this.events.on("pause", () => (this.paused = true));
     this.events.on("resume", () => (this.paused = false));
   }
 
@@ -913,7 +877,7 @@ class Game extends Phaser.Scene {
       }
     }
 
-    this.fillInTilesRecursiely(startPos.clone().add(direction));
+    this.fillInTilesRecursively(startPos.clone().add(direction));
 
     // update edge points: filled-in tiles that are facing undrawn area only
     this.edgePoints.removeAll();
@@ -960,7 +924,7 @@ class Game extends Phaser.Scene {
     if (Math.round(this.areaFilled * 100) >= 95) this.gameWin();
   }
 
-  fillInTilesRecursiely(pos) {
+  fillInTilesRecursively(pos) {
     if (this.checkInBounds(pos)) {
       let tile = this.grid[pos.x][pos.y];
       if (tile.body || tile.getData("filled")) return; // base case!
@@ -969,10 +933,10 @@ class Game extends Phaser.Scene {
       //this.physics.add.existing(tile, true);
     } else return;
 
-    this.fillInTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.UP));
-    this.fillInTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.RIGHT));
-    this.fillInTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.LEFT));
-    this.fillInTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.DOWN));
+    this.fillInTilesRecursively(pos.clone().add(Phaser.Math.Vector2.UP));
+    this.fillInTilesRecursively(pos.clone().add(Phaser.Math.Vector2.RIGHT));
+    this.fillInTilesRecursively(pos.clone().add(Phaser.Math.Vector2.LEFT));
+    this.fillInTilesRecursively(pos.clone().add(Phaser.Math.Vector2.DOWN));
   }
 
   countTilesRecursiely(pos) {
@@ -1275,25 +1239,43 @@ class Game extends Phaser.Scene {
 }
 
 ////////////////////////////// TODO
-// made this into a whole nother UI scene and have it call functions
+// make this into a whole nother UI scene and have it call functions
 // in the game scene using this.scene.get("Game").action()
-class Pause extends Phaser.Scene {
+class MainUI extends Phaser.Scene {
+  gameW = 640;
+  gameH = 960;
+  UIColor = "#070600"; // general dark color for the UI. it's da fillColor in Game
+  pauseButton;
+  playButton;
+  pauseText;
+
   constructor() {
-    super({ key: "Pause" });
+    super("MainUI");
   }
 
   preload() {
-    // load google's library for the font, GFS Didot
+    // load google's library for the various fonts we want to use
     this.load.script(
       "webfont",
       "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
     );
+
+    this.load.setPath("assets");
+    this.load.image("pause", "pause.png");
+    this.load.image("play", "forward.png");
+    this.load.image("musicOn", "musicOn.png");
+    this.load.image("musicOff", "musicOff.png");
+    this.load.image("return", "return.png");
   }
 
   create() {
+    this.createResolution();
+    this.createLayout();
+    this.createControls();
+
     WebFont.load({
       google: {
-        families: ["Press Start 2P"],
+        families: FONTS,
       },
       active: () => {
         this.loadText();
@@ -1301,27 +1283,134 @@ class Pause extends Phaser.Scene {
     });
   }
 
-  loadText() {
-    const w = window.innerWidth; // take up the full browser window
-    const h = window.innerHeight;
+  createResolution() {
+    // I don't know how this code works but it's magic. I also stole it from here:
+    // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
+    const width = this.scale.gameSize.width;
+    const height = this.scale.gameSize.height;
 
-    const t1 = new CustomText(this, w * 0.5, h * 0.5, "game paused", "g")
-      .setOrigin(0.5, 0.5)
-      .setPadding(20)
-      .setBackgroundColor("#0077b6");
+    this.parent = new Phaser.Structs.Size(width, height);
+    this.sizer = new Phaser.Structs.Size(
+      this.gameW,
+      this.gameH,
+      Phaser.Structs.Size.FIT,
+      this.parent
+    );
 
-    this.tweens.add({
-      targets: t1,
-      y: t1.y - 20,
-      yoyo: true,
-      duration: 1600,
-      loop: -1,
-      ease: "sine.inout",
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+
+    this.scale.on("resize", this.resize, this);
+  }
+
+  resize(gameSize) {
+    const width = gameSize.width;
+    const height = gameSize.height;
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+  }
+
+  updateCamera() {
+    const camera = this.cameras.main;
+
+    const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
+    const y = 0;
+    const scaleX = this.sizer.width / this.gameW;
+    const scaleY = this.sizer.height / this.gameH;
+
+    // offset is comparing the game's height to the window's height,
+    // and centering the game in (kind of) the middle of the window.
+    const offset = (1 + this.parent.height / this.sizer.height) / 2;
+
+    camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
+    camera.setZoom(Math.max(scaleX, scaleY));
+    camera.centerOn(this.gameW / 2, this.gameH / 2);
+  }
+
+  createLayout() {
+    this.pauseButton = new CustomButton(
+      this,
+      this.gameW * 0.85,
+      60,
+      "pause",
+      this.pauseOrResumeGame
+    );
+
+    this.playButton = new CustomButton(
+      this,
+      this.gameW * 0.85,
+      60,
+      "play",
+      this.pauseOrResumeGame
+    ).setVisible(false);
+
+    new CustomButton(this, this.gameW * 0.15, 60, "return", () => {
+      // make this cleaner later
+      localStorage.setItem("level", 1);
+      const g = this.scene.get("Game");
+      g.level = 1;
+      g.gameOver = true;
+      g.restartGame();
+    });
+  }
+
+  createControls() {
+    const escape = this.input.keyboard.addKey(
+      Phaser.Input.Keyboard.KeyCodes.ESC
+    );
+
+    this.input.keyboard.on("keydown-ESC", () => {
+      if (Phaser.Input.Keyboard.JustDown(escape)) this.pauseOrResumeGame();
     });
 
-    this.input.keyboard.on("keyup-ESC", () => {
+    // also pause on click away
+    this.game.events.addListener(Phaser.Core.Events.BLUR, () => {
+      if (!this.scene.isPaused("Game")) this.pauseOrResumeGame();
+    });
+  }
+
+  pauseOrResumeGame() {
+    if (this.scene.get("Game").gameOver) return; // can't pause when ded
+
+    if (!this.scene.isPaused("Game")) {
+      this.scene.pause("Game");
+      this.pauseButton.setVisible(false);
+      this.playButton.setVisible(true);
+      this.pauseText.setVisible(true);
+    } else {
       this.scene.resume("Game");
-      this.scene.stop("Pause");
+      this.pauseButton.setVisible(true);
+      this.playButton.setVisible(false);
+      this.pauseText.setVisible(false);
+    }
+  }
+
+  loadText() {
+    this.pauseText = new CustomText(
+      this,
+      this.gameW * 0.5,
+      this.gameH * 0.5,
+      "game paused",
+      "l",
+      "c"
+    )
+      .setOrigin(0.5, 0.5)
+      .setStroke(this.UIColor, 14)
+      .setShadow(2, 2, "#333333", 2, true, true)
+      .setVisible(false);
+
+    this.tweens.add({
+      targets: this.pauseText,
+      y: this.pauseText.y - 40,
+      yoyo: true,
+      duration: 3000,
+      loop: -1,
+      ease: "sine.inout",
     });
   }
 }
@@ -1469,7 +1558,7 @@ const config = {
       height: 1200,
     },
   },
-  scene: [Background, Game, Pause],
+  scene: [Background, Game, MainUI],
   physics: {
     default: "arcade",
     arcade: {
