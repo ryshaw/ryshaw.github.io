@@ -921,7 +921,7 @@ class Game extends Phaser.Scene {
 
     this.areaText.setText(`${Math.round(this.areaFilled * 100)}%`);
 
-    if (Math.round(this.areaFilled * 100) >= 95) this.gameWin();
+    if (Math.round(this.areaFilled * 100) >= 90) this.gameWin();
   }
 
   fillInTilesRecursively(pos) {
