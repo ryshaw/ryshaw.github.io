@@ -74,6 +74,8 @@ class Game extends Phaser.Scene {
       "webfont",
       "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
     );
+
+    this.load.audio("music", "assets/music.mp3");
   }
 
   create() {
@@ -87,6 +89,7 @@ class Game extends Phaser.Scene {
     this.createEvents();
     if (DEV_MODE) this.createLevelSelectControls();
     this.createPhysics();
+    this.createAudio();
 
     this.level = this.level / 1; // make sure it's a number
     const numCircles = Math.floor(Math.sqrt(2.8 * this.level));
@@ -416,6 +419,13 @@ class Game extends Phaser.Scene {
       undefined,
       this
     );
+  }
+
+  createAudio() {
+    this.sound.add("music").play({
+      volume: 0.6,
+      loop: true,
+    });
   }
 
   loadGameText() {
