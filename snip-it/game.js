@@ -74,8 +74,6 @@ class Game extends Phaser.Scene {
       "webfont",
       "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
     );
-
-    this.load.audio("music", "assets/music.mp3");
   }
 
   create() {
@@ -89,7 +87,6 @@ class Game extends Phaser.Scene {
     this.createEvents();
     if (DEV_MODE) this.createLevelSelectControls();
     this.createPhysics();
-    this.createAudio();
 
     this.level = this.level / 1; // make sure it's a number
     const numCircles = Math.floor(Math.sqrt(2.8 * this.level));
@@ -419,13 +416,6 @@ class Game extends Phaser.Scene {
       undefined,
       this
     );
-  }
-
-  createAudio() {
-    this.sound.add("music").play({
-      volume: 0.6,
-      loop: true,
-    });
   }
 
   loadGameText() {
@@ -1257,6 +1247,8 @@ class MainUI extends Phaser.Scene {
   UIColor = "#070600"; // general dark color for the UI. it's da fillColor in Game
   pauseButton;
   playButton;
+  musicOnButton;
+  musicOffButton;
   pauseText;
 
   constructor() {
@@ -1276,12 +1268,15 @@ class MainUI extends Phaser.Scene {
     this.load.image("musicOn", "musicOn.png");
     this.load.image("musicOff", "musicOff.png");
     this.load.image("return", "return.png");
+
+    this.load.audio("music", "music.mp3");
   }
 
   create() {
     this.createResolution();
     this.createLayout();
     this.createControls();
+    this.createAudio();
 
     WebFont.load({
       google: {
@@ -1345,7 +1340,7 @@ class MainUI extends Phaser.Scene {
   createLayout() {
     this.pauseButton = new CustomButton(
       this,
-      this.gameW * 0.85,
+      this.gameW * 0.88,
       60,
       "pause",
       this.pauseOrResumeGame
@@ -1353,20 +1348,36 @@ class MainUI extends Phaser.Scene {
 
     this.playButton = new CustomButton(
       this,
-      this.gameW * 0.85,
+      this.gameW * 0.88,
       60,
       "play",
       this.pauseOrResumeGame
     ).setVisible(false);
 
-    new CustomButton(this, this.gameW * 0.15, 60, "return", () => {
-      // make this cleaner later
+    new CustomButton(this, this.gameW * 0.8, 57, "return", () => {
+      // make this cleaner later, probably leads to memory leaks
       localStorage.setItem("level", 1);
       const g = this.scene.get("Game");
       g.level = 1;
       g.gameOver = true;
       g.restartGame();
     });
+
+    this.musicOnButton = new CustomButton(
+      this,
+      this.gameW * 0.1,
+      60,
+      "musicOn",
+      this.flipMusic
+    );
+
+    this.musicOffButton = new CustomButton(
+      this,
+      this.gameW * 0.1,
+      60,
+      "musicOff",
+      this.flipMusic
+    ).setVisible(false);
   }
 
   createControls() {
@@ -1384,6 +1395,13 @@ class MainUI extends Phaser.Scene {
     });
   }
 
+  createAudio() {
+    this.sound.add("music").play({
+      volume: 0.6,
+      loop: true,
+    });
+  }
+
   pauseOrResumeGame() {
     if (this.scene.get("Game").gameOver) return; // can't pause when ded
 
@@ -1397,6 +1415,19 @@ class MainUI extends Phaser.Scene {
       this.pauseButton.setVisible(true);
       this.playButton.setVisible(false);
       this.pauseText.setVisible(false);
+    }
+  }
+
+  flipMusic() {
+    const music = this.sound.get("music");
+    if (music.isPlaying) {
+      music.pause();
+      this.musicOnButton.setVisible(false);
+      this.musicOffButton.setVisible(true);
+    } else {
+      music.resume();
+      this.musicOnButton.setVisible(true);
+      this.musicOffButton.setVisible(false);
     }
   }
 
