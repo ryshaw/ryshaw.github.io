@@ -1,6 +1,10 @@
-const VERSION = "Snip It! v0.3";
+const VERSION = "Snip It! v0.6";
+
+const gameW = 640;
+const gameH = 960;
 const DEV_MODE = false; // sets timer high, enables level select, turns on FPS, and turns on physics debug
 const MAX_LEVEL = 25;
+
 const FONTS = [
   "IBM Plex Mono",
   "Finger Paint",
@@ -12,21 +16,37 @@ const FONTS = [
   "Titillium Web",
 ];
 
+const COLORS = {
+  topGradient: 0x3f8efc, // for background
+  bottomGradient: 0x7de2d1, // for background
+  fillColor: 0x070600, // colors UI and drawings
+  drawColor: 0xfffbfc, // colors player current drawing. other colors: 0xfdd35d, 0xfdca40
+  deathColor: 0xc1121f, // when player dies...
+  tintColor: 0xfbf8cc, // for highlighting text
+  clickColor: 0xdddddd, // when text is clicked
+  buttonColor: 0xe0fbfc, // for coloring buttons
+  white: 0xffffff,
+  black: 0x000000,
+};
+
 class Background extends Phaser.Scene {
   constructor() {
     super("Background");
   }
 
   create() {
-    // for gradients
-    const top = 0x3f8efc; //0x023e8a;
-    const bottom = 0x7de2d1; //0x457b9d;
     const w = window.innerWidth; // take up the full browser window
     const h = window.innerHeight;
 
     const graphics = this.add.graphics();
 
-    graphics.fillGradientStyle(top, top, bottom, bottom, 0.9);
+    graphics.fillGradientStyle(
+      COLORS.topGradient,
+      COLORS.topGradient,
+      COLORS.bottomGradient,
+      COLORS.bottomGradient,
+      0.9
+    );
     graphics.fillRect(0, 0, w, h);
     this.scene.launch("Game");
     this.scene.launch("MainUI");
@@ -34,8 +54,6 @@ class Background extends Phaser.Scene {
 }
 
 class Game extends Phaser.Scene {
-  gameW = 640;
-  gameH = 960;
   keysDown;
   graphics;
   player;
@@ -46,8 +64,6 @@ class Game extends Phaser.Scene {
   gridY; // how many tiles is grid in Y direction
   canMove; // timer that controls how fast player can go across tiles
   edgePoints; // all points on drawn edges that player can walk on and connect to
-  fillColor = 0x070600; // colors the filled area and edges the player has drawn
-  drawColor = 0xfffbfc; //0xfdd35d; //0xfdca40; // colors the line the player is currently drawing
   areaFilled = 0; // percentage of area that has been drawn in
   totalDrawingArea; // the area of the grid minus the perimeter which is already filled in, so don't count the perimeter
   areaText;
@@ -113,8 +129,8 @@ class Game extends Phaser.Scene {
 
     this.parent = new Phaser.Structs.Size(width, height);
     this.sizer = new Phaser.Structs.Size(
-      this.gameW,
-      this.gameH,
+      gameW,
+      gameH,
       Phaser.Structs.Size.FIT,
       this.parent
     );
@@ -129,22 +145,15 @@ class Game extends Phaser.Scene {
 
   createLayout() {
     // show the "game window" while in development
-    this.add.rectangle(
-      this.gameW * 0.5,
-      this.gameH * 0.5,
-      this.gameW,
-      this.gameH,
-      0x000000,
-      0.04
-    );
+    this.add.rectangle(gameW * 0.5, gameH * 0.5, gameW, gameH, 0x000000, 0.04);
 
     this.graphics = this.add.graphics();
 
     this.bounds = this.add.rectangle(
-      this.gameW * 0.5,
-      this.gameH * 0.49,
-      this.gameW * 0.85,
-      this.gameH * 0.75,
+      gameW * 0.5,
+      gameH * 0.49,
+      gameW * 0.85,
+      gameH * 0.75,
       0xffffff,
       0 //0.04
     );
@@ -187,7 +196,7 @@ class Game extends Phaser.Scene {
             0xffff00,
             0
           )
-          .setFillStyle(this.fillColor, 0)
+          .setFillStyle(COLORS.fillColor, 0)
           .setData("counted", false)
           .setData("filled", false);
 
@@ -195,7 +204,7 @@ class Game extends Phaser.Scene {
 
         // fill up edges
         if (i == 0 || i == this.gridX - 1 || j == 0 || j == this.gridY - 1) {
-          this.grid[i][j].setFillStyle(this.fillColor, 1);
+          this.grid[i][j].setFillStyle(COLORS.fillColor, 1);
           this.physics.add.existing(this.grid[i][j], true);
           this.grid[i][j].body.immovable = true;
         }
@@ -219,7 +228,7 @@ class Game extends Phaser.Scene {
           v.y = Math.round(v.y);
           v.add(p);
           if (this.checkInBounds(v) && !this.grid[v.x][v.y].body && t.body) {
-            t.setFillStyle(this.fillColor, 1);
+            t.setFillStyle(COLORS.fillColor, 1);
             this.edgePoints.add(p);
           }
         }
@@ -419,28 +428,10 @@ class Game extends Phaser.Scene {
   }
 
   loadGameText() {
-    const title = new GameText(
-      this,
-      this.gameW * 0.5,
-      20,
-      "snip it!",
-      "g",
-      "l"
-    ).setOrigin(0.5, 0);
-    /*
-    const t2 = new CustomText(
-      this,
-      this.gameW * 0.5,
-      this.gameH - 20,
-      "a game by ryshaw\nmade in phaser 3",
-      "m",
-      "c"
-    ).setOrigin(0.5, 1);*/
-
     const levelNum = new GameText(
       this,
-      this.gameW * 0.15,
-      this.gameH - 20,
+      gameW * 0.15,
+      gameH - 12,
       `${this.level}`,
       "g",
       "c"
@@ -449,7 +440,7 @@ class Game extends Phaser.Scene {
     const levelT = new GameText(
       this,
       levelNum.getTopCenter().x,
-      levelNum.getTopCenter().y,
+      levelNum.getTopCenter().y + 8,
       "level",
       "s",
       "c"
@@ -469,8 +460,8 @@ class Game extends Phaser.Scene {
 
     this.areaText = new GameText(
       this,
-      this.gameW * 0.85,
-      this.gameH - 20,
+      gameW * 0.85,
+      gameH - 12,
       `${Math.round(this.areaFilled * 100)}%`,
       "g",
       "c"
@@ -479,16 +470,16 @@ class Game extends Phaser.Scene {
     const areaT = new GameText(
       this,
       this.areaText.getTopCenter().x,
-      this.areaText.getTopCenter().y,
-      "filled area",
+      this.areaText.getTopCenter().y + 8,
+      "area",
       "s",
       "c"
     ).setOrigin(0.5, 1);
 
     this.timeText = new GameText(
       this,
-      this.gameW * 0.5,
-      this.gameH - 20,
+      gameW * 0.5,
+      gameH - 12,
       `${this.timer}`,
       "g",
       "c"
@@ -499,8 +490,8 @@ class Game extends Phaser.Scene {
     const timeT = new GameText(
       this,
       this.timeText.getTopCenter().x,
-      this.timeText.getTopCenter().y,
-      "time left",
+      this.timeText.getTopCenter().y + 8,
+      "timer",
       "s",
       "c"
     ).setOrigin(0.5, 1);
@@ -508,8 +499,8 @@ class Game extends Phaser.Scene {
     if (DEV_MODE) {
       const fpsText = new GameText(
         this,
-        this.gameW * 0.1,
-        this.gameH * 0.08,
+        gameW * 0.1,
+        gameH * 0.08,
         `${Math.round(this.sys.game.loop.actualFps)}`,
         "l",
         "c"
@@ -525,23 +516,12 @@ class Game extends Phaser.Scene {
 
     this.levelSelectText = new GameText(
       this,
-      this.gameW * 0.88,
+      gameW * 0.88,
       25,
       "",
       "l",
       "c"
     ).setOrigin(0.5, 0);
-
-    // add fx here for desktop only, not mobile
-    if (this.sys.game.device.os.desktop) {
-      title.postFX.addGlow(0xffffff, 0.5);
-      areaT.postFX.addGlow(0xffffff, 0.1);
-      timeT.postFX.addGlow(0xffffff, 0.1);
-      levelT.postFX.addGlow(0xffffff, 0.1);
-      levelNum.postFX.addGlow(0xffffff, 0.3);
-      this.areaText.postFX.addGlow(0xffffff, 0.3);
-      this.timeText.postFX.addGlow(0xffffff, 0.3);
-    }
   }
 
   startGame() {
@@ -590,8 +570,8 @@ class Game extends Phaser.Scene {
 
     const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
     const y = 0;
-    const scaleX = this.sizer.width / this.gameW;
-    const scaleY = this.sizer.height / this.gameH;
+    const scaleX = this.sizer.width / gameW;
+    const scaleY = this.sizer.height / gameH;
 
     // offset is comparing the game's height to the window's height,
     // and centering the game in (kind of) the middle of the window.
@@ -599,7 +579,7 @@ class Game extends Phaser.Scene {
 
     camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
     camera.setZoom(Math.max(scaleX, scaleY));
-    camera.centerOn(this.gameW / 2, this.gameH / 2);
+    camera.centerOn(gameW / 2, gameH / 2);
   }
 
   createPlayerControls() {
@@ -835,13 +815,13 @@ class Game extends Phaser.Scene {
     if (this.checkInBounds(midPos) && !midEdge && !mid.body) {
       // if we're in completely undrawn area, cover the area we're coming from
       if (this.checkInBounds(fromPos) && !fromEdge) {
-        from.setFillStyle(this.drawColor, 1);
+        from.setFillStyle(COLORS.drawColor, 1);
         this.physics.add.existing(from, true);
         from.body.immovable = true;
       }
 
       // draw the middle tile always
-      mid.setFillStyle(this.drawColor, 1);
+      mid.setFillStyle(COLORS.drawColor, 1);
       this.physics.add.existing(mid, true);
       mid.body.immovable = true;
 
@@ -906,7 +886,7 @@ class Game extends Phaser.Scene {
             !this.grid[v.x][v.y].body &&
             t.body
           ) {
-            t.setFillStyle(this.fillColor, 1);
+            t.setFillStyle(COLORS.fillColor, 1);
             t.setData("filled", true);
             this.edgePoints.add(p);
           }
@@ -922,14 +902,14 @@ class Game extends Phaser.Scene {
 
     this.areaText.setText(`${Math.round(this.areaFilled * 100)}%`);
 
-    if (Math.round(this.areaFilled * 100) >= 90) this.gameWin();
+    if (Math.round(this.areaFilled * 100) >= 90) gameWin();
   }
 
   fillInTilesRecursively(pos) {
     if (this.checkInBounds(pos)) {
       let tile = this.grid[pos.x][pos.y];
       if (tile.body || tile.getData("filled")) return; // base case!
-      tile.setFillStyle(this.fillColor, 0.2);
+      tile.setFillStyle(COLORS.fillColor, 0.2);
       tile.setData("filled", true);
       //this.physics.add.existing(tile, true);
     } else return;
@@ -987,8 +967,8 @@ class Game extends Phaser.Scene {
     // if we hit a line the player is currently drawing, they die
     // before a drawing is completed,
     // the player's drawing is colored in drawColor
-    if (tile.fillColor == this.drawColor) {
-      tile.fillColor = 0xc1121f;
+    if (tile.fillColor == COLORS.drawColor) {
+      tile.fillColor = COLORS.deathColor;
       this.tweens.add({
         targets: tile,
         angle: 360,
@@ -1002,7 +982,7 @@ class Game extends Phaser.Scene {
 
   squareHitPlayer(player, square) {
     clearInterval(square.interval);
-    square.fillColor = 0xc1121f;
+    square.fillColor = COLORS.deathColor;
     this.tweens.add({
       targets: square,
       angle: 360,
@@ -1118,31 +1098,23 @@ class Game extends Phaser.Scene {
     this.time.delayedCall(delay + 1500, () => {
       const t = new GameText(
         this,
-        this.gameW * 0.5,
-        this.gameH * 0.48,
+        gameW * 0.5,
+        gameH * 0.48,
         "picture complete!",
         "l",
         "c"
       );
-
-      if (this.sys.game.device.os.desktop) {
-        t.postFX.addGlow(0xffffff, 0.3);
-      }
     });
 
     this.time.delayedCall(delay + 2500, () => {
       const t = new GameText(
         this,
-        this.gameW * 0.5,
-        this.gameH * 0.54,
+        gameW * 0.5,
+        gameH * 0.54,
         "press any key to continue",
         "m",
         "c"
       );
-
-      if (this.sys.game.device.os.desktop) {
-        t.postFX.addGlow(0xffffff, 0.3);
-      }
 
       this.input.keyboard.once("keydown", () => this.restartGame());
       this.input.once("pointerdown", () => this.restartGame());
@@ -1207,31 +1179,23 @@ class Game extends Phaser.Scene {
     this.time.delayedCall(2200, () => {
       const t = new GameText(
         this,
-        this.gameW * 0.5,
-        this.gameH * 0.48,
+        gameW * 0.5,
+        gameH * 0.48,
         conditionText,
         "l",
         "c"
       );
-
-      if (this.sys.game.device.os.desktop) {
-        t.postFX.addGlow(0xffffff, 0.3);
-      }
     });
 
     this.time.delayedCall(3000, () => {
       const t = new GameText(
         this,
-        this.gameW * 0.5,
-        this.gameH * 0.54,
+        gameW * 0.5,
+        gameH * 0.54,
         "press any key to try again",
         "m",
         "c"
       );
-
-      if (this.sys.game.device.os.desktop) {
-        t.postFX.addGlow(0xffffff, 0.3);
-      }
 
       this.input.keyboard.once("keydown", () => this.restartGame());
       this.input.once("pointerdown", () => this.restartGame());
@@ -1240,14 +1204,11 @@ class Game extends Phaser.Scene {
 }
 
 class MainUI extends Phaser.Scene {
-  gameW = 640;
-  gameH = 960;
-  UIColor = "#070600"; // general dark color for the UI. it's da fillColor in Game
   pauseButton;
   playButton;
   musicOnButton;
   musicOffButton;
-  pauseMenu; // container containing everything for the pause menu
+  pauseMenu; // container
 
   constructor() {
     super("MainUI");
@@ -1265,7 +1226,6 @@ class MainUI extends Phaser.Scene {
     this.load.image("play", "forward.png");
     this.load.image("musicOn", "musicOn.png");
     this.load.image("musicOff", "musicOff.png");
-    this.load.image("return", "return.png");
 
     this.load.audio("music", "music.mp3");
   }
@@ -1294,8 +1254,8 @@ class MainUI extends Phaser.Scene {
 
     this.parent = new Phaser.Structs.Size(width, height);
     this.sizer = new Phaser.Structs.Size(
-      this.gameW,
-      this.gameH,
+      gameW,
+      gameH,
       Phaser.Structs.Size.FIT,
       this.parent
     );
@@ -1323,8 +1283,8 @@ class MainUI extends Phaser.Scene {
 
     const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
     const y = 0;
-    const scaleX = this.sizer.width / this.gameW;
-    const scaleY = this.sizer.height / this.gameH;
+    const scaleX = this.sizer.width / gameW;
+    const scaleY = this.sizer.height / gameH;
 
     // offset is comparing the game's height to the window's height,
     // and centering the game in (kind of) the middle of the window.
@@ -1332,38 +1292,38 @@ class MainUI extends Phaser.Scene {
 
     camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
     camera.setZoom(Math.max(scaleX, scaleY));
-    camera.centerOn(this.gameW / 2, this.gameH / 2);
+    camera.centerOn(gameW / 2, gameH / 2);
   }
 
   createButtons() {
     this.pauseButton = new GameButton(
       this,
-      this.gameW * 0.88,
-      60,
+      gameW * 0.875,
+      57,
       "pause",
       this.pauseOrResumeGame
     );
 
     this.playButton = new GameButton(
       this,
-      this.gameW * 0.88,
-      60,
+      gameW * 0.875,
+      57,
       "play",
       this.pauseOrResumeGame
     ).setVisible(false);
 
     this.musicOnButton = new GameButton(
       this,
-      this.gameW * 0.1,
-      60,
+      gameW * 0.125,
+      55,
       "musicOn",
       this.flipMusic
     );
 
     this.musicOffButton = new GameButton(
       this,
-      this.gameW * 0.1,
-      60,
+      gameW * 0.125,
+      55,
       "musicOff",
       this.flipMusic
     ).setVisible(false);
@@ -1386,7 +1346,7 @@ class MainUI extends Phaser.Scene {
 
   createAudio() {
     this.sound.add("music").play({
-      volume: 0.1,
+      volume: 0.7,
       loop: true,
     });
   }
@@ -1421,32 +1381,34 @@ class MainUI extends Phaser.Scene {
   }
 
   createText() {
-    this.pauseMenu = this.add.container(this.gameW * 0.5, this.gameH * 0.55);
+    new GameText(this, gameW * 0.5, 2, "snip it!", "g", "l")
+      .setFontStyle("bold")
+      .setFontSize("72px")
+      .setOrigin(0.48, 0)
+      .setStroke(COLORS.fillColor, 4)
+      .setShadow(4, 4, "#333333", 2, true, true)
+      .setColor("#e0fbfc");
+
+    this.pauseMenu = this.add.container(gameW * 0.5, gameH * 0.55);
 
     const bg = this.add
-      .rectangle(
-        0,
-        -this.gameH * 0.06,
-        this.gameW * 0.6,
-        this.gameH * 0.45,
-        0x3f8efc,
-        0.8
-      )
-      .setStrokeStyle(5, this.UIColor, 0.8);
+      .rectangle(0, -gameH * 0.06, gameW * 0.77, gameH * 0.46, 0x3f8efc, 0.8)
+      .setStrokeStyle(4, COLORS.fillColor, 0.8);
 
-    const top = 0x3f8efc; //0x023e8a;
-    const bottom = 0x7de2d1; //0x457b9d;
-
-    const r1 = new GameText(this, 0, -this.gameH * 0.2, "game paused", "l", "c")
-      .setOrigin(0.5, 0.5)
-      .setStroke(this.UIColor, 8)
-      .setShadow(2, 2, "#333333", 2, true, true);
+    const r1 = new GameText(
+      this,
+      0,
+      -gameH * 0.2,
+      "game paused",
+      "g",
+      "c"
+    ).setOrigin(0.5, 0.5);
 
     this.tweens.add({
       targets: r1,
       y: r1.y - 20,
       yoyo: true,
-      duration: 2000,
+      duration: 1600,
       loop: -1,
       ease: "sine.inout",
     });
@@ -1454,21 +1416,19 @@ class MainUI extends Phaser.Scene {
     const r2 = new GameText(
       this,
       0,
-      -this.gameH * 0.1,
+      -gameH * 0.08,
       "resume game",
-      undefined,
+      "l",
       undefined,
       this.pauseOrResumeGame
-    )
-      .setStroke(this.UIColor, 2)
-      .setShadow(2, 2, "#333333", 2, true, true);
+    );
 
     const r3 = new GameText(
       this,
       0,
-      this.gameH * 0,
+      gameH * 0.02,
       "restart level",
-      undefined,
+      "l",
       undefined,
       () => {
         this.pauseOrResumeGame();
@@ -1478,23 +1438,19 @@ class MainUI extends Phaser.Scene {
         g.gameOver = true;
         g.restartGame();
       }
-    )
-      .setStroke(this.UIColor, 2)
-      .setShadow(2, 2, "#333333", 2, true, true);
+    );
 
     const r4 = new GameText(
       this,
       0,
-      this.gameH * 0.1,
+      gameH * 0.12,
       "return to title",
-      undefined,
+      "l",
       undefined,
       () => {
         console.log("return to title");
       }
-    )
-      .setStroke(this.UIColor, 2)
-      .setShadow(2, 2, "#333333", 2, true, true);
+    );
 
     this.pauseMenu.add([bg, r1, r2, r3, r4]).setVisible(false);
   }
@@ -1660,7 +1616,7 @@ class GameText extends Phaser.GameObjects.Text {
     x,
     y,
     text,
-    size = "m", // s, m, or l for small, medium, or large
+    size = "m", // s, m, l, or g for small, medium, or large
     align = "c", // l, c, or r for left, center, or right
     callback = null // provided only for buttons
   ) {
@@ -1677,14 +1633,15 @@ class GameText extends Phaser.GameObjects.Text {
             ? "48px"
             : size == "m"
             ? "32px"
-            : "16px",
+            : "26px",
         fill: "#fff",
-        align: "left",
+        align: "center",
       })
       .setFontFamily("Roboto Mono")
       .setOrigin(align == "l" ? 0 : align == "c" ? 0.5 : 1, 0.5)
-      .setLineSpacing(16)
-      .setPadding(2);
+      .setPadding(3)
+      .setStroke(COLORS.fillColor, 2)
+      .setShadow(2, 2, "#333333", 2, true, true);
 
     //"IBM Plex Mono", "Finger Paint", "Anonymous Pro"]
     //"Roboto Mono", "PT Sans", "Quicksand", "IBM Plex Sans", "Titillium Web"
@@ -1695,19 +1652,19 @@ class GameText extends Phaser.GameObjects.Text {
     if (callback) {
       cT.setInteractive({ useHandCursor: true })
         .on("pointerover", function () {
-          this.setTint(0xeeeeee);
+          this.setTint(COLORS.tintColor).setScale(1.02);
         })
         .on("pointerout", function () {
-          this.setTint(0xffffff).off("pointerup", callback, scene);
+          this.setTint(COLORS.white).setScale(1);
         })
         .on("pointerdown", function () {
-          this.setTint(0xdddddd);
+          this.setTint(COLORS.clickColor);
           if (this.listenerCount("pointerup") < 2) {
             this.on("pointerup", callback, scene);
           }
         })
         .on("pointerup", function () {
-          this.setTint(0xeeeeee);
+          this.setTint(COLORS.tintColor);
         });
     }
     return cT;
@@ -1720,19 +1677,24 @@ class GameButton extends Phaser.GameObjects.Image {
     x,
     y,
     key,
-    callback // provided only for buttons
+    callback
   ) {
     super(scene);
 
-    const cB = scene.add.image(x, y, key);
+    const cB = scene.add
+      .image(x, y, key)
+      .setScale(0.75)
+      .setTint(COLORS.buttonColor);
 
-    // if callback is given, assume it's a button and add callback
+    cB.preFX.setPadding(32);
+    cB.preFX.addShadow(-2, -2, 0.06, 0.75, 0x000000, 4, 0.8);
+
     cB.setInteractive()
       .on("pointerover", function () {
-        this.setTint(0xffffcc);
+        this.setTint(COLORS.tintColor).setScale(0.82);
       })
       .on("pointerout", function () {
-        this.setTint(0xffffff);
+        this.setTint(COLORS.buttonColor).setScale(0.75);
       })
       .on("pointerdown", callback, scene);
 
