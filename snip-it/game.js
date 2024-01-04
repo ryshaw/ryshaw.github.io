@@ -2,7 +2,7 @@ const VERSION = "Snip It! v0.6";
 
 const gameW = 640;
 const gameH = 960;
-const DEV_MODE = false; // sets timer high, enables level select, turns on FPS, and turns on physics debug
+const DEV_MODE = true; // sets timer high, enables level select, turns on FPS, and turns on physics debug
 const MAX_LEVEL = 25;
 
 const FONTS = [
