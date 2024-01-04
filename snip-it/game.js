@@ -419,7 +419,7 @@ class Game extends Phaser.Scene {
   }
 
   loadGameText() {
-    const title = new CustomText(
+    const title = new GameText(
       this,
       this.gameW * 0.5,
       20,
@@ -437,7 +437,7 @@ class Game extends Phaser.Scene {
       "c"
     ).setOrigin(0.5, 1);*/
 
-    const levelNum = new CustomText(
+    const levelNum = new GameText(
       this,
       this.gameW * 0.15,
       this.gameH - 20,
@@ -446,7 +446,7 @@ class Game extends Phaser.Scene {
       "c"
     ).setOrigin(0.5, 1);
 
-    const levelT = new CustomText(
+    const levelT = new GameText(
       this,
       levelNum.getTopCenter().x,
       levelNum.getTopCenter().y,
@@ -467,7 +467,7 @@ class Game extends Phaser.Scene {
     // display how much area we've covered
     this.areaFilled = Math.round((100 * count) / this.totalDrawingArea) / 100;
 
-    this.areaText = new CustomText(
+    this.areaText = new GameText(
       this,
       this.gameW * 0.85,
       this.gameH - 20,
@@ -476,7 +476,7 @@ class Game extends Phaser.Scene {
       "c"
     ).setOrigin(0.5, 1);
 
-    const areaT = new CustomText(
+    const areaT = new GameText(
       this,
       this.areaText.getTopCenter().x,
       this.areaText.getTopCenter().y,
@@ -485,7 +485,7 @@ class Game extends Phaser.Scene {
       "c"
     ).setOrigin(0.5, 1);
 
-    this.timeText = new CustomText(
+    this.timeText = new GameText(
       this,
       this.gameW * 0.5,
       this.gameH - 20,
@@ -496,7 +496,7 @@ class Game extends Phaser.Scene {
       .setOrigin(0.5, 1)
       .setVisible(false);
 
-    const timeT = new CustomText(
+    const timeT = new GameText(
       this,
       this.timeText.getTopCenter().x,
       this.timeText.getTopCenter().y,
@@ -506,7 +506,7 @@ class Game extends Phaser.Scene {
     ).setOrigin(0.5, 1);
 
     if (DEV_MODE) {
-      const fpsText = new CustomText(
+      const fpsText = new GameText(
         this,
         this.gameW * 0.1,
         this.gameH * 0.08,
@@ -523,7 +523,7 @@ class Game extends Phaser.Scene {
       }, 1000);
     }
 
-    this.levelSelectText = new CustomText(
+    this.levelSelectText = new GameText(
       this,
       this.gameW * 0.88,
       25,
@@ -728,7 +728,7 @@ class Game extends Phaser.Scene {
   }
 
   restartGame() {
-    this.children.getAll().forEach((object) => {
+    /*this.children.getAll().forEach((object) => {
       object.destroy();
     });
     this.input.removeAllListeners();
@@ -739,7 +739,8 @@ class Game extends Phaser.Scene {
     this.sound.removeAll();
     this.anims.resumeAll();
     this.physics.resume();
-    this.create();
+    this.create();*/
+    this.scene.restart();
   }
 
   update() {
@@ -1115,7 +1116,7 @@ class Game extends Phaser.Scene {
     let delay = (this.gridX + this.gridY) * 15 + 600;
 
     this.time.delayedCall(delay + 1500, () => {
-      const t = new CustomText(
+      const t = new GameText(
         this,
         this.gameW * 0.5,
         this.gameH * 0.48,
@@ -1130,7 +1131,7 @@ class Game extends Phaser.Scene {
     });
 
     this.time.delayedCall(delay + 2500, () => {
-      const t = new CustomText(
+      const t = new GameText(
         this,
         this.gameW * 0.5,
         this.gameH * 0.54,
@@ -1204,7 +1205,7 @@ class Game extends Phaser.Scene {
     if (condition == "enemy") conditionText = "you got snipped!";
 
     this.time.delayedCall(2200, () => {
-      const t = new CustomText(
+      const t = new GameText(
         this,
         this.gameW * 0.5,
         this.gameH * 0.48,
@@ -1219,7 +1220,7 @@ class Game extends Phaser.Scene {
     });
 
     this.time.delayedCall(3000, () => {
-      const t = new CustomText(
+      const t = new GameText(
         this,
         this.gameW * 0.5,
         this.gameH * 0.54,
@@ -1238,9 +1239,6 @@ class Game extends Phaser.Scene {
   }
 }
 
-////////////////////////////// TODO
-// make this into a whole nother UI scene and have it call functions
-// in the game scene using this.scene.get("Game").action()
 class MainUI extends Phaser.Scene {
   gameW = 640;
   gameH = 960;
@@ -1249,7 +1247,7 @@ class MainUI extends Phaser.Scene {
   playButton;
   musicOnButton;
   musicOffButton;
-  pauseText;
+  pauseMenu; // container containing everything for the pause menu
 
   constructor() {
     super("MainUI");
@@ -1274,7 +1272,7 @@ class MainUI extends Phaser.Scene {
 
   create() {
     this.createResolution();
-    this.createLayout();
+    this.createButtons();
     this.createControls();
     this.createAudio();
 
@@ -1283,7 +1281,7 @@ class MainUI extends Phaser.Scene {
         families: FONTS,
       },
       active: () => {
-        this.loadText();
+        this.createText();
       },
     });
   }
@@ -1337,8 +1335,8 @@ class MainUI extends Phaser.Scene {
     camera.centerOn(this.gameW / 2, this.gameH / 2);
   }
 
-  createLayout() {
-    this.pauseButton = new CustomButton(
+  createButtons() {
+    this.pauseButton = new GameButton(
       this,
       this.gameW * 0.88,
       60,
@@ -1346,7 +1344,7 @@ class MainUI extends Phaser.Scene {
       this.pauseOrResumeGame
     );
 
-    this.playButton = new CustomButton(
+    this.playButton = new GameButton(
       this,
       this.gameW * 0.88,
       60,
@@ -1354,16 +1352,7 @@ class MainUI extends Phaser.Scene {
       this.pauseOrResumeGame
     ).setVisible(false);
 
-    new CustomButton(this, this.gameW * 0.8, 57, "return", () => {
-      // make this cleaner later, probably leads to memory leaks
-      localStorage.setItem("level", 1);
-      const g = this.scene.get("Game");
-      g.level = 1;
-      g.gameOver = true;
-      g.restartGame();
-    });
-
-    this.musicOnButton = new CustomButton(
+    this.musicOnButton = new GameButton(
       this,
       this.gameW * 0.1,
       60,
@@ -1371,7 +1360,7 @@ class MainUI extends Phaser.Scene {
       this.flipMusic
     );
 
-    this.musicOffButton = new CustomButton(
+    this.musicOffButton = new GameButton(
       this,
       this.gameW * 0.1,
       60,
@@ -1397,7 +1386,7 @@ class MainUI extends Phaser.Scene {
 
   createAudio() {
     this.sound.add("music").play({
-      volume: 0.6,
+      volume: 0.1,
       loop: true,
     });
   }
@@ -1409,12 +1398,12 @@ class MainUI extends Phaser.Scene {
       this.scene.pause("Game");
       this.pauseButton.setVisible(false);
       this.playButton.setVisible(true);
-      this.pauseText.setVisible(true);
+      this.pauseMenu.setVisible(true);
     } else {
       this.scene.resume("Game");
       this.pauseButton.setVisible(true);
       this.playButton.setVisible(false);
-      this.pauseText.setVisible(false);
+      this.pauseMenu.setVisible(false);
     }
   }
 
@@ -1431,28 +1420,83 @@ class MainUI extends Phaser.Scene {
     }
   }
 
-  loadText() {
-    this.pauseText = new CustomText(
-      this,
-      this.gameW * 0.5,
-      this.gameH * 0.5,
-      "game paused",
-      "l",
-      "c"
-    )
+  createText() {
+    this.pauseMenu = this.add.container(this.gameW * 0.5, this.gameH * 0.55);
+
+    const bg = this.add
+      .rectangle(
+        0,
+        -this.gameH * 0.06,
+        this.gameW * 0.6,
+        this.gameH * 0.45,
+        0x3f8efc,
+        0.8
+      )
+      .setStrokeStyle(5, this.UIColor, 0.8);
+
+    const top = 0x3f8efc; //0x023e8a;
+    const bottom = 0x7de2d1; //0x457b9d;
+
+    const r1 = new GameText(this, 0, -this.gameH * 0.2, "game paused", "l", "c")
       .setOrigin(0.5, 0.5)
-      .setStroke(this.UIColor, 14)
-      .setShadow(2, 2, "#333333", 2, true, true)
-      .setVisible(false);
+      .setStroke(this.UIColor, 8)
+      .setShadow(2, 2, "#333333", 2, true, true);
 
     this.tweens.add({
-      targets: this.pauseText,
-      y: this.pauseText.y - 40,
+      targets: r1,
+      y: r1.y - 20,
       yoyo: true,
-      duration: 3000,
+      duration: 2000,
       loop: -1,
       ease: "sine.inout",
     });
+
+    const r2 = new GameText(
+      this,
+      0,
+      -this.gameH * 0.1,
+      "resume game",
+      undefined,
+      undefined,
+      this.pauseOrResumeGame
+    )
+      .setStroke(this.UIColor, 2)
+      .setShadow(2, 2, "#333333", 2, true, true);
+
+    const r3 = new GameText(
+      this,
+      0,
+      this.gameH * 0,
+      "restart level",
+      undefined,
+      undefined,
+      () => {
+        this.pauseOrResumeGame();
+        localStorage.setItem("level", 1);
+        const g = this.scene.get("Game");
+        g.level = 1;
+        g.gameOver = true;
+        g.restartGame();
+      }
+    )
+      .setStroke(this.UIColor, 2)
+      .setShadow(2, 2, "#333333", 2, true, true);
+
+    const r4 = new GameText(
+      this,
+      0,
+      this.gameH * 0.1,
+      "return to title",
+      undefined,
+      undefined,
+      () => {
+        console.log("return to title");
+      }
+    )
+      .setStroke(this.UIColor, 2)
+      .setShadow(2, 2, "#333333", 2, true, true);
+
+    this.pauseMenu.add([bg, r1, r2, r3, r4]).setVisible(false);
   }
 }
 
@@ -1502,7 +1546,7 @@ class Start extends Phaser.Scene {
       .rectangle(0, this.height / 2, this.width, this.height / 2, 0x000000)
       .setOrigin(0, 0);
 
-    const t1 = new CustomText(
+    const t1 = new GameText(
       this,
       this.width / 2,
       this.height * 0.08,
@@ -1520,7 +1564,7 @@ class Start extends Phaser.Scene {
       ease: "sine.inout",
     });
 
-    const t2 = new CustomText(
+    const t2 = new GameText(
       this,
       this.width / 2,
       this.height * 0.25,
@@ -1529,7 +1573,7 @@ class Start extends Phaser.Scene {
       "c"
     ).setFill("#000");
 
-    const t3 = new CustomText(
+    const t3 = new GameText(
       this,
       this.width / 2,
       this.height * 0.42,
@@ -1538,7 +1582,7 @@ class Start extends Phaser.Scene {
       "c"
     ).setFill("#000");
 
-    const t4 = new CustomText(
+    const t4 = new GameText(
       this,
       this.width / 2,
       this.height * 0.62,
@@ -1547,7 +1591,7 @@ class Start extends Phaser.Scene {
       "c"
     ).setFill("#fff");
 
-    const t5 = new CustomText(
+    const t5 = new GameText(
       this,
       this.width / 2,
       this.height * 0.8,
@@ -1556,7 +1600,7 @@ class Start extends Phaser.Scene {
       "c"
     ).setFill("#fff");
 
-    const t6 = new CustomText(
+    const t6 = new GameText(
       this,
       this.width / 2,
       this.height * 0.92,
@@ -1610,7 +1654,7 @@ const config = {
   autoFocus: true,
 };
 
-class CustomText extends Phaser.GameObjects.Text {
+class GameText extends Phaser.GameObjects.Text {
   constructor(
     scene, // always "this" in the scene class
     x,
@@ -1639,7 +1683,8 @@ class CustomText extends Phaser.GameObjects.Text {
       })
       .setFontFamily("Roboto Mono")
       .setOrigin(align == "l" ? 0 : align == "c" ? 0.5 : 1, 0.5)
-      .setLineSpacing(16);
+      .setLineSpacing(16)
+      .setPadding(2);
 
     //"IBM Plex Mono", "Finger Paint", "Anonymous Pro"]
     //"Roboto Mono", "PT Sans", "Quicksand", "IBM Plex Sans", "Titillium Web"
@@ -1649,8 +1694,6 @@ class CustomText extends Phaser.GameObjects.Text {
     // emits both pointerdown and pointerup events on it
     if (callback) {
       cT.setInteractive({ useHandCursor: true })
-        .setBackgroundColor("#3c6e71")
-        .setPadding(6)
         .on("pointerover", function () {
           this.setTint(0xeeeeee);
         })
@@ -1666,24 +1709,12 @@ class CustomText extends Phaser.GameObjects.Text {
         .on("pointerup", function () {
           this.setTint(0xeeeeee);
         });
-
-      // create dark green outline.
-      // i don't know how this works.
-      const bounds = cT.getBounds();
-      const rect = scene.add.rectangle(
-        bounds.x + bounds.width / 2,
-        bounds.y + bounds.height,
-        bounds.width + 6,
-        bounds.height + 6,
-        0x284b63,
-        1
-      );
     }
     return cT;
   }
 }
 
-class CustomButton extends Phaser.GameObjects.Image {
+class GameButton extends Phaser.GameObjects.Image {
   constructor(
     scene, // always "this" in the scene class
     x,
