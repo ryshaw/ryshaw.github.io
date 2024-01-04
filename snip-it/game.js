@@ -499,12 +499,12 @@ class Game extends Phaser.Scene {
     if (DEV_MODE) {
       const fpsText = new GameText(
         this,
-        gameW * 0.1,
-        gameH * 0.08,
+        0,
+        0,
         `${Math.round(this.sys.game.loop.actualFps)}`,
         "l",
         "c"
-      );
+      ).setOrigin(0, 0);
 
       const interval = setInterval(() => {
         if (fpsText.displayList) {
@@ -1330,12 +1330,16 @@ class MainUI extends Phaser.Scene {
   }
 
   createControls() {
-    const escape = this.input.keyboard.addKey(
-      Phaser.Input.Keyboard.KeyCodes.ESC
-    );
+    const esc = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 
     this.input.keyboard.on("keydown-ESC", () => {
-      if (Phaser.Input.Keyboard.JustDown(escape)) this.pauseOrResumeGame();
+      if (Phaser.Input.Keyboard.JustDown(esc)) this.pauseOrResumeGame();
+    });
+
+    const m = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
+
+    this.input.keyboard.on("keydown-M", () => {
+      if (Phaser.Input.Keyboard.JustDown(m)) this.flipMusic();
     });
 
     // also pause on click away
