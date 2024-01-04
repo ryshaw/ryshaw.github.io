@@ -1690,8 +1690,11 @@ class GameButton extends Phaser.GameObjects.Image {
       .setScale(0.75)
       .setTint(COLORS.buttonColor);
 
-    cB.preFX.setPadding(32);
-    cB.preFX.addShadow(-2, -2, 0.06, 0.75, 0x000000, 4, 0.8);
+    // fx slow down phones, so only allow on desktop
+    if (scene.sys.game.device.os.desktop) {
+      cB.preFX.setPadding(32);
+      cB.preFX.addShadow(-2, -2, 0.06, 0.75, 0x000000, 4, 0.8);
+    }
 
     cB.setInteractive()
       .on("pointerover", function () {
