@@ -902,7 +902,7 @@ class Game extends Phaser.Scene {
 
     this.areaText.setText(`${Math.round(this.areaFilled * 100)}%`);
 
-    if (Math.round(this.areaFilled * 100) >= 90) gameWin();
+    if (Math.round(this.areaFilled * 100) >= 90) this.gameWin();
   }
 
   fillInTilesRecursively(pos) {
@@ -1691,10 +1691,10 @@ class GameButton extends Phaser.GameObjects.Image {
       .setTint(COLORS.buttonColor);
 
     // fx slow down phones, so only allow on desktop
-    if (scene.sys.game.device.os.desktop) {
+    /*if (scene.sys.game.device.os.desktop) {
       cB.preFX.setPadding(32);
       cB.preFX.addShadow(-2, -2, 0.06, 0.75, 0x000000, 4, 0.8);
-    }
+    }*/
 
     cB.setInteractive()
       .on("pointerover", function () {
