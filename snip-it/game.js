@@ -2,7 +2,7 @@ const VERSION = "Snip It! v0.6";
 
 const gameW = 640;
 const gameH = 960;
-const DEV_MODE = true; // sets timer high, enables level select, turns on FPS, and turns on physics debug
+const DEV_MODE = false; // sets timer high, enables level select, turns on FPS, and turns on physics debug
 const MAX_LEVEL = 25;
 
 const FONTS = [
@@ -514,14 +514,10 @@ class Game extends Phaser.Scene {
       }, 1000);
     }
 
-    this.levelSelectText = new GameText(
-      this,
-      gameW * 0.88,
-      25,
-      "",
-      "l",
-      "c"
-    ).setOrigin(0.5, 0);
+    this.levelSelectText = new GameText(this, gameW, 0, "", "l").setOrigin(
+      1,
+      0
+    );
   }
 
   startGame() {
@@ -1208,7 +1204,9 @@ class MainUI extends Phaser.Scene {
   playButton;
   musicOnButton;
   musicOffButton;
-  pauseMenu; // container
+  pauseMenu; // container containing everything used in the pause menu
+  pauseOptions; // list w/ the pause menu options so you can select them w/ arrow keys
+  selectedOption; // to keep track of which option is selected w/ cursor keys
 
   constructor() {
     super("MainUI");
@@ -1346,6 +1344,101 @@ class MainUI extends Phaser.Scene {
     this.game.events.addListener(Phaser.Core.Events.BLUR, () => {
       if (!this.scene.isPaused("Game")) this.pauseOrResumeGame();
     });
+
+    const up = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
+    const w = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
+    const down = this.input.keyboard.addKey(
+      Phaser.Input.Keyboard.KeyCodes.DOWN
+    );
+    const s = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
+    const enter = this.input.keyboard.addKey(
+      Phaser.Input.Keyboard.KeyCodes.ENTER
+    );
+
+    this.selectedOption = -1;
+
+    this.input.keyboard.on("keydown-UP", () => {
+      if (this.scene.isPaused("Game") && Phaser.Input.Keyboard.JustDown(up)) {
+        if (this.selectedOption == -1) this.selectedOption = 0;
+        else if (this.selectedOption > 0) this.selectedOption--;
+
+        for (let i = 0; i < this.pauseOptions.length; i++) {
+          if (this.selectedOption == i) {
+            this.pauseOptions[i].emit("pointerover");
+          } else {
+            this.pauseOptions[i].emit("pointerout");
+          }
+        }
+      }
+    });
+
+    this.input.keyboard.on("keydown-W", () => {
+      if (this.scene.isPaused("Game") && Phaser.Input.Keyboard.JustDown(w)) {
+        if (this.selectedOption == -1) this.selectedOption = 0;
+        else if (this.selectedOption > 0) this.selectedOption--;
+
+        for (let i = 0; i < this.pauseOptions.length; i++) {
+          if (this.selectedOption == i) {
+            this.pauseOptions[i].emit("pointerover");
+          } else {
+            this.pauseOptions[i].emit("pointerout");
+          }
+        }
+      }
+    });
+
+    this.input.keyboard.on("keydown-DOWN", () => {
+      if (this.scene.isPaused("Game") && Phaser.Input.Keyboard.JustDown(down)) {
+        if (this.selectedOption == -1) this.selectedOption = 0;
+        else if (this.selectedOption < this.pauseOptions.length - 1)
+          this.selectedOption++;
+
+        for (let i = 0; i < this.pauseOptions.length; i++) {
+          if (this.selectedOption == i) {
+            this.pauseOptions[i].emit("pointerover");
+          } else {
+            this.pauseOptions[i].emit("pointerout");
+          }
+        }
+      }
+    });
+
+    this.input.keyboard.on("keydown-S", () => {
+      if (this.scene.isPaused("Game") && Phaser.Input.Keyboard.JustDown(s)) {
+        if (this.selectedOption == -1) this.selectedOption = 0;
+        else if (this.selectedOption < this.pauseOptions.length - 1)
+          this.selectedOption++;
+
+        for (let i = 0; i < this.pauseOptions.length; i++) {
+          if (this.selectedOption == i) {
+            this.pauseOptions[i].emit("pointerover");
+          } else {
+            this.pauseOptions[i].emit("pointerout");
+          }
+        }
+      }
+    });
+
+    this.input.keyboard.on("keydown-ENTER", () => {
+      if (
+        this.scene.isPaused("Game") &&
+        Phaser.Input.Keyboard.JustDown(enter) &&
+        this.selectedOption != -1
+      ) {
+        this.pauseOptions[this.selectedOption].emit("pointerdown");
+      }
+    });
+
+    this.input.keyboard.on("keyup-ENTER", () => {
+      if (
+        this.scene.isPaused("Game") &&
+        Phaser.Input.Keyboard.JustUp(enter) &&
+        this.selectedOption != -1
+      ) {
+        this.pauseOptions[this.selectedOption].emit("pointerup");
+        this.pauseOptions[this.selectedOption].emit("pointerout");
+      }
+    });
   }
 
   createAudio() {
@@ -1363,6 +1456,7 @@ class MainUI extends Phaser.Scene {
       this.pauseButton.setVisible(false);
       this.playButton.setVisible(true);
       this.pauseMenu.setVisible(true);
+      this.selectedOption = -1;
     } else {
       this.scene.resume("Game");
       this.pauseButton.setVisible(true);
@@ -1457,6 +1551,8 @@ class MainUI extends Phaser.Scene {
     );
 
     this.pauseMenu.add([bg, r1, r2, r3, r4]).setVisible(false);
+
+    this.pauseOptions = new Phaser.Structs.List().add([r2, r3, r4]);
   }
 }
 
@@ -1615,6 +1711,7 @@ const config = {
 };
 
 class GameText extends Phaser.GameObjects.Text {
+  callback;
   constructor(
     scene, // always "this" in the scene class
     x,
@@ -1647,6 +1744,10 @@ class GameText extends Phaser.GameObjects.Text {
       .setStroke(COLORS.fillColor, 2)
       .setShadow(2, 2, "#333333", 2, true, true);
 
+    if (size == "s") {
+      cT.setStroke(COLORS.fillColor).setShadow(2, 2, "#333333", 0, true, true);
+    }
+
     //"IBM Plex Mono", "Finger Paint", "Anonymous Pro"]
     //"Roboto Mono", "PT Sans", "Quicksand", "IBM Plex Sans", "Titillium Web"
 
@@ -1671,6 +1772,9 @@ class GameText extends Phaser.GameObjects.Text {
           this.setTint(COLORS.tintColor);
         });
     }
+
+    this.callback = callback;
+
     return cT;
   }
 }
