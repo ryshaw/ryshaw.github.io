@@ -24,7 +24,7 @@ const COLORS = {
   deathColor: 0xc1121f, // when player dies...
   tintColor: 0xfbf8cc, // for highlighting text
   clickColor: 0xdddddd, // when text is clicked
-  buttonColor: 0xe0fbfc, // for coloring buttons
+  buttonColor: 0xe0fbfc, // for coloring buttons and the title
   white: 0xffffff,
   black: 0x000000,
 };
@@ -1239,7 +1239,8 @@ class MainUI extends Phaser.Scene {
         families: FONTS,
       },
       active: () => {
-        this.createText();
+        this.createTitleText();
+        this.createPauseMenu();
       },
     });
   }
@@ -1478,7 +1479,7 @@ class MainUI extends Phaser.Scene {
     }
   }
 
-  createText() {
+  createTitleText() {
     new GameText(this, gameW * 0.5, 2, "snip it!", "g", "l")
       .setFontStyle("bold")
       .setFontSize("72px")
@@ -1486,12 +1487,55 @@ class MainUI extends Phaser.Scene {
       .setStroke(COLORS.fillColor, 4)
       .setShadow(4, 4, "#333333", 2, true, true)
       .setColor("#e0fbfc");
+  }
 
+  createPauseMenu() {
     this.pauseMenu = this.add.container(gameW * 0.5, gameH * 0.55);
 
+    const s = 512; // the graphics object has to be large or it'll be all artifact-y
+    const g = this.add
+      .graphics()
+      .fillStyle(COLORS.white, 0.6)
+      .fillRect(0, 0, s, s)
+      .lineStyle(6, COLORS.fillColor, 1)
+      .strokeRect(0, 0, s, s)
+      .generateTexture("bg", s, s)
+      .clear();
+
     const bg = this.add
-      .rectangle(0, -gameH * 0.06, gameW * 0.77, gameH * 0.46, 0x3f8efc, 0.8)
-      .setStrokeStyle(4, COLORS.fillColor, 0.8);
+      .image(0, 0, "bg")
+      .setOrigin(0.5, 0.5)
+      .setDisplaySize(gameW * 0.77, gameH * 0.46)
+      .setPosition(0, -gameH * 0.06)
+      .setTint(0x00b4d8, 0x00b4d8, 0xc8b6ff, 0xc8b6ff);
+
+    // leaving this graveyard of pause menu background gradients here for a bit
+    // some of these are a work of art, but don't fit the overall aesthetic
+    //.setTint(0x0077b6, 0x0077b6, 0xc8b6ff, 0xc8b6ff);
+    //.setTint(0x90e0ef, 0x90e0ef, 0xc8b6ff, 0xc8b6ff);
+    /*
+    const hsv = Phaser.Display.Color.HSVColorWheel(0.2);
+    //const cs = Phaser.Display.Color.ColorSpectrum(300);
+
+    const size = 250;
+
+    for (let i = 0; i < size; i++) {
+      //g.fillStyle(hsv[i].color, 0.8);
+      //g.fillStyle(Phaser.Display.Color.RandomRGB(100, 200).color);
+      for (let j = 0; j < size; j++) {
+        const sum = Math.round((i + j) / 2);
+        g.fillStyle(hsv[sum + (340 - size)].color, 0.8);
+        g.fillPoint(j * 2, i * 2, 2);
+      }
+    }
+
+    g.lineStyle(6, COLORS.fillColor, 1);
+    g.strokeRect(0, 0, size * 2, size * 2);
+
+    g.generateTexture("bg", size * 2, size * 2);
+    g.clear();
+
+    const bg = this.add.image(0, -gameH * 0.04, "bg").setOrigin(0.5, 0.5);*/
 
     const r1 = new GameText(
       this,
