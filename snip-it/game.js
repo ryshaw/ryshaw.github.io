@@ -48,7 +48,7 @@ class Background extends Phaser.Scene {
       0.9
     );
     graphics.fillRect(0, 0, w, h);
-    this.scene.launch("Game");
+    this.scene.launch("Start");
     this.scene.launch("MainUI");
   }
 }
@@ -1356,6 +1356,8 @@ class MainUI extends Phaser.Scene {
       Phaser.Input.Keyboard.KeyCodes.ENTER
     );
 
+    // integrating the pause menu arrow key selection
+
     this.selectedOption = -1;
 
     this.input.keyboard.on("keydown-UP", () => {
@@ -1450,6 +1452,7 @@ class MainUI extends Phaser.Scene {
   }
 
   pauseOrResumeGame() {
+    if (!this.scene.isActive("Game")) return; // don't pause if we're not in game
     if (this.scene.get("Game").gameOver) return; // can't pause when ded
 
     if (!this.scene.isPaused("Game")) {
@@ -1574,9 +1577,9 @@ class MainUI extends Phaser.Scene {
       undefined,
       () => {
         this.pauseOrResumeGame();
-        localStorage.setItem("level", 1);
+        //localStorage.setItem("level", 1);
         const g = this.scene.get("Game");
-        g.level = 1;
+        //g.level = 1;
         g.gameOver = true;
         g.restartGame();
       }
@@ -1596,132 +1599,227 @@ class MainUI extends Phaser.Scene {
 
     this.pauseMenu.add([bg, r1, r2, r3, r4]).setVisible(false);
 
-    this.pauseOptions = new Phaser.Structs.List().add([r2, r3, r4]);
+    this.pauseOptions = [r2, r3, r4];
   }
 }
 
 class Start extends Phaser.Scene {
-  width;
-  height;
+  selectedOption;
+  startMenu;
+  startOptions;
 
   constructor() {
-    super({ key: "Start" });
+    super("Start");
   }
 
   preload() {
-    // load google's library for the font, GFS Didot
+    // load google's library for the various fonts we want to use
     this.load.script(
       "webfont",
       "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
     );
-
-    this.load.audio("sea", "assets/audio/sea.mp3");
-
-    this.width = game.config.width;
-    this.height = game.config.height;
   }
 
   create() {
+    this.createResolution();
+
     WebFont.load({
       google: {
-        families: ["Press Start 2P"],
+        families: FONTS,
       },
       active: () => {
-        this.loadText();
+        this.createStartMenu();
       },
-    });
-
-    const sea = this.sound.add("sea");
-    sea.play({
-      volume: 0.8,
-      loop: true,
     });
   }
 
-  loadText() {
-    this.add
-      .rectangle(0, 0, this.width, this.height / 2, 0xffffff)
-      .setOrigin(0, 0);
-    this.add
-      .rectangle(0, this.height / 2, this.width, this.height / 2, 0x000000)
-      .setOrigin(0, 0);
+  createResolution() {
+    // I don't know how this code works but it's magic. I also stole it from here:
+    // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
+    const width = this.scale.gameSize.width;
+    const height = this.scale.gameSize.height;
 
-    const t1 = new GameText(
-      this,
-      this.width / 2,
-      this.height * 0.08,
-      "the fishy sea",
-      "g",
-      "c"
-    ).setFill("#000");
+    this.parent = new Phaser.Structs.Size(width, height);
+    this.sizer = new Phaser.Structs.Size(
+      gameW,
+      gameH,
+      Phaser.Structs.Size.FIT,
+      this.parent
+    );
 
-    this.tweens.add({
-      targets: t1,
-      y: t1.y + 10,
-      yoyo: true,
-      duration: 1600,
-      loop: -1,
-      ease: "sine.inout",
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+
+    this.scale.on("resize", this.resize, this);
+  }
+
+  resize(gameSize) {
+    const width = gameSize.width;
+    const height = gameSize.height;
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+  }
+
+  updateCamera() {
+    const camera = this.cameras.main;
+
+    const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
+    const y = 0;
+    const scaleX = this.sizer.width / gameW;
+    const scaleY = this.sizer.height / gameH;
+
+    // offset is comparing the game's height to the window's height,
+    // and centering the game in (kind of) the middle of the window.
+    const offset = (1 + this.parent.height / this.sizer.height) / 2;
+
+    camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
+    camera.setZoom(Math.max(scaleX, scaleY));
+    camera.centerOn(gameW / 2, gameH / 2);
+  }
+
+  createControls() {
+    const esc = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+
+    this.input.keyboard.on("keydown-ESC", () => {
+      if (Phaser.Input.Keyboard.JustDown(esc)) this.pauseOrResumeGame();
     });
 
-    const t2 = new GameText(
-      this,
-      this.width / 2,
-      this.height * 0.25,
-      "how many nights can you last\nout on the wine-dark sea?",
-      "l",
-      "c"
-    ).setFill("#000");
+    const m = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
 
-    const t3 = new GameText(
-      this,
-      this.width / 2,
-      this.height * 0.42,
-      "during the day, use your mouse\nto send out hooks and collect fish",
-      "l",
-      "c"
-    ).setFill("#000");
+    this.input.keyboard.on("keydown-M", () => {
+      if (Phaser.Input.Keyboard.JustDown(m)) this.flipMusic();
+    });
 
-    const t4 = new GameText(
-      this,
-      this.width / 2,
-      this.height * 0.62,
-      "during the night, use your mouse\nto send out your caught fish\nand protect yourself from lurking sharks",
-      "l",
-      "c"
-    ).setFill("#fff");
+    // also pause on click away
+    this.game.events.addListener(Phaser.Core.Events.BLUR, () => {
+      if (!this.scene.isPaused("Game")) this.pauseOrResumeGame();
+    });
 
-    const t5 = new GameText(
-      this,
-      this.width / 2,
-      this.height * 0.8,
-      "if too many sharks get to your ship...\nyou'll be sleeping with the fishes!",
-      "l",
-      "c"
-    ).setFill("#fff");
+    const up = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
+    const w = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
+    const down = this.input.keyboard.addKey(
+      Phaser.Input.Keyboard.KeyCodes.DOWN
+    );
+    const s = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
+    const enter = this.input.keyboard.addKey(
+      Phaser.Input.Keyboard.KeyCodes.ENTER
+    );
 
-    const t6 = new GameText(
-      this,
-      this.width / 2,
-      this.height * 0.92,
-      "click me to start!",
-      "g",
-      "c",
-      () => {
-        this.sound.stopAll();
-        this.sound.removeAll();
-        this.scene.start("Game");
+    // integrating the pause menu arrow key selection
+
+    this.selectedOption = -1;
+
+    this.input.keyboard.on("keydown-UP", () => {
+      if (this.scene.isPaused("Game") && Phaser.Input.Keyboard.JustDown(up)) {
+        if (this.selectedOption == -1) this.selectedOption = 0;
+        else if (this.selectedOption > 0) this.selectedOption--;
+
+        for (let i = 0; i < this.pauseOptions.length; i++) {
+          if (this.selectedOption == i) {
+            this.pauseOptions[i].emit("pointerover");
+          } else {
+            this.pauseOptions[i].emit("pointerout");
+          }
+        }
       }
-    ).setFill("#fff");
-
-    this.tweens.add({
-      targets: t6,
-      y: t6.y + 10,
-      yoyo: true,
-      duration: 1600,
-      loop: -1,
-      ease: "sine.inout",
     });
+
+    this.input.keyboard.on("keydown-W", () => {
+      if (this.scene.isPaused("Game") && Phaser.Input.Keyboard.JustDown(w)) {
+        if (this.selectedOption == -1) this.selectedOption = 0;
+        else if (this.selectedOption > 0) this.selectedOption--;
+
+        for (let i = 0; i < this.pauseOptions.length; i++) {
+          if (this.selectedOption == i) {
+            this.pauseOptions[i].emit("pointerover");
+          } else {
+            this.pauseOptions[i].emit("pointerout");
+          }
+        }
+      }
+    });
+
+    this.input.keyboard.on("keydown-DOWN", () => {
+      if (this.scene.isPaused("Game") && Phaser.Input.Keyboard.JustDown(down)) {
+        if (this.selectedOption == -1) this.selectedOption = 0;
+        else if (this.selectedOption < this.pauseOptions.length - 1)
+          this.selectedOption++;
+
+        for (let i = 0; i < this.pauseOptions.length; i++) {
+          if (this.selectedOption == i) {
+            this.pauseOptions[i].emit("pointerover");
+          } else {
+            this.pauseOptions[i].emit("pointerout");
+          }
+        }
+      }
+    });
+
+    this.input.keyboard.on("keydown-S", () => {
+      if (this.scene.isPaused("Game") && Phaser.Input.Keyboard.JustDown(s)) {
+        if (this.selectedOption == -1) this.selectedOption = 0;
+        else if (this.selectedOption < this.pauseOptions.length - 1)
+          this.selectedOption++;
+
+        for (let i = 0; i < this.pauseOptions.length; i++) {
+          if (this.selectedOption == i) {
+            this.pauseOptions[i].emit("pointerover");
+          } else {
+            this.pauseOptions[i].emit("pointerout");
+          }
+        }
+      }
+    });
+
+    this.input.keyboard.on("keydown-ENTER", () => {
+      if (
+        this.scene.isPaused("Game") &&
+        Phaser.Input.Keyboard.JustDown(enter) &&
+        this.selectedOption != -1
+      ) {
+        this.pauseOptions[this.selectedOption].emit("pointerdown");
+      }
+    });
+
+    this.input.keyboard.on("keyup-ENTER", () => {
+      if (
+        this.scene.isPaused("Game") &&
+        Phaser.Input.Keyboard.JustUp(enter) &&
+        this.selectedOption != -1
+      ) {
+        this.pauseOptions[this.selectedOption].emit("pointerup");
+        this.pauseOptions[this.selectedOption].emit("pointerout");
+      }
+    });
+  }
+
+  createStartMenu() {
+    this.selectedOption = -1;
+
+    this.startMenu = this.add.container();
+    this.startOptions = [];
+
+    const start = new GameText(
+      this,
+      gameW * 0.5,
+      gameH * 0.5,
+      "start da game",
+      "l",
+      undefined,
+      () => {
+        console.log("start da game");
+      },
+      this.startOptions
+    );
+
+    this.startMenu.add(start);
+
+    this.startOptions.push(start);
   }
 }
 
@@ -1743,7 +1841,7 @@ const config = {
       height: 1200,
     },
   },
-  scene: [Background, Game, MainUI],
+  scene: [Background, Start, Game, MainUI],
   physics: {
     default: "arcade",
     arcade: {
@@ -1755,7 +1853,6 @@ const config = {
 };
 
 class GameText extends Phaser.GameObjects.Text {
-  callback;
   constructor(
     scene, // always "this" in the scene class
     x,
@@ -1763,7 +1860,8 @@ class GameText extends Phaser.GameObjects.Text {
     text,
     size = "m", // s, m, l, or g for small, medium, or large
     align = "c", // l, c, or r for left, center, or right
-    callback = null // provided only for buttons
+    callback = null, // provided only for buttons
+    list = null // which options list is this part of? provided only for buttons
   ) {
     super(scene);
 
@@ -1798,13 +1896,23 @@ class GameText extends Phaser.GameObjects.Text {
     // if callback is given, assume it's a button and add callback.
     // fine-tuned this code so button only clicks if player
     // emits both pointerdown and pointerup events on it
+    // update 2: now much more complex w/ arrow key integration
     if (callback) {
       cT.setInteractive({ useHandCursor: true })
-        .on("pointerover", function () {
-          this.setTint(COLORS.tintColor).setScale(1.02);
+        .on("pointermove", function (pointer) {
+          this.emit("pointerover", pointer);
         })
-        .on("pointerout", function () {
+        .on("pointerover", function (pointer) {
+          if (pointer) scene.selectedOption = list.indexOf(this); // if mouse used, reset arrow key selection
+          this.setTint(COLORS.tintColor).setScale(1.02);
+          list.forEach((option) => {
+            if (option != this) option.emit("pointerout");
+          });
+        })
+        .on("pointerout", function (pointer) {
+          if (pointer) scene.selectedOption = -1; // if mouse used, reset arrow key selection
           this.setTint(COLORS.white).setScale(1);
+          this.off("pointerup", callback, scene);
         })
         .on("pointerdown", function () {
           this.setTint(COLORS.clickColor);
@@ -1816,8 +1924,6 @@ class GameText extends Phaser.GameObjects.Text {
           this.setTint(COLORS.tintColor);
         });
     }
-
-    this.callback = callback;
 
     return cT;
   }
