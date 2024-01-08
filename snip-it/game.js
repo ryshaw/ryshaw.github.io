@@ -1230,6 +1230,8 @@ class MainUI extends Phaser.Scene {
     this.load.image("musicOff", "musicOff.png");
 
     this.load.audio("music", "music.mp3");
+
+    this.load.text("credits", "credits.txt");
   }
 
   create() {
@@ -1513,8 +1515,8 @@ class MainUI extends Phaser.Scene {
       //.setFontStyle("bold")
       .setFontSize("120px")
       .setOrigin(0.48, 0)
-      //.setStroke(COLORS.fillColor, 4)
-      //.setShadow(4, 4, "#333333", 2, true, true)
+      .setStroke(COLORS.fillColor, 4)
+      .setShadow(4, 4, "#333333", 2, true, true)
       .setColor("#e0fbfc");
   }
 
@@ -1701,22 +1703,41 @@ class MainUI extends Phaser.Scene {
 
     const s1 = new GameText(
       this,
-      0,
-      gameH * 0,
-      "credits",
-      "g",
+      gameW * 0.5 - this.creditsMenu.x,
+      gameH,
+      this.cache.text.get("credits"),
+      "l",
       undefined
-    ).setOrigin(0, 0.5);
+    )
+      .setOrigin(0.5, 0.5)
+      .setLineSpacing(36);
 
-    this.creditsMenu.add([s1]).setVisible(false);
+    const s2 = new GameText(
+      this,
+      gameW * 0.9 - this.creditsMenu.x,
+      gameH * 0.6,
+      "return",
+      "g",
+      undefined,
+      this.closeCredits
+    ).setOrigin(1, 0.5);
 
-    this.creditsOptions.push(s1);
+    this.creditsMenu.add([s1, s2]).setVisible(false);
+
+    this.creditsOptions.push(s2);
   }
 
   openCredits() {
     this.startMenu.setVisible(false);
     this.creditsMenu.setVisible(true);
     this.activeOptions = this.creditsOptions;
+    this.activeOption = -1;
+  }
+
+  closeCredits() {
+    this.startMenu.setVisible(true);
+    this.creditsMenu.setVisible(false);
+    this.activeOptions = this.startOptions;
     this.activeOption = -1;
   }
 

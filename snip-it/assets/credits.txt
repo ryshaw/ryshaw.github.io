@@ -1,0 +1,9 @@
+a game by ryan shaw
+developed in phaser.js 3.60
+@ryshaw_games
+
+music by Joth
+@Joth_Music
+
+sfx by Gabyyu
+@gabyyu_lovelity
