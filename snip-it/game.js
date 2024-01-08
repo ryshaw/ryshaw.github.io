@@ -1,4 +1,4 @@
-const VERSION = "Snip It! v0.6";
+const VERSION = "Snip It! v0.7";
 
 const gameW = 640;
 const gameH = 960;
@@ -91,8 +91,9 @@ class Game extends Phaser.Scene {
     );
   }
 
-  create() {
-    this.level = localStorage.getItem("level") || 1;
+  create(data) {
+    this.level = data.level;
+    this.level = this.level / 1; // make sure it's a number
 
     this.createResolution();
     this.createLayout();
@@ -103,7 +104,6 @@ class Game extends Phaser.Scene {
     if (DEV_MODE) this.createLevelSelectControls();
     this.createPhysics();
 
-    this.level = this.level / 1; // make sure it's a number
     const numCircles = Math.floor(Math.sqrt(2.8 * this.level));
     const numSquares = Math.floor(this.level * (0.03 * this.level + 0.45));
     this.createCircles(numCircles);
@@ -713,7 +713,7 @@ class Game extends Phaser.Scene {
     this.anims.resumeAll();
     this.physics.resume();
     this.create();*/
-    this.scene.restart();
+    this.scene.restart({ level: this.level });
   }
 
   update() {
@@ -1210,7 +1210,11 @@ class MainUI extends Phaser.Scene {
   gameActive; // is the game scene running at all
   titleText;
   creditsMenu;
-  creditsOption;
+  creditsOptions;
+  levelSelectMenu;
+  levelSelectOptions;
+  levelSelectConfirmMenu;
+  levelSelectConfirmOptions;
 
   constructor() {
     super("MainUI");
@@ -1543,6 +1547,8 @@ class MainUI extends Phaser.Scene {
     this.createPauseMenu();
     this.createStartMenu();
     this.createCreditsMenu();
+    this.createLevelSelectMenu();
+    this.createLevelSelectConfirmMenu();
 
     this.activeOption = -1;
     this.activeOptions = this.startOptions;
@@ -1557,7 +1563,7 @@ class MainUI extends Phaser.Scene {
 
     this.add
       .graphics()
-      .fillStyle(COLORS.white, 0.6)
+      .fillStyle(COLORS.white, 1)
       .fillRect(0, 0, s, s)
       .lineStyle(6, COLORS.fillColor, 1)
       .strokeRect(0, 0, s, s)
@@ -1569,7 +1575,8 @@ class MainUI extends Phaser.Scene {
       .setOrigin(0.5, 0.5)
       .setDisplaySize(gameW * 0.77, gameH * 0.46)
       .setPosition(0, -gameH * 0.06)
-      .setTint(0x00b4d8, 0x00b4d8, 0xc8b6ff, 0xc8b6ff);
+      .setTint(0x00b4d8, 0x00b4d8, 0xc8b6ff, 0xc8b6ff)
+      .setAlpha(0.6);
 
     // leaving this graveyard of pause menu background gradients here for a bit
     // some of these are a work of art, but don't fit the overall aesthetic
@@ -1662,7 +1669,11 @@ class MainUI extends Phaser.Scene {
       "start game",
       "g",
       undefined,
-      this.launchGame
+      () => {
+        // leave off at last level played, or just start from the top
+        const lvl = localStorage.getItem("level") || 1;
+        this.launchGame(lvl);
+      }
     ).setOrigin(0, 0.5);
 
     const s2 = new GameText(
@@ -1672,9 +1683,7 @@ class MainUI extends Phaser.Scene {
       "level select",
       "g",
       undefined,
-      () => {
-        console.log("level select");
-      }
+      this.openLevelSelect
     ).setOrigin(0, 0.5);
 
     const s3 = new GameText(
@@ -1790,8 +1799,194 @@ class MainUI extends Phaser.Scene {
     creditsText.setVisible(false);
   }
 
-  launchGame() {
-    this.scene.launch("Game");
+  createLevelSelectMenu() {
+    this.levelSelectMenu = this.add.container(gameW * 0.05, gameH * 0.22);
+    this.levelSelectOptions = [];
+
+    const s1 = new GameText(
+      this,
+      0,
+      0,
+      "level select",
+      "g",
+      undefined
+    ).setOrigin(0, 0.5);
+
+    for (let i = 0; i <= 4; i++) {
+      let lvl = i * 5;
+      if (i == 0) lvl = 1;
+
+      const s = new GameText(
+        this,
+        gameW * 0.08,
+        gameH * 0.115 * (i + 1),
+        lvl,
+        "g",
+        undefined,
+        () => {
+          this.openLevelSelectConfirm(lvl);
+        }
+      ).setOrigin(0.5, 0.5);
+
+      this.levelSelectMenu.add(s);
+      this.levelSelectOptions.push(s);
+    }
+
+    const s2 = new GameText(
+      this,
+      gameW - 40 - this.levelSelectMenu.x,
+      gameH - 40 - this.levelSelectMenu.y,
+      "return",
+      "g",
+      undefined,
+      this.closeLevelSelect
+    ).setOrigin(1, 1);
+
+    const s3 = new GameText(
+      this,
+      gameW * 0.6,
+      gameH * 0.12,
+      "never played?\nstart at level 1!",
+      "m",
+      undefined
+    )
+      .setOrigin(0.5, 0.5)
+      .setLineSpacing(10);
+
+    const s4 = new GameText(
+      this,
+      gameW * 0.6,
+      gameH * 0.32,
+      "levels 5-15\nfor a challenge!",
+      "m",
+      undefined
+    )
+      .setOrigin(0.5, 0.5)
+      .setLineSpacing(10);
+
+    const s5 = new GameText(
+      this,
+      gameW * 0.6,
+      gameH * 0.52,
+      "level 20?\ngood luck :)",
+      "m",
+      undefined
+    )
+      .setOrigin(0.5, 0.5)
+      .setLineSpacing(10);
+
+    const s6 = new GameText(
+      this,
+      gameW * 0.22,
+      gameH * 0.7,
+      "beat level 25\nfor a prize!",
+      "m",
+      undefined
+    )
+      .setOrigin(0.5, 0.5)
+      .setLineSpacing(10);
+
+    this.levelSelectMenu.add([s1, s2, s3, s4, s5, s6]).setVisible(false);
+    this.levelSelectOptions.push(s2);
+  }
+
+  openLevelSelect() {
+    this.startMenu.setVisible(false);
+    this.levelSelectMenu.setVisible(true);
+    this.activeOptions = this.levelSelectOptions;
+    this.activeOption = -1;
+  }
+
+  closeLevelSelect() {
+    this.startMenu.setVisible(true);
+    this.levelSelectMenu.setVisible(false);
+    this.activeOptions = this.startOptions;
+    this.activeOption = -1;
+  }
+
+  // yeah I know it's a long name, ok, go away
+  createLevelSelectConfirmMenu() {
+    this.levelSelectConfirmMenu = this.add
+      .container(gameW * 0.5, gameH * 0.55)
+      .setDepth(1);
+
+    const bg = this.add
+      .image(0, 0, "bg")
+      .setOrigin(0.5, 0.5)
+      .setDisplaySize(gameW * 0.77, gameH * 0.46)
+      .setPosition(0, -gameH * 0.06)
+      .setTint(0x00b4d8, 0x00b4d8, 0xc8b6ff, 0xc8b6ff)
+      .setAlpha(1);
+
+    const r1 = new GameText(
+      this,
+      0,
+      -gameH * 0.16,
+      "start at\nlevel " + "?",
+      "g",
+      "c"
+    )
+      .setOrigin(0.5, 0.5)
+      .setLineSpacing(10)
+      .setName("levelSelectConfirmText");
+
+    this.tweens.add({
+      targets: r1,
+      y: r1.y - 20,
+      yoyo: true,
+      duration: 1600,
+      loop: -1,
+      ease: "sine.inout",
+    });
+
+    const r2 = new GameText(
+      this,
+      0,
+      gameH * 0.01,
+      "yes!",
+      "l",
+      undefined,
+      () => {
+        this.closeLevelSelectConfirm();
+        this.launchGame(r2.lvl);
+      }
+    ).setName("levelSelectConfirmYes");
+
+    const r3 = new GameText(
+      this,
+      0,
+      gameH * 0.12,
+      "no!",
+      "l",
+      undefined,
+      this.closeLevelSelectConfirm
+    );
+
+    this.levelSelectConfirmMenu.add([bg, r1, r2, r3]).setVisible(false);
+
+    this.levelSelectConfirmOptions = [r2, r3];
+  }
+
+  openLevelSelectConfirm(lvl) {
+    const t = this.levelSelectConfirmMenu.getByName("levelSelectConfirmText");
+    t.text = "start at\nlevel " + lvl + "?";
+
+    const y = this.levelSelectConfirmMenu.getByName("levelSelectConfirmYes");
+    y.lvl = lvl;
+
+    this.levelSelectConfirmMenu.setVisible(true);
+    this.activeOptions = this.levelSelectConfirmOptions;
+    this.activeOption = -1;
+  }
+
+  closeLevelSelectConfirm() {
+    this.levelSelectConfirmMenu.setVisible(false);
+    this.activeOptions = this.levelSelectOptions;
+    this.activeOption = -1;
+  }
+
+  launchGame(lvl) {
+    this.scene.launch("Game", { level: lvl });
     this.scene.bringToTop("MainUI");
     this.pauseButton.setVisible(true);
 
@@ -1803,6 +1998,7 @@ class MainUI extends Phaser.Scene {
 
     this.titleText.setFontSize("72px");
     this.startMenu.setVisible(false);
+    this.levelSelectMenu.setVisible(false); // in case we came from here
     this.activeOptions = null;
     this.activeOption = -1;
     this.gameActive = true;
