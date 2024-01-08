@@ -143,9 +143,6 @@ class Game extends Phaser.Scene {
   }
 
   createLayout() {
-    // show the "game window" while in development
-    this.add.rectangle(gameW * 0.5, gameH * 0.5, gameW, gameH, 0x000000, 0.04);
-
     this.graphics = this.add.graphics();
 
     this.bounds = this.add.rectangle(
@@ -530,6 +527,7 @@ class Game extends Phaser.Scene {
 
     this.timeText.setVisible(true).setText(`${this.timer}`);
 
+    if (this.timeInterval) return; // we already made an interval from a previous game run
     this.timeInterval = setInterval(() => {
       if (this.gameOver) {
         clearInterval(this.timeInterval);
@@ -1209,6 +1207,10 @@ class MainUI extends Phaser.Scene {
   activeOptions; // which list is currently active and on screen?
   startMenu; // container
   startOptions; // list
+  gameActive; // is the game scene running at all
+  titleText;
+  creditsMenu;
+  creditsOption;
 
   constructor() {
     super("MainUI");
@@ -1232,6 +1234,9 @@ class MainUI extends Phaser.Scene {
 
   create() {
     this.createResolution();
+    // show the "game window" while in development
+    this.add.rectangle(gameW * 0.5, gameH * 0.5, gameW, gameH, 0x000000, 0.04);
+
     this.createButtons();
     this.createControls();
     this.createAudio();
@@ -1245,6 +1250,8 @@ class MainUI extends Phaser.Scene {
         this.createMenus();
       },
     });
+
+    this.gameActive = false;
   }
 
   createResolution() {
@@ -1303,7 +1310,7 @@ class MainUI extends Phaser.Scene {
       57,
       "pause",
       this.pauseOrResumeGame
-    );
+    ).setVisible(false);
 
     this.playButton = new GameButton(
       this,
@@ -1319,7 +1326,7 @@ class MainUI extends Phaser.Scene {
       55,
       "musicOn",
       this.flipMusic
-    );
+    ).setVisible(false);
 
     this.musicOffButton = new GameButton(
       this,
@@ -1446,14 +1453,20 @@ class MainUI extends Phaser.Scene {
   }
 
   createAudio() {
+    if (localStorage.getItem("music") == null) {
+      localStorage.setItem("music", "on");
+    }
+
     this.sound.add("music").play({
       volume: 0.7,
       loop: true,
     });
+
+    if (localStorage.getItem("music") == "off") this.sound.get("music").pause();
   }
 
   pauseOrResumeGame() {
-    if (!this.scene.get("Game").player) return; // game hasn't started at all yet
+    if (!this.gameActive) return; // game hasn't started at all yet
     if (this.scene.get("Game").gameOver) return; // can't pause when ded
 
     if (!this.scene.isPaused("Game")) {
@@ -1476,19 +1489,29 @@ class MainUI extends Phaser.Scene {
     const music = this.sound.get("music");
     if (music.isPlaying) {
       music.pause();
-      this.musicOnButton.setVisible(false);
-      this.musicOffButton.setVisible(true);
+      localStorage.setItem("music", "off");
+
+      if (this.gameActive) {
+        this.musicOnButton.setVisible(false);
+        this.musicOffButton.setVisible(true);
+      }
+      this.startMenu.getByName("musicText").text = "music: off";
     } else {
       music.resume();
-      this.musicOnButton.setVisible(true);
-      this.musicOffButton.setVisible(false);
+      localStorage.setItem("music", "on");
+
+      if (this.gameActive) {
+        this.musicOnButton.setVisible(true);
+        this.musicOffButton.setVisible(false);
+      }
+      this.startMenu.getByName("musicText").text = "music: on";
     }
   }
 
   createTitleText() {
-    new GameText(this, gameW * 0.5, 2, "snip it!", "g", "l")
+    this.titleText = new GameText(this, gameW * 0.5, 2, "snip it!", "g", "l")
       .setFontStyle("bold")
-      .setFontSize("72px")
+      .setFontSize("120px")
       .setOrigin(0.48, 0)
       .setStroke(COLORS.fillColor, 4)
       .setShadow(4, 4, "#333333", 2, true, true)
@@ -1498,12 +1521,12 @@ class MainUI extends Phaser.Scene {
   createMenus() {
     this.createPauseMenu();
     this.createStartMenu();
+    this.createCreditsMenu();
 
     this.activeOption = -1;
     this.activeOptions = this.startOptions;
 
     this.startMenu.setVisible(true);
-    this.pauseButton.setVisible(false);
   }
 
   createPauseMenu() {
@@ -1608,55 +1631,125 @@ class MainUI extends Phaser.Scene {
   }
 
   createStartMenu() {
-    this.startMenu = this.add.container(gameW * 0.05, gameH * 0.3);
+    this.startMenu = this.add.container(gameW * 0.05, gameH * 0.28);
     this.startOptions = [];
 
     const s1 = new GameText(
       this,
       0,
       gameH * 0,
-      "start da game",
-      "l",
+      "start game",
+      "g",
       undefined,
-      () => {
-        this.launchGame();
-      }
+      this.launchGame
     ).setOrigin(0, 0.5);
 
     const s2 = new GameText(
       this,
       0,
-      gameH * 0.1,
+      gameH * 0.16,
       "level select",
-      "l",
+      "g",
       undefined,
       () => {
         console.log("level select");
       }
     ).setOrigin(0, 0.5);
 
-    this.startMenu.add([s1, s2]).setVisible(false);
+    const s3 = new GameText(
+      this,
+      0,
+      gameH * 0.32,
+      "music: on",
+      "g",
+      undefined,
+      this.flipMusic
+    )
+      .setOrigin(0, 0.5)
+      .setName("musicText");
 
-    this.startOptions.push(s1, s2);
+    if (localStorage.getItem("music") == "off") s3.setText("music: off");
+
+    const s4 = new GameText(
+      this,
+      0,
+      gameH * 0.48,
+      "credits",
+      "g",
+      undefined,
+      this.openCredits
+    ).setOrigin(0, 0.5);
+
+    const s5 = new GameText(
+      this,
+      gameW - this.startMenu.x,
+      gameH - this.startMenu.y,
+      VERSION,
+      "m"
+    )
+      .setOrigin(1, 1)
+      .setPadding(10);
+
+    this.startMenu.add([s1, s2, s3, s4, s5]).setVisible(false);
+
+    this.startOptions.push(s1, s2, s3, s4, s5);
+  }
+
+  createCreditsMenu() {
+    this.creditsMenu = this.add.container(gameW * 0.05, gameH * 0.28);
+    this.creditsOptions = [];
+
+    const s1 = new GameText(
+      this,
+      0,
+      gameH * 0,
+      "credits",
+      "g",
+      undefined
+    ).setOrigin(0, 0.5);
+
+    this.creditsMenu.add([s1]).setVisible(false);
+
+    this.creditsOptions.push(s1);
+  }
+
+  openCredits() {
+    this.startMenu.setVisible(false);
+    this.creditsMenu.setVisible(true);
+    this.activeOptions = this.creditsOptions;
+    this.activeOption = -1;
   }
 
   launchGame() {
     this.scene.launch("Game");
     this.scene.bringToTop("MainUI");
     this.pauseButton.setVisible(true);
+
+    if (this.sound.get("music").isPlaying) {
+      this.musicOnButton.setVisible(true);
+    } else {
+      this.musicOffButton.setVisible(true);
+    }
+
+    this.titleText.setFontSize("72px");
     this.startMenu.setVisible(false);
     this.activeOptions = null;
     this.activeOption = -1;
+    this.gameActive = true;
   }
 
   returnToTitle() {
     this.scene.stop("Game");
     this.pauseButton.setVisible(false);
     this.playButton.setVisible(false);
+    this.musicOnButton.setVisible(false);
+    this.musicOffButton.setVisible(false);
+    this.titleText.setFontSize("120px");
     this.pauseMenu.setVisible(false);
     this.startMenu.setVisible(true);
     this.activeOptions = this.startOptions;
     this.activeOption = -1;
+    this.gameActive = false;
   }
 }
 
@@ -1726,7 +1819,7 @@ class GameText extends Phaser.GameObjects.Text {
       cT.setStroke(COLORS.fillColor).setShadow(2, 2, "#333333", 0, true, true);
     }
 
-    //"IBM Plex Mono", "Finger Paint", "Anonymous Pro"]
+    //"IBM Plex Mono", "Finger Paint", "Anonymous Pro"
     //"Roboto Mono", "PT Sans", "Quicksand", "IBM Plex Sans", "Titillium Web"
 
     // if callback is given, assume it's a button and add callback.
@@ -1758,6 +1851,7 @@ class GameText extends Phaser.GameObjects.Text {
         })
         .on("pointerup", function () {
           this.setTint(COLORS.tintColor);
+          //scene.game.canvas.style.cursor = "auto"; // trying to fix hand cursor remaining on click
         });
     }
 
