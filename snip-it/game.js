@@ -1510,11 +1510,11 @@ class MainUI extends Phaser.Scene {
 
   createTitleText() {
     this.titleText = new GameText(this, gameW * 0.5, 2, "snip it!", "g", "l")
-      .setFontStyle("bold")
+      //.setFontStyle("bold")
       .setFontSize("120px")
       .setOrigin(0.48, 0)
-      .setStroke(COLORS.fillColor, 4)
-      .setShadow(4, 4, "#333333", 2, true, true)
+      //.setStroke(COLORS.fillColor, 4)
+      //.setShadow(4, 4, "#333333", 2, true, true)
       .setColor("#e0fbfc");
   }
 
