@@ -1237,7 +1237,7 @@ class MainUI extends Phaser.Scene {
   create() {
     this.createResolution();
     // show the "game window" while in development
-    this.add.rectangle(gameW * 0.5, gameH * 0.5, gameW, gameH, 0x000000, 0.04);
+    this.add.rectangle(gameW * 0.5, gameH * 0.5, gameW, gameH, 0x000000, 0.08);
 
     this.createButtons();
     this.createControls();
@@ -1512,11 +1512,11 @@ class MainUI extends Phaser.Scene {
 
   createTitleText() {
     this.titleText = new GameText(this, gameW * 0.5, 2, "snip it!", "g", "l")
-      //.setFontStyle("bold")
+      .setFontStyle("bold")
       .setFontSize("120px")
       .setOrigin(0.48, 0)
-      .setStroke(COLORS.fillColor, 4)
-      .setShadow(4, 4, "#333333", 2, true, true)
+      //.setStroke(COLORS.fillColor, 4)
+      //.setShadow(4, 4, "#333333", 2, true, true)
       .setColor("#e0fbfc");
   }
 
@@ -1698,31 +1698,47 @@ class MainUI extends Phaser.Scene {
   }
 
   createCreditsMenu() {
-    this.creditsMenu = this.add.container(gameW * 0.05, gameH * 0.28);
+    this.creditsMenu = this.add.container();
     this.creditsOptions = [];
+
+    let scroll = 100;
 
     const s1 = new GameText(
       this,
-      gameW * 0.5 - this.creditsMenu.x,
-      gameH,
+      gameW * 0.5,
+      gameH * 0.5,
       this.cache.text.get("credits"),
       "l",
       undefined
     )
-      .setOrigin(0.5, 0.5)
+      .setOrigin(0.5, 0)
       .setLineSpacing(36);
+
+    s1.height = 100;
+
+    this.add.tween({
+      targets: scroll,
+      to: 500,
+      duration: 1000,
+      yoyo: true,
+      loop: -1,
+    });
+
+    const r1 = this.add
+      .rectangle(gameW * 0.5, gameH, gameW, gameH * 0.2, COLORS.black, 0.8)
+      .setOrigin(0.5, 1);
 
     const s2 = new GameText(
       this,
-      gameW * 0.9 - this.creditsMenu.x,
-      gameH * 0.6,
+      gameW * 0.9,
+      gameH * 0.9,
       "return",
       "g",
       undefined,
       this.closeCredits
-    ).setOrigin(1, 0.5);
+    ).setOrigin(1, 1);
 
-    this.creditsMenu.add([s1, s2]).setVisible(false);
+    this.creditsMenu.add([s1, r1, s2]).setVisible(false);
 
     this.creditsOptions.push(s2);
   }
