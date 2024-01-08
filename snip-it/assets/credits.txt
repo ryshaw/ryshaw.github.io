@@ -1,9 +1,11 @@
-a game by ryan shaw
+a game by ryshaw
 created w/ phaser 3.6
 @ryshawgames
 
-music by Joth
+music 
+"Bossa Nova" by Joth
 @Joth_Music
 
-sfx by Gabyyu
+sound effects
+created by Gabyyu
 @gabyyu_lovelity

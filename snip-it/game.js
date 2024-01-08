@@ -1343,7 +1343,11 @@ class MainUI extends Phaser.Scene {
     const esc = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 
     this.input.keyboard.on("keydown-ESC", () => {
-      if (Phaser.Input.Keyboard.JustDown(esc)) this.pauseOrResumeGame();
+      if (Phaser.Input.Keyboard.JustDown(esc)) {
+        this.pauseOrResumeGame();
+
+        if (this.creditsMenu.visible) this.closeCredits();
+      }
     });
 
     const m = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
@@ -1450,6 +1454,21 @@ class MainUI extends Phaser.Scene {
         const option = this.activeOptions[this.activeOption];
         option.emit("pointerup");
         option.emit("pointerout");
+      }
+    });
+
+    // for credits scrolling
+    this.input.on("pointerdown", () => {
+      if (this.creditsMenu.visible) {
+        const creditsText = this.creditsMenu.getByName("creditsText");
+        this.tweens.getTweensOf(creditsText)[0].timeScale = 5;
+      }
+    });
+
+    this.input.on("pointerup", () => {
+      if (this.creditsMenu.visible) {
+        const creditsText = this.creditsMenu.getByName("creditsText");
+        this.tweens.getTweensOf(creditsText)[0].timeScale = 1;
       }
     });
   }
@@ -1704,47 +1723,48 @@ class MainUI extends Phaser.Scene {
     const s1 = new GameText(
       this,
       gameW * 0.5,
-      gameH * 1,
+      gameH * 0.88,
       this.cache.text.get("credits"),
       "l",
       undefined
     )
       .setOrigin(0.5, 0)
-      .setLineSpacing(36);
+      .setLineSpacing(30)
+      .setName("creditsText")
+      .setVisible(false);
 
     this.add.tween({
       targets: s1,
-      y: -s1.height,
-      duration: 10000,
+      y: -s1.height * 0.8,
+      duration: 24000,
       loop: -1,
+      paused: true,
       onUpdate: () => {
         // creates a scrolling text with a top and bottom cutoff
         // I wrote this but I barely understand how it works.
-        const topBound = gameH * 0.2 - s1.y;
-        const bottomBound = gameH * 0.8 - s1.y;
+        const topBound = gameH * 0.18 - s1.y;
+        const bottomBound = gameH * 0.85 - s1.y;
         if (topBound < 0) {
           s1.setCrop(0, topBound, gameW, bottomBound);
         } else {
           s1.setCrop(0, topBound, gameW, bottomBound - topBound);
         }
+
+        if (!s1.visible) s1.setVisible(true); // must set crop first
       },
     });
 
-    const r1 = this.add
-      .rectangle(gameW * 0.5, gameH, gameW, gameH * 0.2, COLORS.black, 0.1)
-      .setOrigin(0.5, 1);
-
     const s2 = new GameText(
       this,
-      gameW * 0.9,
-      gameH * 0.9,
+      gameW - 40,
+      gameH - 40,
       "return",
       "g",
       undefined,
       this.closeCredits
     ).setOrigin(1, 1);
 
-    this.creditsMenu.add([s1, r1, s2]).setVisible(false);
+    this.creditsMenu.add([s1, s2]).setVisible(false);
 
     this.creditsOptions.push(s2);
   }
@@ -1754,6 +1774,9 @@ class MainUI extends Phaser.Scene {
     this.creditsMenu.setVisible(true);
     this.activeOptions = this.creditsOptions;
     this.activeOption = -1;
+
+    const creditsText = this.creditsMenu.getByName("creditsText");
+    this.tweens.getTweensOf(creditsText)[0].play();
   }
 
   closeCredits() {
@@ -1761,6 +1784,10 @@ class MainUI extends Phaser.Scene {
     this.creditsMenu.setVisible(false);
     this.activeOptions = this.startOptions;
     this.activeOption = -1;
+
+    const creditsText = this.creditsMenu.getByName("creditsText");
+    this.tweens.getTweensOf(creditsText)[0].restart().pause();
+    creditsText.setVisible(false);
   }
 
   launchGame() {
