@@ -1,6 +1,6 @@
 a game by ryan shaw
-developed in phaser.js 3.60
-@ryshaw_games
+created w/ phaser 3.6
+@ryshawgames
 
 music by Joth
 @Joth_Music

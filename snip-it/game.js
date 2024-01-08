@@ -1512,11 +1512,11 @@ class MainUI extends Phaser.Scene {
 
   createTitleText() {
     this.titleText = new GameText(this, gameW * 0.5, 2, "snip it!", "g", "l")
-      .setFontStyle("bold")
+      //.setFontStyle("bold")
       .setFontSize("120px")
       .setOrigin(0.48, 0)
-      //.setStroke(COLORS.fillColor, 4)
-      //.setShadow(4, 4, "#333333", 2, true, true)
+      .setStroke(COLORS.fillColor, 4)
+      .setShadow(4, 4, "#333333", 2, true, true)
       .setColor("#e0fbfc");
   }
 
@@ -1701,12 +1701,10 @@ class MainUI extends Phaser.Scene {
     this.creditsMenu = this.add.container();
     this.creditsOptions = [];
 
-    let scroll = 100;
-
     const s1 = new GameText(
       this,
       gameW * 0.5,
-      gameH * 0.5,
+      gameH * 1,
       this.cache.text.get("credits"),
       "l",
       undefined
@@ -1714,18 +1712,26 @@ class MainUI extends Phaser.Scene {
       .setOrigin(0.5, 0)
       .setLineSpacing(36);
 
-    s1.height = 100;
-
     this.add.tween({
-      targets: scroll,
-      to: 500,
-      duration: 1000,
-      yoyo: true,
+      targets: s1,
+      y: -s1.height,
+      duration: 10000,
       loop: -1,
+      onUpdate: () => {
+        // creates a scrolling text with a top and bottom cutoff
+        // I wrote this but I barely understand how it works.
+        const topBound = gameH * 0.2 - s1.y;
+        const bottomBound = gameH * 0.8 - s1.y;
+        if (topBound < 0) {
+          s1.setCrop(0, topBound, gameW, bottomBound);
+        } else {
+          s1.setCrop(0, topBound, gameW, bottomBound - topBound);
+        }
+      },
     });
 
     const r1 = this.add
-      .rectangle(gameW * 0.5, gameH, gameW, gameH * 0.2, COLORS.black, 0.8)
+      .rectangle(gameW * 0.5, gameH, gameW, gameH * 0.2, COLORS.black, 0.1)
       .setOrigin(0.5, 1);
 
     const s2 = new GameText(
