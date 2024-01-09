@@ -1215,6 +1215,9 @@ class MainUI extends Phaser.Scene {
   levelSelectOptions;
   levelSelectConfirmMenu;
   levelSelectConfirmOptions;
+  tutorialMenu;
+  tutorialOptions;
+  tutorialActive;
 
   constructor() {
     super("MainUI");
@@ -1258,6 +1261,7 @@ class MainUI extends Phaser.Scene {
     });
 
     this.gameActive = false;
+    this.tutorialActive = false;
   }
 
   createResolution() {
@@ -1516,7 +1520,7 @@ class MainUI extends Phaser.Scene {
       music.pause();
       localStorage.setItem("music", "off");
 
-      if (this.gameActive) {
+      if (this.gameActive || this.tutorialActive) {
         this.musicOnButton.setVisible(false);
         this.musicOffButton.setVisible(true);
       }
@@ -1525,7 +1529,7 @@ class MainUI extends Phaser.Scene {
       music.resume();
       localStorage.setItem("music", "on");
 
-      if (this.gameActive) {
+      if (this.gameActive || this.tutorialActive) {
         this.musicOnButton.setVisible(true);
         this.musicOffButton.setVisible(false);
       }
@@ -1549,6 +1553,7 @@ class MainUI extends Phaser.Scene {
     this.createCreditsMenu();
     this.createLevelSelectMenu();
     this.createLevelSelectConfirmMenu();
+    this.createTutorialMenu();
 
     this.activeOption = -1;
     this.activeOptions = this.startOptions;
@@ -1679,17 +1684,27 @@ class MainUI extends Phaser.Scene {
     const s2 = new GameText(
       this,
       0,
-      gameH * 0.16,
+      gameH * 0.13,
+      "tutorial",
+      "g",
+      undefined,
+      this.launchTutorial
+    ).setOrigin(0, 0.5);
+
+    const s3 = new GameText(
+      this,
+      0,
+      gameH * 0.26,
       "level select",
       "g",
       undefined,
       this.openLevelSelect
     ).setOrigin(0, 0.5);
 
-    const s3 = new GameText(
+    const s4 = new GameText(
       this,
       0,
-      gameH * 0.32,
+      gameH * 0.39,
       "music: on",
       "g",
       undefined,
@@ -1698,19 +1713,19 @@ class MainUI extends Phaser.Scene {
       .setOrigin(0, 0.5)
       .setName("musicText");
 
-    if (localStorage.getItem("music") == "off") s3.setText("music: off");
+    if (localStorage.getItem("music") == "off") s4.setText("music: off");
 
-    const s4 = new GameText(
+    const s5 = new GameText(
       this,
       0,
-      gameH * 0.48,
+      gameH * 0.52,
       "credits",
       "g",
       undefined,
       this.openCredits
     ).setOrigin(0, 0.5);
 
-    const s5 = new GameText(
+    const s6 = new GameText(
       this,
       gameW - this.startMenu.x,
       gameH - this.startMenu.y,
@@ -1720,7 +1735,7 @@ class MainUI extends Phaser.Scene {
       .setOrigin(1, 1)
       .setPadding(10);
 
-    this.startMenu.add([s1, s2, s3, s4, s5]).setVisible(false);
+    this.startMenu.add([s1, s2, s3, s4, s5, s6]).setVisible(false);
 
     this.startOptions.push(s1, s2, s3, s4, s5);
   }
@@ -1818,7 +1833,7 @@ class MainUI extends Phaser.Scene {
 
       const s = new GameText(
         this,
-        gameW * 0.08,
+        gameW * 0.09,
         gameH * 0.115 * (i + 1),
         lvl,
         "g",
@@ -1845,35 +1860,38 @@ class MainUI extends Phaser.Scene {
     const s3 = new GameText(
       this,
       gameW * 0.6,
-      gameH * 0.12,
+      gameH * 0.13,
       "never played?\nstart at level 1!",
       "m",
       undefined
     )
       .setOrigin(0.5, 0.5)
-      .setLineSpacing(10);
+      .setLineSpacing(10)
+      .setFontSize("36px");
 
     const s4 = new GameText(
       this,
       gameW * 0.6,
-      gameH * 0.32,
+      gameH * 0.33,
       "levels 5-15\nfor a challenge!",
       "m",
       undefined
     )
       .setOrigin(0.5, 0.5)
-      .setLineSpacing(10);
+      .setLineSpacing(10)
+      .setFontSize("36px");
 
     const s5 = new GameText(
       this,
       gameW * 0.6,
-      gameH * 0.52,
+      gameH * 0.53,
       "level 20?\ngood luck :)",
       "m",
       undefined
     )
       .setOrigin(0.5, 0.5)
-      .setLineSpacing(10);
+      .setLineSpacing(10)
+      .setFontSize("36px");
 
     const s6 = new GameText(
       this,
@@ -1884,7 +1902,8 @@ class MainUI extends Phaser.Scene {
       undefined
     )
       .setOrigin(0.5, 0.5)
-      .setLineSpacing(10);
+      .setLineSpacing(10)
+      .setFontSize("36px");
 
     this.levelSelectMenu.add([s1, s2, s3, s4, s5, s6]).setVisible(false);
     this.levelSelectOptions.push(s2);
@@ -1985,6 +2004,59 @@ class MainUI extends Phaser.Scene {
     this.activeOption = -1;
   }
 
+  createTutorialMenu() {
+    this.tutorialMenu = this.add.container(gameW * 0.05, gameH * 0.22);
+    this.tutorialOptions = [];
+
+    const s1 = new GameText(this, 0, 0, "tutorial", "g", undefined).setOrigin(
+      0,
+      0.5
+    );
+
+    const s2 = new GameText(
+      this,
+      gameW - 40 - this.tutorialMenu.x,
+      gameH - 40 - this.tutorialMenu.y,
+      "return",
+      "g",
+      undefined,
+      this.closeTutorial
+    ).setOrigin(1, 1);
+
+    const s3 = new GameText(
+      this,
+      gameW * 0.6,
+      gameH * 0.13,
+      "never played?\nstart at level 1!",
+      "m",
+      undefined
+    )
+      .setAlign("left")
+      .setOrigin(0.5, 0.5)
+      .setLineSpacing(10)
+      .setFontSize("36px");
+
+    this.tutorialMenu.add([s1, s2, s3]).setVisible(false);
+    this.tutorialOptions.push(s2);
+  }
+
+  launchTutorial() {
+    this.scene.launch("Tutorial");
+    this.scene.bringToTop("MainUI");
+
+    if (this.sound.get("music").isPlaying) {
+      this.musicOnButton.setVisible(true);
+    } else {
+      this.musicOffButton.setVisible(true);
+    }
+
+    this.titleText.setFontSize("72px");
+    this.startMenu.setVisible(false);
+    this.activeOptions = null;
+    this.activeOption = -1;
+    this.tutorialActive = true;
+  }
+
   launchGame(lvl) {
     this.scene.launch("Game", { level: lvl });
     this.scene.bringToTop("MainUI");
@@ -2006,6 +2078,7 @@ class MainUI extends Phaser.Scene {
 
   returnToTitle() {
     this.scene.stop("Game");
+    this.scene.stop("Tutorial");
     this.pauseButton.setVisible(false);
     this.playButton.setVisible(false);
     this.musicOnButton.setVisible(false);
@@ -2016,6 +2089,548 @@ class MainUI extends Phaser.Scene {
     this.activeOptions = this.startOptions;
     this.activeOption = -1;
     this.gameActive = false;
+    this.tutorialActive = false;
+  }
+}
+
+class Tutorial extends Phaser.Scene {
+  keysDown;
+  graphics;
+  player;
+  bounds; // big rectangle that is the "canvas"
+  grid; // tile grid for the canvas
+  gridPos; // what grid position is player in
+  gridX; // how many tiles is grid in X direction
+  gridY; // how many tiles is grid in Y direction
+  canMove; // timer that controls how fast player can go across tiles
+  edgePoints; // all points on drawn edges that player can walk on and connect to
+  pointerDown; // is mouse or touch input down
+
+  constructor() {
+    super("Tutorial");
+  }
+
+  preload() {
+    // load google's library for the various fonts we want to use
+    this.load.script(
+      "webfont",
+      "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
+    );
+  }
+
+  create() {
+    this.createResolution();
+    this.createLayout();
+    this.createPlayer();
+    this.createPlayerControls();
+    this.createMouseControls();
+    this.createPhysics();
+
+    WebFont.load({
+      google: {
+        families: FONTS,
+      },
+      active: () => {
+        this.loadGameText();
+      },
+    });
+  }
+
+  createResolution() {
+    // I don't know how this code works but it's magic. I also stole it from here:
+    // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
+    const width = this.scale.gameSize.width;
+    const height = this.scale.gameSize.height;
+
+    this.parent = new Phaser.Structs.Size(width, height);
+    this.sizer = new Phaser.Structs.Size(
+      gameW,
+      gameH,
+      Phaser.Structs.Size.FIT,
+      this.parent
+    );
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+
+    this.scale.on("resize", this.resize, this);
+  }
+
+  createLayout() {
+    this.graphics = this.add.graphics();
+
+    this.bounds = this.add.rectangle(
+      gameW * 0.5,
+      gameH * 0.49,
+      gameW * 0.85,
+      gameH * 0.75,
+      0xffffff,
+      0 //0.04
+    );
+
+    this.grid = [];
+    const start = this.bounds.getTopLeft();
+
+    const aspectRatio = this.bounds.width / this.bounds.height;
+
+    this.gridY = 83;
+    if (!this.sys.game.device.os.desktop) {
+      this.gridY = 51;
+    }
+
+    this.gridX = Math.round(this.gridY * aspectRatio);
+    if (this.gridX % 2 == 0) this.gridX++; // must be odd
+
+    const perimeter = 2 * (this.gridX + this.gridY) - 4;
+    // minus four to account for the four corner tiles,
+    // so they won't be counted twice
+
+    // this is the total area the player is drawing in
+    // since the bounds of the rectangle are already filled in
+    this.totalDrawingArea = this.gridX * this.gridY - perimeter;
+
+    const w = this.bounds.width / this.gridX;
+    const h = this.bounds.height / this.gridY;
+    // w and h should mathematically be equal
+    // since we adjusted gridX to gridY via the aspect ratio
+
+    for (let i = 0; i < this.gridX; i++) {
+      this.grid[i] = [];
+      for (let j = 0; j < this.gridY; j++) {
+        const r = this.add
+          .rectangle(
+            start.x + w / 2 + i * w,
+            start.y + h / 2 + j * h,
+            w,
+            h,
+            0xffff00,
+            0
+          )
+          .setFillStyle(COLORS.fillColor, 0)
+          .setData("counted", false)
+          .setData("filled", false);
+
+        this.grid[i][j] = r;
+
+        // fill up edges
+        if (i == 0 || i == this.gridX - 1 || j == 0 || j == this.gridY - 1) {
+          this.grid[i][j].setFillStyle(COLORS.fillColor, 1);
+          this.physics.add.existing(this.grid[i][j], true);
+          this.grid[i][j].body.immovable = true;
+        }
+      }
+    }
+
+    // update edge points: filled-in tiles that are facing undrawn area only
+    this.edgePoints = new Phaser.Structs.List();
+
+    for (let i = 0; i < this.gridX; i++) {
+      for (let j = 0; j < this.gridY; j++) {
+        const p = new Phaser.Math.Vector2(i, j);
+        const t = this.grid[i][j];
+
+        // player can only walk on edge points
+        // edge points are the filled points next to unfilled area
+        for (let angle = 0; angle < 360; angle += 45) {
+          let r = Phaser.Math.DegToRad(angle);
+          let v = Phaser.Math.Vector2.UP.clone().rotate(r);
+          v.x = Math.round(v.x);
+          v.y = Math.round(v.y);
+          v.add(p);
+          if (this.checkInBounds(v) && !this.grid[v.x][v.y].body && t.body) {
+            t.setFillStyle(COLORS.fillColor, 1);
+            this.edgePoints.add(p);
+          }
+        }
+      }
+    }
+  }
+
+  createPlayer() {
+    // create simple rectangle texture for player
+    const rectangleDrawer = this.make.graphics(); // disposable graphics obj
+    const playerW = Math.ceil(this.grid[0][0].width * 1.2); // match tile width
+    rectangleDrawer.lineStyle(4, 0xfffbfc, 1);
+    rectangleDrawer.strokeRect(0, 0, playerW, playerW);
+    rectangleDrawer.generateTexture("rect", playerW, playerW);
+    const centerX = Math.round(this.gridX / 2);
+    this.player = this.physics.add
+      .sprite(this.grid[centerX][0].x, this.grid[0][0].y, "rect")
+      .setName("player");
+
+    this.player.body.collideWorldBounds = true;
+    this.player.body.onWorldBounds = true;
+    this.gridPos = new Phaser.Math.Vector2(centerX, 0);
+    this.canMove = true;
+    this.drawing = false;
+  }
+
+  createPhysics() {
+    this.physics.world.setBounds(
+      this.bounds.getTopLeft().x - this.player.width / 2,
+      this.bounds.getTopLeft().y - this.player.width / 2,
+      this.bounds.width + this.player.width,
+      this.bounds.height + this.player.width
+    );
+  }
+
+  loadGameText() {}
+
+  resize(gameSize) {
+    const width = gameSize.width;
+    const height = gameSize.height;
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+  }
+
+  updateCamera() {
+    const camera = this.cameras.main;
+
+    const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
+    const y = 0;
+    const scaleX = this.sizer.width / gameW;
+    const scaleY = this.sizer.height / gameH;
+
+    // offset is comparing the game's height to the window's height,
+    // and centering the game in (kind of) the middle of the window.
+    const offset = (1 + this.parent.height / this.sizer.height) / 2;
+
+    camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
+    camera.setZoom(Math.max(scaleX, scaleY));
+    camera.centerOn(gameW / 2, gameH / 2);
+  }
+
+  createPlayerControls() {
+    this.keysDown = new Phaser.Structs.List();
+
+    this.input.keyboard.on("keydown-W", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.UP);
+    });
+
+    this.input.keyboard.on("keyup-W", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.UP);
+    });
+
+    this.input.keyboard.on("keydown-UP", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.UP);
+    });
+
+    this.input.keyboard.on("keyup-UP", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.UP);
+    });
+
+    this.input.keyboard.on("keydown-S", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.DOWN);
+    });
+
+    this.input.keyboard.on("keyup-S", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.DOWN);
+    });
+
+    this.input.keyboard.on("keydown-DOWN", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.DOWN);
+    });
+
+    this.input.keyboard.on("keyup-DOWN", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.DOWN);
+    });
+
+    this.input.keyboard.on("keydown-A", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.LEFT);
+    });
+
+    this.input.keyboard.on("keyup-A", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.LEFT);
+    });
+
+    this.input.keyboard.on("keydown-LEFT", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.LEFT);
+    });
+
+    this.input.keyboard.on("keyup-LEFT", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.LEFT);
+    });
+
+    this.input.keyboard.on("keydown-D", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.RIGHT);
+    });
+
+    this.input.keyboard.on("keyup-D", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.RIGHT);
+    });
+
+    this.input.keyboard.on("keydown-RIGHT", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.RIGHT);
+    });
+
+    this.input.keyboard.on("keyup-RIGHT", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.RIGHT);
+    });
+
+    /*
+    this.input.keyboard.on("keydown-M", () => {
+      const track1 = this.sound.get("track1");
+      track1.isPlaying ? track1.pause() : track1.resume();
+    });
+
+    this.input.keyboard.on("keydown-N", () => {
+      this.soundVolume > 0 ? (this.soundVolume = 0) : (this.soundVolume = 0.8);
+      Object.values(this.soundEffects).forEach((sound) => sound.stop());
+    });*/
+  }
+
+  createMouseControls() {
+    this.pointerDown = false;
+    this.input.on("pointerdown", () => (this.pointerDown = true));
+    this.input.on("pointerup", () => (this.pointerDown = false));
+  }
+
+  update() {
+    this.updatePlayerMovement();
+  }
+
+  updatePlayerMovement() {
+    // player movement dictated by last key held down or touch input
+    if (!this.canMove) return; // don't move between moves
+
+    // check keyboard input first then touch input
+    let direction = undefined;
+    if (this.keysDown.last) direction = this.keysDown.last;
+    else if (this.pointerDown) {
+      // for touch controls
+      const p1 = this.input.activePointer.positionToCamera(this.cameras.main);
+      const p0 = new Phaser.Math.Vector2(this.player.x, this.player.y);
+      const angle = Phaser.Math.RadToDeg(p1.subtract(p0).angle());
+
+      if (p1.length() < this.grid[0][0].width * 1.2) return; // too short of a distance to move
+
+      direction = Phaser.Math.Vector2.UP;
+
+      if (angle >= 315 || angle < 45) {
+        direction = Phaser.Math.Vector2.RIGHT;
+      } else if (angle >= 45 && angle < 135) {
+        direction = Phaser.Math.Vector2.DOWN;
+      } else if (angle >= 135 && angle < 225) {
+        direction = Phaser.Math.Vector2.LEFT;
+      }
+    } else return; // don't move if no input detected
+
+    // grab the player's next intended position, two tile movement
+    const nextPos = this.gridPos.clone().add(direction.clone().scale(2));
+
+    // if that position is out of bounds, don't move
+    if (
+      nextPos.x < 0 ||
+      nextPos.x > this.gridX - 1 ||
+      nextPos.y < 0 ||
+      nextPos.y > this.gridY - 1
+    )
+      return;
+
+    // grab the player's intended next tile
+    const nextTile = this.grid[nextPos.x][nextPos.y];
+
+    // must also check that the midpoint (one tile forward) is an edge
+    const midPos = this.gridPos.clone().add(direction.clone());
+    const mid = this.grid[midPos.x][midPos.y];
+
+    // check if we're going to an edge (player is allowed to walk on edges)
+    let edge = false;
+    let midEdge = false;
+    this.edgePoints.list.forEach((p) => {
+      if (nextPos.x == p.x && nextPos.y == p.y) edge = true;
+      if (midPos.x == p.x && midPos.y == p.y) midEdge = true;
+    });
+
+    // player is not allowed to move onto any filled area that isn't an edge
+    if ((nextTile.getData("filled") || nextTile.body) && !edge) return;
+
+    // check midpoint as well
+    if ((mid.body || mid.getData("filled")) && !midEdge) return;
+
+    // all checks pass, move the player
+    this.movePlayer(this.gridPos, nextPos, edge);
+  }
+
+  movePlayer(fromPos, toPos, toEdge) {
+    const from = this.grid[fromPos.x][fromPos.y];
+    const midPos = new Phaser.Math.Vector2();
+    midPos.x = (fromPos.x + toPos.x) / 2;
+    midPos.y = (fromPos.y + toPos.y) / 2;
+    const mid = this.grid[midPos.x][midPos.y];
+    const to = this.grid[toPos.x][toPos.y];
+
+    let midEdge = false;
+    let fromEdge = false;
+    this.edgePoints.list.forEach((p) => {
+      if (midPos.x == p.x && midPos.y == p.y) {
+        midEdge = true;
+      }
+      if (fromPos.x == p.x && fromPos.y == p.y) {
+        fromEdge = true;
+      }
+    });
+
+    // only draw if covering undrawn area
+    if (this.checkInBounds(midPos) && !midEdge && !mid.body) {
+      // if we're in completely undrawn area, cover the area we're coming from
+      if (this.checkInBounds(fromPos) && !fromEdge) {
+        from.setFillStyle(COLORS.drawColor, 1);
+        this.physics.add.existing(from, true);
+        from.body.immovable = true;
+      }
+
+      // draw the middle tile always
+      mid.setFillStyle(COLORS.drawColor, 1);
+      this.physics.add.existing(mid, true);
+      mid.body.immovable = true;
+
+      // complete drawing if we've hit a wall or an edge
+      if (!this.checkInBounds(toPos) || toEdge) {
+        this.completeDrawing(midPos);
+      }
+    }
+
+    this.player.setPosition(to.x, to.y);
+    this.gridPos.x = toPos.x;
+    this.gridPos.y = toPos.y;
+    this.canMove = false;
+    this.time.delayedCall(80 - 1 * 1.6, () => (this.canMove = true));
+  }
+
+  completeDrawing(startPos) {
+    // determine what direction contains the least amount of area to fill up
+    let direction = Phaser.Math.Vector2.UP.clone();
+    let minArea = this.gridX * this.gridY;
+
+    for (let i = 0; i < 360; i += 90) {
+      this.drawingArea = 0;
+
+      const dir = direction.clone().rotate(Phaser.Math.DegToRad(i));
+      dir.x = Math.round(dir.x);
+      dir.y = Math.round(dir.y);
+
+      // count how many tiles in this direction
+      this.countTilesRecursiely(startPos.clone().add(dir));
+      if (this.drawingArea > 0 && this.drawingArea < minArea) {
+        minArea = this.drawingArea;
+        direction = dir.clone();
+      }
+    }
+
+    this.fillInTilesRecursively(startPos.clone().add(direction));
+
+    // update edge points: filled-in tiles that are facing undrawn area only
+    this.edgePoints.removeAll();
+
+    let count = 0; // count how many tiles we've filled
+    for (let i = 0; i < this.gridX; i++) {
+      for (let j = 0; j < this.gridY; j++) {
+        const p = new Phaser.Math.Vector2(i, j);
+        const t = this.grid[i][j];
+        t.setData("counted", false);
+        if ((t.body || t.getData("filled")) && this.checkInBounds(p)) count++; // count how many tiles we've filled
+
+        // player can only walk on edge points
+        // edge points are the filled points next to unfilled area
+        for (let angle = 0; angle < 360; angle += 45) {
+          let r = Phaser.Math.DegToRad(angle);
+          let v = Phaser.Math.Vector2.UP.clone().rotate(r);
+          v.x = Math.round(v.x);
+          v.y = Math.round(v.y);
+          v.add(p);
+
+          if (
+            this.checkInBounds(v) &&
+            !this.grid[v.x][v.y].getData("filled") &&
+            !this.grid[v.x][v.y].body &&
+            t.body
+          ) {
+            t.setFillStyle(COLORS.fillColor, 1);
+            t.setData("filled", true);
+            this.edgePoints.add(p);
+          }
+        }
+      }
+    }
+  }
+
+  fillInTilesRecursively(pos) {
+    if (this.checkInBounds(pos)) {
+      let tile = this.grid[pos.x][pos.y];
+      if (tile.body || tile.getData("filled")) return; // base case!
+      tile.setFillStyle(COLORS.fillColor, 0.2);
+      tile.setData("filled", true);
+      //this.physics.add.existing(tile, true);
+    } else return;
+
+    this.fillInTilesRecursively(pos.clone().add(Phaser.Math.Vector2.UP));
+    this.fillInTilesRecursively(pos.clone().add(Phaser.Math.Vector2.RIGHT));
+    this.fillInTilesRecursively(pos.clone().add(Phaser.Math.Vector2.LEFT));
+    this.fillInTilesRecursively(pos.clone().add(Phaser.Math.Vector2.DOWN));
+  }
+
+  countTilesRecursiely(pos) {
+    if (this.checkInBounds(pos)) {
+      let tile = this.grid[pos.x][pos.y];
+      if (tile.body || tile.getData("counted")) return; // base case!
+      tile.setData("counted", true);
+      this.drawingArea++;
+    } else return;
+
+    this.countTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.RIGHT));
+    this.countTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.UP));
+    this.countTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.LEFT));
+    this.countTilesRecursiely(pos.clone().add(Phaser.Math.Vector2.DOWN));
+  }
+
+  checkInBounds(pos) {
+    // check if inside canvas (not on the border)
+    return !(
+      pos.y <= 0 ||
+      pos.y >= this.gridY - 1 ||
+      pos.x <= 0 ||
+      pos.x >= this.gridX - 1
+    );
+  }
+
+  checkInGrid(pos) {
+    // is this a valid grid position at all?
+    return (
+      pos.x >= 0 &&
+      pos.x <= this.gridX - 1 &&
+      pos.y >= 0 &&
+      pos.y <= this.gridY - 1
+    );
+  }
+
+  checkIfEdge(pos) {
+    // is this position an edge point?
+    let onEdge = false;
+    this.edgePoints.list.forEach((edge) => {
+      if (pos.x == edge.x && pos.y == edge.y) onEdge = true;
+    });
+    return onEdge;
+  }
+
+  convertWorldToGrid(x, y) {
+    // converts a position in the world to a position on the grid
+    // for enemies to check where they are on the grid to see if it's filled
+    const b = this.bounds.getBounds();
+    if (!Phaser.Geom.Rectangle.Contains(b, x, y)) return;
+
+    const topLeft = this.bounds.getTopLeft();
+    const w = this.grid[0][0].width;
+    const h = this.grid[0][0].height;
+    x = Math.floor((x - topLeft.x) / w);
+    y = Math.floor((y - topLeft.y) / h);
+
+    return new Phaser.Math.Vector2(x, y);
   }
 }
 
@@ -2037,7 +2652,7 @@ const config = {
       height: 1200,
     },
   },
-  scene: [Background, MainUI, Game],
+  scene: [Background, MainUI, Game, Tutorial],
   physics: {
     default: "arcade",
     arcade: {
