@@ -2008,10 +2008,9 @@ class MainUI extends Phaser.Scene {
     this.tutorialMenu = this.add.container(gameW * 0.05, gameH * 0.22);
     this.tutorialOptions = [];
 
-    const s1 = new GameText(this, 0, 0, "tutorial", "g", undefined).setOrigin(
-      0,
-      0.5
-    );
+    const s1 = new GameText(this, 0, 0, "tutorial", "g", undefined)
+      .setOrigin(0, 0.5)
+      .setVisible(false);
 
     const s2 = new GameText(
       this,
@@ -2020,7 +2019,7 @@ class MainUI extends Phaser.Scene {
       "return",
       "g",
       undefined,
-      this.closeTutorial
+      this.returnToTitle
     ).setOrigin(1, 1);
 
     const s3 = new GameText(
@@ -2034,7 +2033,8 @@ class MainUI extends Phaser.Scene {
       .setAlign("left")
       .setOrigin(0.5, 0.5)
       .setLineSpacing(10)
-      .setFontSize("36px");
+      .setFontSize("36px")
+      .setVisible(false);
 
     this.tutorialMenu.add([s1, s2, s3]).setVisible(false);
     this.tutorialOptions.push(s2);
@@ -2042,7 +2042,6 @@ class MainUI extends Phaser.Scene {
 
   launchTutorial() {
     this.scene.launch("Tutorial");
-    this.scene.bringToTop("MainUI");
 
     if (this.sound.get("music").isPlaying) {
       this.musicOnButton.setVisible(true);
@@ -2052,9 +2051,11 @@ class MainUI extends Phaser.Scene {
 
     this.titleText.setFontSize("72px");
     this.startMenu.setVisible(false);
-    this.activeOptions = null;
-    this.activeOption = -1;
     this.tutorialActive = true;
+    this.tutorialMenu.setVisible(true);
+    this.activeOptions = this.tutorialOptions;
+    this.activeOption = -1;
+    this.scene.bringToTop("MainUI");
   }
 
   launchGame(lvl) {
@@ -2077,6 +2078,7 @@ class MainUI extends Phaser.Scene {
   }
 
   returnToTitle() {
+    // can come from either game scene or tutorial scene
     this.scene.stop("Game");
     this.scene.stop("Tutorial");
     this.pauseButton.setVisible(false);
@@ -2085,6 +2087,7 @@ class MainUI extends Phaser.Scene {
     this.musicOffButton.setVisible(false);
     this.titleText.setFontSize("120px");
     this.pauseMenu.setVisible(false);
+    this.tutorialMenu.setVisible(false);
     this.startMenu.setVisible(true);
     this.activeOptions = this.startOptions;
     this.activeOption = -1;
@@ -2125,6 +2128,53 @@ class Tutorial extends Phaser.Scene {
     this.createPlayerControls();
     this.createMouseControls();
     this.createPhysics();
+
+    // this.canMove = false; // wait until tutorial is over
+
+    const interval = setInterval(() => {
+      // check if we're stuck!
+      const directions = [
+        Phaser.Math.Vector2.DOWN,
+        Phaser.Math.Vector2.UP,
+        Phaser.Math.Vector2.LEFT,
+        Phaser.Math.Vector2.RIGHT,
+      ];
+
+      let count = 0;
+      directions.forEach((dir) => {
+        const step = this.gridPos.clone().add(dir.clone().scale(2));
+        if (this.checkInGrid(step)) {
+          const tile = this.grid[step.x][step.y];
+          if (tile.fillColor == COLORS.drawColor) {
+            count++;
+          }
+        }
+      });
+
+      if (count >= 4) {
+        clearInterval(interval);
+        this.time.delayedCall(800, () => this.scene.restart());
+      }
+
+      this.keysDown.removeAll();
+      const r = Phaser.Math.Between(1, 4);
+      switch (r) {
+        case 1:
+          this.keysDown.add(Phaser.Math.Vector2.DOWN);
+          break;
+        case 2:
+          this.keysDown.add(Phaser.Math.Vector2.UP);
+          break;
+        case 3:
+          this.keysDown.add(Phaser.Math.Vector2.LEFT);
+          break;
+        case 4:
+          this.keysDown.add(Phaser.Math.Vector2.RIGHT);
+          break;
+        default:
+          break;
+      }
+    }, 500);
 
     WebFont.load({
       google: {
