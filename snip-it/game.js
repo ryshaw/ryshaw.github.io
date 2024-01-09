@@ -2108,6 +2108,7 @@ class Tutorial extends Phaser.Scene {
   canMove; // timer that controls how fast player can go across tiles
   edgePoints; // all points on drawn edges that player can walk on and connect to
   pointerDown; // is mouse or touch input down
+  botInterval; // interval controlling the movements of the tutorial bot
 
   constructor() {
     super("Tutorial");
@@ -2125,13 +2126,16 @@ class Tutorial extends Phaser.Scene {
     this.createResolution();
     this.createLayout();
     this.createPlayer();
-    this.createPlayerControls();
+    //this.createPlayerControls(); // wait until we give player control
     this.createMouseControls();
     this.createPhysics();
 
     // this.canMove = false; // wait until tutorial is over
+    this.keysDown = new Phaser.Structs.List();
+    // clear if it already exists from when we launched the scene previously
+    if (this.botInterval) clearInterval(this.botInterval);
 
-    const interval = setInterval(() => {
+    this.botInterval = setInterval(() => {
       // check if we're stuck!
       const directions = [
         Phaser.Math.Vector2.DOWN,
@@ -2140,6 +2144,8 @@ class Tutorial extends Phaser.Scene {
         Phaser.Math.Vector2.RIGHT,
       ];
 
+      const goodDirections = [];
+
       let count = 0;
       directions.forEach((dir) => {
         const step = this.gridPos.clone().add(dir.clone().scale(2));
@@ -2147,34 +2153,21 @@ class Tutorial extends Phaser.Scene {
           const tile = this.grid[step.x][step.y];
           if (tile.fillColor == COLORS.drawColor) {
             count++;
+          } else {
+            goodDirections.push(dir); // don't hit our current path
           }
         }
       });
 
       if (count >= 4) {
-        clearInterval(interval);
+        // we got stuck
+        clearInterval(this.botInterval);
         this.time.delayedCall(800, () => this.scene.restart());
       }
 
       this.keysDown.removeAll();
-      const r = Phaser.Math.Between(1, 4);
-      switch (r) {
-        case 1:
-          this.keysDown.add(Phaser.Math.Vector2.DOWN);
-          break;
-        case 2:
-          this.keysDown.add(Phaser.Math.Vector2.UP);
-          break;
-        case 3:
-          this.keysDown.add(Phaser.Math.Vector2.LEFT);
-          break;
-        case 4:
-          this.keysDown.add(Phaser.Math.Vector2.RIGHT);
-          break;
-        default:
-          break;
-      }
-    }, 500);
+      this.keysDown.add(Phaser.Utils.Array.GetRandom(goodDirections));
+    }, 450);
 
     WebFont.load({
       google: {
@@ -2356,8 +2349,6 @@ class Tutorial extends Phaser.Scene {
   }
 
   createPlayerControls() {
-    this.keysDown = new Phaser.Structs.List();
-
     this.input.keyboard.on("keydown-W", (event) => {
       this.keysDown.add(Phaser.Math.Vector2.UP);
     });
@@ -2607,6 +2598,13 @@ class Tutorial extends Phaser.Scene {
           }
         }
       }
+    }
+
+    const percentFilled = count / (this.gridX * this.gridY);
+    if (percentFilled >= 0.9) {
+      // the bot won
+      clearInterval(this.botInterval);
+      this.time.delayedCall(1200, () => this.scene.restart());
     }
   }
 
