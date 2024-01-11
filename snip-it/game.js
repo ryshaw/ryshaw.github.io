@@ -1,4 +1,4 @@
-const VERSION = "Snip It! v0.7";
+const VERSION = "Snip It! v0.8";
 
 const gameW = 640;
 const gameH = 960;
@@ -1218,6 +1218,7 @@ class MainUI extends Phaser.Scene {
   tutorialMenu;
   tutorialOptions;
   tutorialActive;
+  tutorialSegment; // which section of tutorial are we on?
 
   constructor() {
     super("MainUI");
@@ -1688,7 +1689,7 @@ class MainUI extends Phaser.Scene {
       "tutorial",
       "g",
       undefined,
-      this.launchTutorial
+      this.openTutorial
     ).setOrigin(0, 0.5);
 
     const s3 = new GameText(
@@ -2005,57 +2006,163 @@ class MainUI extends Phaser.Scene {
   }
 
   createTutorialMenu() {
-    this.tutorialMenu = this.add.container(gameW * 0.05, gameH * 0.22);
+    this.tutorialMenu = this.add
+      .container(gameW * 0.5, gameH * 0.55)
+      .setDepth(1);
     this.tutorialOptions = [];
 
-    const s1 = new GameText(this, 0, 0, "tutorial", "g", undefined)
-      .setOrigin(0, 0.5)
-      .setVisible(false);
+    const bg = this.add
+      .image(0, 0, "bg")
+      .setOrigin(0.5, 0.5)
+      .setDisplaySize(gameW * 0.77, gameH * 0.46)
+      .setPosition(0, -gameH * 0.06)
+      .setTint(0x00b4d8, 0x00b4d8, 0xc8b6ff, 0xc8b6ff)
+      .setAlpha(1)
+      .setName("bg");
 
-    const s2 = new GameText(
+    const text = new GameText(
+      this,
+      0,
+      -gameH * 0.12,
+      "welcome to\nsnip it!",
+      "g",
+      "c"
+    )
+      .setOrigin(0.5, 0.4)
+      .setLineSpacing(20)
+      .setName("tutorialText")
+      .setWordWrapWidth(gameW * 0.77, true);
+
+    this.tweens.add({
+      targets: text,
+      y: text.y - 10,
+      yoyo: true,
+      duration: 1600,
+      loop: -1,
+      ease: "sine.inout",
+    });
+
+    const next = new GameText(
+      this,
+      0,
+      gameH * 0.12,
+      "next",
+      "l",
+      undefined,
+      () => this.setTutorialSegment(this.tutorialSegment + 1)
+    ).setName("tutorialTextNext");
+
+    const r = new GameText(
       this,
       gameW - 40 - this.tutorialMenu.x,
       gameH - 40 - this.tutorialMenu.y,
-      "return",
-      "g",
+      "return to title",
+      "l",
       undefined,
       this.returnToTitle
-    ).setOrigin(1, 1);
-
-    const s3 = new GameText(
-      this,
-      gameW * 0.6,
-      gameH * 0.13,
-      "never played?\nstart at level 1!",
-      "m",
-      undefined
     )
-      .setAlign("left")
-      .setOrigin(0.5, 0.5)
-      .setLineSpacing(10)
-      .setFontSize("36px")
-      .setVisible(false);
+      .setOrigin(1, 1)
+      .setName("tutorialTextReturn");
 
-    this.tutorialMenu.add([s1, s2, s3]).setVisible(false);
-    this.tutorialOptions.push(s2);
+    this.tutorialMenu.add([bg, text, next, r]).setVisible(false);
+    this.tutorialOptions.push(next, r);
   }
 
-  launchTutorial() {
-    this.scene.launch("Tutorial");
+  setTutorialSegment(segment) {
+    this.tutorialSegment = segment;
 
-    if (this.sound.get("music").isPlaying) {
-      this.musicOnButton.setVisible(true);
-    } else {
-      this.musicOffButton.setVisible(true);
+    const t = this.tutorialMenu.getByName("tutorialText");
+    const bg = this.tutorialMenu.getByName("bg");
+    const r = this.tutorialMenu.getByName("tutorialTextReturn");
+    const n = this.tutorialMenu.getByName("tutorialTextNext");
+
+    switch (this.tutorialSegment) {
+      case 1:
+        t.text = "welcome to snip it!";
+        // reset tutorial menu
+        bg.setAlpha(1);
+        this.tutorialMenu.setY(gameH * 0.55);
+        r.setY(gameH - 40 - this.tutorialMenu.y);
+        n.setVisible(true);
+        t.setVisible(true);
+        t.setFontSize("64px");
+        break;
+      case 2:
+        t.setFontSize("46px");
+        t.text = "your goal is to complete the picture!";
+        break;
+      case 3:
+        t.text = "draw lines with your little square...";
+        break;
+      case 4:
+        t.text = "...then connect them to your shapes!";
+        break;
+      case 5:
+        t.text = "fill up the canvas with your shapes to win!";
+        break;
+      case 6:
+        t.text = "you'll have to avoid the circles and squares.";
+        break;
+      case 7:
+        t.text = "don't let the circles touch your path...";
+        break;
+      case 8:
+        t.text = "and don't let the squares touch your square!";
+        break;
+      case 9:
+        this.scene.launch("Tutorial", { playerActive: false });
+        this.scene.bringToTop("MainUI");
+        this.tutorialMenu.setY(gameH * 0.68);
+        bg.setAlpha(0);
+        r.setY(gameH - 40 - this.tutorialMenu.y);
+        t.text = "our robot square will show you how to draw.";
+        break;
+      case 10:
+        t.text = "he may mess up, but that's ok. he's learning.";
+        break;
+      case 11:
+        t.text = "go, little robot square!";
+        break;
+      case 12:
+        t.text = "";
+        break;
+      case 13:
+        t.text = "ok, you got the idea?";
+        break;
+      case 14:
+        t.text = "here, try it out for yourself!";
+        break;
+      case 15:
+        t.text = "arrow keys/WASD or click + hold to move.";
+        break;
+      case 16:
+        t.text = "when you're ready, return to the title!";
+        break;
+      case 17:
+        this.scene.stop("Tutorial");
+        this.scene.launch("Tutorial", { playerActive: true });
+        this.scene.bringToTop("MainUI");
+        n.setVisible(false);
+        t.setVisible(false);
+        break;
+      default:
+        break;
     }
+  }
+
+  openTutorial() {
+    if (this.sound.get("music").isPlaying) this.musicOnButton.setVisible(true);
+    else this.musicOffButton.setVisible(true);
 
     this.titleText.setFontSize("72px");
     this.startMenu.setVisible(false);
     this.tutorialActive = true;
     this.tutorialMenu.setVisible(true);
+    this.tutorialSegment = 1;
     this.activeOptions = this.tutorialOptions;
     this.activeOption = -1;
-    this.scene.bringToTop("MainUI");
+
+    this.setTutorialSegment(1);
   }
 
   launchGame(lvl) {
@@ -2108,7 +2215,10 @@ class Tutorial extends Phaser.Scene {
   canMove; // timer that controls how fast player can go across tiles
   edgePoints; // all points on drawn edges that player can walk on and connect to
   pointerDown; // is mouse or touch input down
-  botInterval; // interval controlling the movements of the tutorial bot
+  totalDrawingArea;
+  areaFilled;
+  playerActive;
+  consecutiveTurns;
 
   constructor() {
     super("Tutorial");
@@ -2122,52 +2232,24 @@ class Tutorial extends Phaser.Scene {
     );
   }
 
-  create() {
+  create(data) {
     this.createResolution();
     this.createLayout();
     this.createPlayer();
-    //this.createPlayerControls(); // wait until we give player control
-    this.createMouseControls();
     this.createPhysics();
 
-    // this.canMove = false; // wait until tutorial is over
     this.keysDown = new Phaser.Structs.List();
-    // clear if it already exists from when we launched the scene previously
-    if (this.botInterval) clearInterval(this.botInterval);
+    this.areaFilled = 0;
 
-    this.botInterval = setInterval(() => {
-      // check if we're stuck!
-      const directions = [
-        Phaser.Math.Vector2.DOWN,
-        Phaser.Math.Vector2.UP,
-        Phaser.Math.Vector2.LEFT,
-        Phaser.Math.Vector2.RIGHT,
-      ];
-
-      const goodDirections = [];
-
-      let count = 0;
-      directions.forEach((dir) => {
-        const step = this.gridPos.clone().add(dir.clone().scale(2));
-        if (this.checkInGrid(step)) {
-          const tile = this.grid[step.x][step.y];
-          if (tile.fillColor == COLORS.drawColor) {
-            count++;
-          } else {
-            goodDirections.push(dir); // don't hit our current path
-          }
-        }
-      });
-
-      if (count >= 4) {
-        // we got stuck
-        clearInterval(this.botInterval);
-        this.time.delayedCall(800, () => this.scene.restart());
-      }
-
-      this.keysDown.removeAll();
-      this.keysDown.add(Phaser.Utils.Array.GetRandom(goodDirections));
-    }, 450);
+    if (!data.playerActive) {
+      this.playerActive = false;
+      this.consecutiveTurns = 0;
+      this.botMove(500, false);
+    } else {
+      this.playerActive = true;
+      this.createPlayerControls();
+      this.createMouseControls();
+    }
 
     WebFont.load({
       google: {
@@ -2177,6 +2259,55 @@ class Tutorial extends Phaser.Scene {
         this.loadGameText();
       },
     });
+  }
+
+  botMove(time, checkIfActive, lastTurn) {
+    // the scene actually isn't active until create() finishes
+    // so don't check if active until after the first run-through
+    // otherwise it'll be false every time we start or restart the scene
+    if (checkIfActive && !this.scene.isActive("Tutorial")) return;
+    if (this.areaFilled >= 0.9) return; // we won
+
+    const prevDir = this.keysDown.getAt(0);
+    this.keysDown.removeAll();
+
+    // check if we're stuck!
+    const directions = [
+      Phaser.Math.Vector2.UP,
+      Phaser.Math.Vector2.RIGHT,
+      Phaser.Math.Vector2.DOWN,
+      Phaser.Math.Vector2.LEFT,
+    ];
+
+    const goodDirections = [];
+    let count = 0;
+    directions.forEach((dir) => {
+      const step = this.gridPos.clone().add(dir.clone().scale(2));
+      if (this.checkInGrid(step)) {
+        if (this.grid[step.x][step.y].fillColor == COLORS.drawColor) count++;
+        else goodDirections.push(dir); // don't hit our current path
+      }
+    });
+
+    if (count >= 4) this.time.delayedCall(500, () => this.scene.restart()); // we got stuck
+
+    const d = Phaser.Utils.Array.GetRandom(goodDirections);
+
+    let turn = directions.indexOf(d) - directions.indexOf(prevDir);
+    if (turn == -3) turn = 1;
+    if (turn == 3) turn = -1;
+
+    if (lastTurn == turn && (turn == 1 || turn == -1)) this.consecutiveTurns++;
+    else this.consecutiveTurns = 0;
+
+    // we got stuck again
+    if (this.consecutiveTurns >= 4)
+      this.time.delayedCall(500, () => this.scene.restart());
+
+    this.keysDown.add(d);
+
+    const t = 500 - this.areaFilled * 200;
+    this.time.delayedCall(time, () => this.botMove(t, true, turn));
   }
 
   createResolution() {
@@ -2600,11 +2731,13 @@ class Tutorial extends Phaser.Scene {
       }
     }
 
-    const percentFilled = count / (this.gridX * this.gridY);
-    if (percentFilled >= 0.9) {
+    this.areaFilled = Math.round((100 * count) / this.totalDrawingArea) / 100;
+
+    if (this.areaFilled >= 0.9) {
       // the bot won
-      clearInterval(this.botInterval);
-      this.time.delayedCall(1200, () => this.scene.restart());
+      this.time.delayedCall(2000, () => {
+        this.scene.restart({ playerActive: this.playerActive });
+      });
     }
   }
 
