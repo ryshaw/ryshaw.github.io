@@ -1756,12 +1756,13 @@ class MainUI extends Phaser.Scene {
       .setOrigin(0.5, 0)
       .setLineSpacing(30)
       .setName("creditsText")
-      .setVisible(false);
+      .setVisible(false)
+      .setWordWrapWidth(650, true);
 
     this.add.tween({
       targets: s1,
-      y: -s1.height * 0.8,
-      duration: 24000,
+      y: -s1.height * 0.9,
+      duration: 32000,
       loop: -1,
       paused: true,
       onUpdate: () => {
