@@ -1003,7 +1003,14 @@ class Game extends Phaser.Scene {
 
     toRemove.forEach((c) => {
       this.scene.get("MainUI").playSound("destroy");
-      this.circles.remove(c, true, true);
+      c.body.setEnable(false);
+      this.tweens.add({
+        targets: c,
+        scale: 2,
+        alpha: 0,
+        duration: 300,
+        onComplete: () => this.circles.remove(c, true, true),
+      });
     });
 
     toRemove.length = 0; // this clears an array in js.
@@ -1015,7 +1022,16 @@ class Game extends Phaser.Scene {
 
     toRemove.forEach((s) => {
       this.scene.get("MainUI").playSound("destroy");
-      this.squares.remove(s, true, true);
+      clearInterval(s.interval);
+      s.body.setEnable(false);
+      this.tweens.add({
+        targets: s,
+        scale: 2,
+        alpha: 0,
+        duration: 300,
+        angle: 180,
+        onComplete: () => this.squares.remove(s, true, true),
+      });
     });
   }
 
@@ -1095,6 +1111,11 @@ class Game extends Phaser.Scene {
           angle: 180,
           scale: 0,
           ease: "sine.inout",
+          onStart: () => {
+            // don't ask. i tried to separate the sound loops as much as possible
+            if (i % 10 == 0 && i == j)
+              this.scene.get("MainUI").playSound("swirl");
+          },
         });
       }
     }
@@ -1103,7 +1124,6 @@ class Game extends Phaser.Scene {
 
     this.time.delayedCall(delay + 1200, () => {
       this.scene.get("MainUI").playSound("highlight");
-
       const t = new GameText(
         this,
         gameW * 0.5,
@@ -1268,7 +1288,6 @@ class MainUI extends Phaser.Scene {
     this.load.setPath("assets/sfx");
     this.load.audio("click1", ["click1.ogg", "click1.mp3"]);
     this.load.audio("click3", ["click3.ogg", "click3.mp3"]);
-    this.load.audio("misc_menu", ["misc_menu.wav", "misc_menu.mp3"]);
     this.load.audio("misc_menu_4", ["misc_menu_4.wav", "misc_menu_4.mp3"]);
     this.load.audio("positive", ["positive.wav", "positive.mp3"]);
     this.load.audio("power_up_04", ["power_up_04.ogg", "power_up_04.mp3"]);
@@ -1278,33 +1297,14 @@ class MainUI extends Phaser.Scene {
       "retro_coin_01.ogg",
       "retro_coin_01.mp3",
     ]);
-    this.load.audio("retro_explosion_03", [
-      "retro_explosion_03.ogg",
-      "retro_explosion_03.mp3",
+    this.load.audio("retro_explosion_02", [
+      "retro_explosion_02.ogg",
+      "retro_explosion_02.mp3",
     ]);
-    this.load.audio("retro_explosion_04", [
-      "retro_explosion_04.ogg",
-      "retro_explosion_04.mp3",
-    ]);
-    this.load.audio("retro_misc_05", [
-      "retro_misc_05.ogg",
-      "retro_misc_05.mp3",
-    ]);
+    this.load.audio("save", ["save.wav", "save.mp3"]);
     this.load.audio("synth_beep_02", [
       "synth_beep_02.ogg",
       "synth_beep_02.mp3",
-    ]);
-    this.load.audio("synth_laser_01", [
-      "synth_laser_01.ogg",
-      "synth_laser_01.mp3",
-    ]);
-    this.load.audio("synth_misc_01", [
-      "synth_misc_01.ogg",
-      "synth_misc_01.mp3",
-    ]);
-    this.load.audio("synth_misc_02", [
-      "synth_misc_02.ogg",
-      "synth_misc_02.mp3",
     ]);
     this.load.audio("synth_misc_07", [
       "synth_misc_07.ogg",
@@ -1666,7 +1666,7 @@ class MainUI extends Phaser.Scene {
           break;
         case "highlight":
           this.sound.play("synth_beep_02", {
-            volume: 0.4,
+            volume: 0.3,
             mute: this.sound.get("music").isPaused,
           });
           break;
@@ -1702,10 +1702,18 @@ class MainUI extends Phaser.Scene {
           break;
 
         case "destroy":
-          this.sound.play("retro_explosion_03", {
-            volume: 0.3,
+          this.sound.play("retro_explosion_02", {
+            volume: 0.4,
             mute: this.sound.get("music").isPaused,
             rate: 1,
+          });
+          break;
+        case "swirl":
+          this.sound.play("save", {
+            volume: 0.5,
+            mute: this.sound.get("music").isPaused,
+            rate: 3.5,
+            delay: 0.65,
           });
           break;
 
@@ -1729,16 +1737,8 @@ class MainUI extends Phaser.Scene {
   }
 
   createErrorText() {
-    this.errorText = new GameText(
-      this,
-      gameW * 0.5,
-      gameH * 0.9,
-      "error text goes here...",
-      "s",
-      "l"
-    )
-      //.setFontStyle("bold")
-      .setFontSize("12px")
+    this.errorText = new GameText(this, gameW * 0.5, gameH - 10, "", "s", "l")
+      .setFontSize("20px")
       .setOrigin(0.5, 1);
   }
 
