@@ -92,6 +92,7 @@ class Game extends Phaser.Scene {
   }
 
   create(data) {
+    this.scene.get("MainUI").playSound("levelstart");
     this.level = data.level;
     this.level = this.level / 1; // make sure it's a number
 
@@ -786,6 +787,8 @@ class Game extends Phaser.Scene {
   }
 
   movePlayer(fromPos, toPos, toEdge) {
+    this.scene.get("MainUI").playSound("drawing");
+
     const from = this.grid[fromPos.x][fromPos.y];
     const midPos = new Phaser.Math.Vector2();
     midPos.x = (fromPos.x + toPos.x) / 2;
@@ -832,6 +835,8 @@ class Game extends Phaser.Scene {
   }
 
   completeDrawing(startPos) {
+    this.scene.get("MainUI").playSound("completedrawing");
+
     // determine what direction contains the least amount of area to fill up
     let direction = Phaser.Math.Vector2.UP.clone();
     let minArea = this.gridX * this.gridY;
@@ -996,7 +1001,10 @@ class Game extends Phaser.Scene {
       if (pos && this.grid[pos.x][pos.y].getData("filled")) toRemove.push(c);
     });
 
-    toRemove.forEach((c) => this.circles.remove(c, true, true));
+    toRemove.forEach((c) => {
+      this.scene.get("MainUI").playSound("destroy");
+      this.circles.remove(c, true, true);
+    });
 
     toRemove.length = 0; // this clears an array in js.
 
@@ -1005,7 +1013,10 @@ class Game extends Phaser.Scene {
       if (!this.checkIfEdge(pos)) toRemove.push(s);
     });
 
-    toRemove.forEach((s) => this.squares.remove(s, true, true));
+    toRemove.forEach((s) => {
+      this.scene.get("MainUI").playSound("destroy");
+      this.squares.remove(s, true, true);
+    });
   }
 
   convertWorldToGrid(x, y) {
@@ -1025,6 +1036,8 @@ class Game extends Phaser.Scene {
 
   gameWin() {
     if (this.gameOver) return; // already lost?
+
+    this.scene.get("MainUI").playSound("gamewin");
 
     this.gameOver = true;
     this.physics.pause();
@@ -1088,7 +1101,9 @@ class Game extends Phaser.Scene {
 
     let delay = (this.gridX + this.gridY) * 15 + 600;
 
-    this.time.delayedCall(delay + 1500, () => {
+    this.time.delayedCall(delay + 1200, () => {
+      this.scene.get("MainUI").playSound("highlight");
+
       const t = new GameText(
         this,
         gameW * 0.5,
@@ -1099,7 +1114,9 @@ class Game extends Phaser.Scene {
       );
     });
 
-    this.time.delayedCall(delay + 2500, () => {
+    this.time.delayedCall(delay + 2200, () => {
+      this.scene.get("MainUI").playSound("highlight");
+
       const t = new GameText(
         this,
         gameW * 0.5,
@@ -1116,6 +1133,8 @@ class Game extends Phaser.Scene {
 
   gameLose(condition) {
     if (this.gameOver) return; // already lost?
+
+    this.scene.get("MainUI").playSound("gamelose");
 
     this.gameOver = true;
     this.physics.pause();
@@ -1169,7 +1188,9 @@ class Game extends Phaser.Scene {
     let conditionText = "time ran out!";
     if (condition == "enemy") conditionText = "you got snipped!";
 
-    this.time.delayedCall(2200, () => {
+    this.time.delayedCall(2000, () => {
+      this.scene.get("MainUI").playSound("highlight");
+
       const t = new GameText(
         this,
         gameW * 0.5,
@@ -1180,7 +1201,9 @@ class Game extends Phaser.Scene {
       );
     });
 
-    this.time.delayedCall(3000, () => {
+    this.time.delayedCall(2800, () => {
+      this.scene.get("MainUI").playSound("highlight");
+
       const t = new GameText(
         this,
         gameW * 0.5,
@@ -1240,6 +1263,27 @@ class MainUI extends Phaser.Scene {
     this.load.audio("music", "music.mp3");
 
     this.load.text("credits", "credits.txt");
+
+    this.load.setPath("assets/sfx");
+    this.load.audio("click1", "click1.ogg");
+    this.load.audio("click3", "click3.ogg");
+    this.load.audio("misc_menu", "misc_menu.wav");
+    this.load.audio("misc_menu_4", "misc_menu_4.wav");
+    this.load.audio("positive", "positive.wav");
+    this.load.audio("power_up_04", "power_up_04.ogg");
+    this.load.audio("powerUp5", "powerUp5.ogg");
+    this.load.audio("powerUp11", "powerUp11.ogg");
+    this.load.audio("retro_coin_01", "retro_coin_01.ogg");
+    this.load.audio("retro_explosion_03", "retro_explosion_03.ogg");
+    this.load.audio("retro_explosion_04", "retro_explosion_04.ogg");
+    this.load.audio("retro_misc_05", "retro_misc_05.ogg");
+    this.load.audio("synth_beep_02", "synth_beep_02.ogg");
+    this.load.audio("synth_laser_01", "synth_laser_01.ogg");
+    this.load.audio("synth_misc_01", "synth_misc_01.ogg");
+    this.load.audio("synth_misc_02", "synth_misc_02.ogg");
+    this.load.audio("synth_misc_07", "synth_misc_07.ogg");
+    this.load.audio("synth_misc_15", "synth_misc_15.ogg");
+    this.load.audio("tone1", "tone1.ogg");
   }
 
   create() {
@@ -1250,6 +1294,7 @@ class MainUI extends Phaser.Scene {
     this.createButtons();
     this.createControls();
     this.createAudio();
+    this.createEvents();
 
     WebFont.load({
       google: {
@@ -1363,11 +1408,6 @@ class MainUI extends Phaser.Scene {
 
     this.input.keyboard.on("keydown-M", () => {
       if (Phaser.Input.Keyboard.JustDown(m)) this.flipMusic();
-    });
-
-    // also pause on click away
-    this.game.events.addListener(Phaser.Core.Events.BLUR, () => {
-      if (!this.scene.isPaused("Game")) this.pauseOrResumeGame();
     });
 
     const up = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
@@ -1493,6 +1533,25 @@ class MainUI extends Phaser.Scene {
     });
 
     if (localStorage.getItem("music") == "off") this.sound.get("music").pause();
+
+    this.events.on("pause", () => console.log("Paused"));
+    this.events.on("resume", () => console.log("Resumed"));
+  }
+
+  createEvents() {
+    // pause on click away
+    this.game.events.addListener(Phaser.Core.Events.BLUR, () => {
+      if (!this.scene.isPaused("Game")) this.pauseOrResumeGame();
+    });
+
+    // if blurred, sounds will pile up in the queue,
+    // so remove all that isn't the main theme when we return
+    // or else we'll have a sound explosion upon focus
+    this.game.events.addListener(Phaser.Core.Events.FOCUS, () => {
+      this.sound.getAllPlaying().forEach((sound) => {
+        if (sound.key != "music") this.sound.stopByKey(sound.key);
+      });
+    });
   }
 
   pauseOrResumeGame() {
@@ -1500,6 +1559,7 @@ class MainUI extends Phaser.Scene {
     if (this.scene.get("Game").gameOver) return; // can't pause when ded
 
     if (!this.scene.isPaused("Game")) {
+      this.playSound("pause");
       this.scene.pause("Game");
       this.pauseButton.setVisible(false);
       this.playButton.setVisible(true);
@@ -1507,6 +1567,7 @@ class MainUI extends Phaser.Scene {
       this.activeOption = -1;
       this.activeOptions = this.pauseOptions;
     } else {
+      this.playSound("resume");
       this.scene.resume("Game");
       this.pauseButton.setVisible(true);
       this.playButton.setVisible(false);
@@ -1535,6 +1596,89 @@ class MainUI extends Phaser.Scene {
         this.musicOffButton.setVisible(false);
       }
       this.startMenu.getByName("musicText").text = "music: on";
+    }
+  }
+
+  playSound(s) {
+    const config = {
+      volume: 0.7,
+      mute: this.sound.get("music").isPaused,
+    };
+
+    switch (s) {
+      case "pointerover":
+        this.sound.play("click1", {
+          volume: 0.3,
+          mute: this.sound.get("music").isPaused,
+        });
+        break;
+      case "pointerup":
+        this.sound.play("click3", config);
+        break;
+
+      case "levelstart":
+        this.sound.play("misc_menu_4", config);
+        break;
+      case "gamewin":
+        this.sound.play("positive", {
+          volume: 0.8,
+          mute: this.sound.get("music").isPaused,
+        });
+        break;
+      case "gamelose":
+        this.sound.play("synth_misc_15", {
+          volume: 0.4,
+          mute: this.sound.get("music").isPaused,
+        });
+        break;
+      case "highlight":
+        this.sound.play("synth_beep_02", {
+          volume: 0.4,
+          mute: this.sound.get("music").isPaused,
+        });
+        break;
+
+      case "completedrawing":
+        this.sound.play("retro_coin_01", {
+          volume: 0.4,
+          mute: this.sound.get("music").isPaused,
+        });
+        break;
+
+      case "drawing":
+        this.sound.play("tone1", {
+          volume: 0.08,
+          mute: this.sound.get("music").isPaused,
+          rate: 4.5, // lol
+        });
+        break;
+
+      case "pause":
+        this.sound.play("powerUp11", {
+          volume: 0.4,
+          mute: this.sound.get("music").isPaused,
+          rate: 1.4,
+        });
+        break;
+      case "resume":
+        this.sound.play("powerUp5", {
+          volume: 0.4,
+          mute: this.sound.get("music").isPaused,
+          rate: 1,
+        });
+        break;
+
+      case "destroy":
+        this.sound.play("retro_explosion_03", {
+          volume: 0.3,
+          mute: this.sound.get("music").isPaused,
+          rate: 1.2,
+        });
+        break;
+
+      default:
+        console.log(s);
+        break;
     }
   }
 
@@ -2152,6 +2296,8 @@ class MainUI extends Phaser.Scene {
   }
 
   openTutorial() {
+    this.scene.get("MainUI").playSound("levelstart");
+
     if (this.sound.get("music").isPlaying) this.musicOnButton.setVisible(true);
     else this.musicOffButton.setVisible(true);
 
@@ -2895,7 +3041,12 @@ class GameText extends Phaser.GameObjects.Text {
           this.emit("pointerover", pointer);
         })
         .on("pointerover", function (pointer) {
+          if (this.scale == 1) {
+            scene.scene.get("MainUI").playSound("pointerover");
+          }
+
           if (pointer) scene.activeOption = scene.activeOptions.indexOf(this);
+
           this.setTint(COLORS.tintColor).setScale(1.02);
           scene.activeOptions.forEach((option) => {
             if (option != this) option.emit("pointerout");
@@ -2913,8 +3064,9 @@ class GameText extends Phaser.GameObjects.Text {
           }
         })
         .on("pointerup", function () {
+          scene.scene.get("MainUI").playSound("pointerup");
+
           this.setTint(COLORS.tintColor);
-          //scene.game.canvas.style.cursor = "auto"; // trying to fix hand cursor remaining on click
         });
     }
 
@@ -2946,11 +3098,15 @@ class GameButton extends Phaser.GameObjects.Image {
     cB.setInteractive()
       .on("pointerover", function () {
         this.setTint(COLORS.tintColor).setScale(0.82);
+        scene.scene.get("MainUI").playSound("pointerover");
       })
       .on("pointerout", function () {
         this.setTint(COLORS.buttonColor).setScale(0.75);
       })
-      .on("pointerdown", callback, scene);
+      .on("pointerdown", callback, scene)
+      .on("pointerup", function () {
+        scene.scene.get("MainUI").playSound("pointerup");
+      });
 
     return cB;
   }
