@@ -1261,30 +1261,60 @@ class MainUI extends Phaser.Scene {
     this.load.image("musicOn", "musicOn.png");
     this.load.image("musicOff", "musicOff.png");
 
-    this.load.audio("music", "music.mp3");
+    this.load.audio("music", ["music.mp3", "music.ogg"]);
 
     this.load.text("credits", "credits.txt");
 
     this.load.setPath("assets/sfx");
-    this.load.audio("click1", "click1.ogg");
-    this.load.audio("click3", "click3.ogg");
-    this.load.audio("misc_menu", "misc_menu.wav");
-    this.load.audio("misc_menu_4", "misc_menu_4.wav");
-    this.load.audio("positive", "positive.wav");
-    this.load.audio("power_up_04", "power_up_04.ogg");
-    this.load.audio("powerUp5", "powerUp5.ogg");
-    this.load.audio("powerUp11", "powerUp11.ogg");
-    this.load.audio("retro_coin_01", "retro_coin_01.ogg");
-    this.load.audio("retro_explosion_03", "retro_explosion_03.ogg");
-    this.load.audio("retro_explosion_04", "retro_explosion_04.ogg");
-    this.load.audio("retro_misc_05", "retro_misc_05.ogg");
-    this.load.audio("synth_beep_02", "synth_beep_02.ogg");
-    this.load.audio("synth_laser_01", "synth_laser_01.ogg");
-    this.load.audio("synth_misc_01", "synth_misc_01.ogg");
-    this.load.audio("synth_misc_02", "synth_misc_02.ogg");
-    this.load.audio("synth_misc_07", "synth_misc_07.ogg");
-    this.load.audio("synth_misc_15", "synth_misc_15.ogg");
-    this.load.audio("tone1", "tone1.ogg");
+    this.load.audio("click1", ["click1.ogg", "click1.mp3"]);
+    this.load.audio("click3", ["click3.ogg", "click3.mp3"]);
+    this.load.audio("misc_menu", ["misc_menu.wav", "misc_menu.mp3"]);
+    this.load.audio("misc_menu_4", ["misc_menu_4.wav", "misc_menu_4.mp3"]);
+    this.load.audio("positive", ["positive.wav", "positive.mp3"]);
+    this.load.audio("power_up_04", ["power_up_04.ogg", "power_up_04.mp3"]);
+    this.load.audio("powerUp5", ["powerUp5.ogg", "powerUp5.mp3"]);
+    this.load.audio("powerUp11", ["powerUp11.ogg", "powerUp11.mp3"]);
+    this.load.audio("retro_coin_01", [
+      "retro_coin_01.ogg",
+      "retro_coin_01.mp3",
+    ]);
+    this.load.audio("retro_explosion_03", [
+      "retro_explosion_03.ogg",
+      "retro_explosion_03.mp3",
+    ]);
+    this.load.audio("retro_explosion_04", [
+      "retro_explosion_04.ogg",
+      "retro_explosion_04.mp3",
+    ]);
+    this.load.audio("retro_misc_05", [
+      "retro_misc_05.ogg",
+      "retro_misc_05.mp3",
+    ]);
+    this.load.audio("synth_beep_02", [
+      "synth_beep_02.ogg",
+      "synth_beep_02.mp3",
+    ]);
+    this.load.audio("synth_laser_01", [
+      "synth_laser_01.ogg",
+      "synth_laser_01.mp3",
+    ]);
+    this.load.audio("synth_misc_01", [
+      "synth_misc_01.ogg",
+      "synth_misc_01.mp3",
+    ]);
+    this.load.audio("synth_misc_02", [
+      "synth_misc_02.ogg",
+      "synth_misc_02.mp3",
+    ]);
+    this.load.audio("synth_misc_07", [
+      "synth_misc_07.ogg",
+      "synth_misc_07.mp3",
+    ]);
+    this.load.audio("synth_misc_15", [
+      "synth_misc_15.ogg",
+      "synth_misc_15.mp3",
+    ]);
+    this.load.audio("tone1", ["tone1.ogg", "tone1.mp3"]);
   }
 
   create() {
@@ -1675,7 +1705,7 @@ class MainUI extends Phaser.Scene {
           this.sound.play("retro_explosion_03", {
             volume: 0.3,
             mute: this.sound.get("music").isPaused,
-            rate: 1.2,
+            rate: 1,
           });
           break;
 
