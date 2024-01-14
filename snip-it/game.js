@@ -1232,6 +1232,7 @@ class MainUI extends Phaser.Scene {
   startOptions; // list
   gameActive; // is the game scene running at all
   titleText;
+  errorText;
   creditsMenu;
   creditsOptions;
   levelSelectMenu;
@@ -1302,6 +1303,7 @@ class MainUI extends Phaser.Scene {
       },
       active: () => {
         this.createTitleText();
+        this.createErrorText();
         this.createMenus();
       },
     });
@@ -1600,85 +1602,89 @@ class MainUI extends Phaser.Scene {
   }
 
   playSound(s) {
-    const config = {
-      volume: 0.7,
-      mute: this.sound.get("music").isPaused,
-    };
+    try {
+      const config = {
+        volume: 0.7,
+        mute: this.sound.get("music").isPaused,
+      };
 
-    switch (s) {
-      case "pointerover":
-        this.sound.play("click1", {
-          volume: 0.3,
-          mute: this.sound.get("music").isPaused,
-        });
-        break;
-      case "pointerup":
-        this.sound.play("click3", config);
-        break;
+      switch (s) {
+        case "pointerover":
+          this.sound.play("click1", {
+            volume: 0.3,
+            mute: this.sound.get("music").isPaused,
+          });
+          break;
+        case "pointerup":
+          this.sound.play("click3", config);
+          break;
 
-      case "levelstart":
-        this.sound.play("misc_menu_4", config);
-        break;
-      case "gamewin":
-        this.sound.play("positive", {
-          volume: 0.8,
-          mute: this.sound.get("music").isPaused,
-        });
-        break;
-      case "gamelose":
-        this.sound.play("synth_misc_15", {
-          volume: 0.4,
-          mute: this.sound.get("music").isPaused,
-        });
-        break;
-      case "highlight":
-        this.sound.play("synth_beep_02", {
-          volume: 0.4,
-          mute: this.sound.get("music").isPaused,
-        });
-        break;
+        case "levelstart":
+          this.sound.play("misc_menu_4", config);
+          break;
+        case "gamewin":
+          this.sound.play("positive", {
+            volume: 0.8,
+            mute: this.sound.get("music").isPaused,
+          });
+          break;
+        case "gamelose":
+          this.sound.play("synth_misc_15", {
+            volume: 0.4,
+            mute: this.sound.get("music").isPaused,
+          });
+          break;
+        case "highlight":
+          this.sound.play("synth_beep_02", {
+            volume: 0.4,
+            mute: this.sound.get("music").isPaused,
+          });
+          break;
 
-      case "completedrawing":
-        this.sound.play("retro_coin_01", {
-          volume: 0.4,
-          mute: this.sound.get("music").isPaused,
-        });
-        break;
+        case "completedrawing":
+          this.sound.play("retro_coin_01", {
+            volume: 0.4,
+            mute: this.sound.get("music").isPaused,
+          });
+          break;
 
-      case "drawing":
-        this.sound.play("tone1", {
-          volume: 0.08,
-          mute: this.sound.get("music").isPaused,
-          rate: 4.5, // lol
-        });
-        break;
+        case "drawing":
+          this.sound.play("tone1", {
+            volume: 0.08,
+            mute: this.sound.get("music").isPaused,
+            rate: 4.5, // lol
+          });
+          break;
 
-      case "pause":
-        this.sound.play("powerUp11", {
-          volume: 0.4,
-          mute: this.sound.get("music").isPaused,
-          rate: 1.4,
-        });
-        break;
-      case "resume":
-        this.sound.play("powerUp5", {
-          volume: 0.4,
-          mute: this.sound.get("music").isPaused,
-          rate: 1,
-        });
-        break;
+        case "pause":
+          this.sound.play("powerUp11", {
+            volume: 0.4,
+            mute: this.sound.get("music").isPaused,
+            rate: 1.4,
+          });
+          break;
+        case "resume":
+          this.sound.play("powerUp5", {
+            volume: 0.4,
+            mute: this.sound.get("music").isPaused,
+            rate: 1,
+          });
+          break;
 
-      case "destroy":
-        this.sound.play("retro_explosion_03", {
-          volume: 0.3,
-          mute: this.sound.get("music").isPaused,
-          rate: 1.2,
-        });
-        break;
+        case "destroy":
+          this.sound.play("retro_explosion_03", {
+            volume: 0.3,
+            mute: this.sound.get("music").isPaused,
+            rate: 1.2,
+          });
+          break;
 
-      default:
-        console.log(s);
-        break;
+        default:
+          console.log(s);
+          break;
+      }
+    } catch (error) {
+      this.errorText.setText(error);
     }
   }
 
@@ -1690,6 +1696,20 @@ class MainUI extends Phaser.Scene {
       .setStroke(COLORS.fillColor, 4)
       .setShadow(4, 4, "#333333", 2, true, true)
       .setColor("#e0fbfc");
+  }
+
+  createErrorText() {
+    this.errorText = new GameText(
+      this,
+      gameW * 0.5,
+      gameH * 0.9,
+      "error text goes here...",
+      "s",
+      "l"
+    )
+      //.setFontStyle("bold")
+      .setFontSize("12px")
+      .setOrigin(0.5, 1);
   }
 
   createMenus() {
