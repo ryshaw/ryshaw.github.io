@@ -73,6 +73,7 @@ class Game extends Phaser.Scene {
   timeText;
   circles; // physics group with the circle enemies
   squares; // physics group with the square enemies
+  powerups; // physics group with powerup items
   level; // the level of the game, contained in localStorage
   levelSelect; // type in number of level and hit enter and it'll load that level
   // only enabled in dev mode
@@ -89,6 +90,11 @@ class Game extends Phaser.Scene {
       "webfont",
       "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
     );
+
+    this.load.setPath("assets");
+    this.load.image("rewind", "rewind.png");
+    this.load.image("fastForward", "fastForward.png");
+    this.load.image("target", "target.png");
   }
 
   create(data) {
@@ -109,6 +115,7 @@ class Game extends Phaser.Scene {
     const numSquares = Math.floor(this.level * (0.03 * this.level + 0.45));
     this.createCircles(numCircles);
     this.createSquares(numSquares);
+    this.createPowerups();
 
     WebFont.load({
       google: {
@@ -390,6 +397,68 @@ class Game extends Phaser.Scene {
     }
   }
 
+  createPowerups() {
+    // textures are 100x100, scaled down to 0.3 so offset by 100 * 0.3 = 30
+    const offset = 30; // so powerups don't start outside bounds
+    const bounds = new Phaser.Geom.Rectangle(
+      this.bounds.getTopLeft().x + offset,
+      this.bounds.getTopLeft().y + offset,
+      this.bounds.width - offset * 2,
+      this.bounds.height - offset * 2
+    );
+
+    for (let i = 0; i < 20; i++) {
+      const p = bounds.getRandomPoint();
+
+      let powerup;
+
+      switch (Phaser.Math.Between(1, 3)) {
+        case 1:
+          powerup = this.physics.add.image(p.x, p.y, "fastForward");
+          break;
+        case 2:
+          powerup = this.physics.add.image(p.x, p.y, "target");
+          break;
+        case 3:
+          powerup = this.physics.add.image(p.x, p.y, "rewind");
+          break;
+        default:
+          break;
+      }
+
+      this.powerups.add(powerup);
+
+      powerup
+        .setScale(0.3)
+        .setTint(COLORS.white)
+        //.setDepth(-1)
+        .setName(powerup.texture.key)
+        .setCircle(
+          powerup.width * 0.4,
+          powerup.width * 0.1,
+          powerup.width * 0.12
+        );
+
+      const hsv = Phaser.Display.Color.HSVColorWheel(0.4); // length of list is 360
+      const start = Phaser.Math.Between(0, 359 * 8); // 359 * 8 taken from below tween
+
+      const tween = this.tweens.add({
+        targets: powerup,
+        scale: 0.4,
+        duration: 800,
+        loop: -1,
+        yoyo: true,
+        ease: "sine.inout",
+        onUpdate: () => {
+          // do some math shenanigans to loop between 0 and 359
+          // in a pretty slow manner using modulus and division
+          const i = Math.floor(((tween.totalElapsed + start) % (359 * 8)) / 8);
+          powerup.setTint(hsv[i].color);
+        },
+      });
+    }
+  }
+
   createPhysics() {
     this.physics.world.setBounds(
       this.bounds.getTopLeft().x - this.player.width / 2,
@@ -402,6 +471,7 @@ class Game extends Phaser.Scene {
 
     this.circles = this.physics.add.group();
     this.squares = this.physics.add.group();
+    this.powerups = this.physics.add.group();
 
     for (let i = 0; i < this.gridX; i++) {
       this.physics.add.collider(
@@ -422,6 +492,52 @@ class Game extends Phaser.Scene {
       undefined,
       this
     );
+
+    this.physics.add.overlap(
+      this.powerups,
+      this.player,
+      this.playerHitPowerup,
+      undefined,
+      this
+    );
+  }
+
+  playerHitPowerup(player, powerup) {
+    this.scene.get("MainUI").playSound(powerup.name);
+    powerup.body.setEnable(false);
+    this.tweens.add({
+      targets: powerup,
+      scale: powerup.scale + 0.8,
+      alpha: 0,
+      duration: 200,
+      onComplete: () => this.powerups.remove(powerup, true, true),
+    });
+
+    switch (powerup.name) {
+      case "fastForward":
+        this.activateFastForward();
+        break;
+      case "target":
+        this.activateTarget();
+        break;
+      case "rewind":
+        this.activateRewind();
+        break;
+      default:
+        break;
+    }
+  }
+
+  activateFastForward() {
+    console.log("activate fast forward");
+  }
+
+  activateTarget() {
+    console.log("activate target");
+  }
+
+  activateRewind() {
+    console.log("activate rewind");
   }
 
   loadGameText() {
@@ -895,6 +1011,9 @@ class Game extends Phaser.Scene {
     // destroy any enemies we've trapped in the drawing
     this.destroyEnemies();
 
+    // collect powerups in the drawing
+    this.collectPowerups();
+
     // display how much area we've covered
     this.areaFilled = Math.round((100 * count) / this.totalDrawingArea) / 100;
 
@@ -991,9 +1110,20 @@ class Game extends Phaser.Scene {
     this.gameLose("enemy");
   }
 
+  collectPowerups() {
+    // after a drawing is completed, check for any powerups within the drawing
+    // if there are any, collect them! <:)
+    this.powerups.getChildren().forEach((p) => {
+      const pos = this.convertWorldToGrid(p.x, p.y);
+      if (pos && this.grid[pos.x][pos.y].getData("filled")) {
+        this.playerHitPowerup(this.player, p);
+      }
+    });
+  }
+
   destroyEnemies() {
     // after a drawing is completed, check for any enemies within the drawing
-    // if there are any, destroy them
+    // if there are any, destroy them! >:(
     const toRemove = [];
 
     this.circles.getChildren().forEach((c) => {
@@ -1100,6 +1230,19 @@ class Game extends Phaser.Scene {
       });
     });
 
+    this.powerups.getChildren().forEach((p) => {
+      this.tweens.killTweensOf(p);
+      const pos = this.convertWorldToGrid(p.x, p.y);
+      this.tweens.add({
+        targets: p,
+        duration: 1200,
+        angle: 180,
+        scale: 0,
+        delay: (pos.x + pos.y) * 15 + 600,
+        ease: "sine.inout",
+      });
+    });
+
     for (let i = 0; i < this.gridX; i++) {
       for (let j = 0; j < this.gridY; j++) {
         const t = this.grid[i][j];
@@ -1184,6 +1327,18 @@ class Game extends Phaser.Scene {
       clearInterval(s.interval);
       this.tweens.add({
         targets: s,
+        duration: 1000,
+        angle: 180,
+        scale: 0,
+        delay: 600,
+        ease: "sine.inout",
+      });
+    });
+
+    this.powerups.getChildren().forEach((p) => {
+      this.tweens.killTweensOf(p);
+      this.tweens.add({
+        targets: p,
         duration: 1000,
         angle: 180,
         scale: 0,
@@ -1305,6 +1460,10 @@ class MainUI extends Phaser.Scene {
     this.load.audio("synth_beep_02", [
       "synth_beep_02.ogg",
       "synth_beep_02.mp3",
+    ]);
+    this.load.audio("synth_misc_01", [
+      "synth_misc_01.ogg",
+      "synth_misc_01.mp3",
     ]);
     this.load.audio("synth_misc_07", [
       "synth_misc_07.ogg",
@@ -1717,8 +1876,30 @@ class MainUI extends Phaser.Scene {
           });
           break;
 
+        case "fastForward":
+          this.sound.play("power_up_04", {
+            volume: 0.5,
+            mute: this.sound.get("music").isPaused,
+            rate: 1,
+          });
+          break;
+        case "target":
+          this.sound.play("synth_misc_07", {
+            volume: 0.5,
+            mute: this.sound.get("music").isPaused,
+            rate: 1,
+          });
+          break;
+        case "rewind":
+          this.sound.play("synth_misc_01", {
+            volume: 0.5,
+            mute: this.sound.get("music").isPaused,
+            rate: 1,
+          });
+          break;
+
         default:
-          console.log(s);
+          console.log("unknown sound: " + s);
           break;
       }
     } catch (error) {
