@@ -634,8 +634,9 @@ class Game extends Phaser.Scene {
   }
 
   startGame() {
-    if (this.gameOver) clearInterval(this.timeInterval); // just making sure we get it
-
+    // always clear the interval even if it's undefined
+    // just to make sure it's cleared from a previous level or game sesh
+    clearInterval(this.timeInterval);
     this.gameOver = false;
 
     // every two levels, up the second count by 5
@@ -644,7 +645,6 @@ class Game extends Phaser.Scene {
 
     this.timeText.setVisible(true).setText(`${this.timer}`);
 
-    if (this.timeInterval) return; // we already made an interval from a previous game run
     this.timeInterval = setInterval(() => {
       if (this.gameOver) {
         clearInterval(this.timeInterval);
