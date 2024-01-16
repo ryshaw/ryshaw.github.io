@@ -79,6 +79,9 @@ class Game extends Phaser.Scene {
   // only enabled in dev mode
   levelSelectText;
   paused; // see the method createPause for why we need a separate variable for this
+  speedScale; // affects movement speed. 1 normally, higher when powered up
+  fastForwardPopup; // to show the player how much time is left for powerup
+  colorWheel; // fun color wheel for our popups to cycle through
 
   constructor() {
     super("Game");
@@ -113,8 +116,8 @@ class Game extends Phaser.Scene {
 
     const numCircles = Math.floor(Math.sqrt(2.8 * this.level));
     const numSquares = Math.floor(this.level * (0.03 * this.level + 0.45));
-    this.createCircles(numCircles);
-    this.createSquares(numSquares);
+    //this.createCircles(numCircles);
+    //this.createSquares(numSquares);
     this.createPowerups();
 
     WebFont.load({
@@ -247,6 +250,7 @@ class Game extends Phaser.Scene {
     rectangleDrawer.lineStyle(4, 0xfffbfc, 1);
     rectangleDrawer.strokeRect(0, 0, playerW, playerW);
     rectangleDrawer.generateTexture("rect", playerW, playerW);
+    rectangleDrawer.destroy();
     const centerX = Math.round(this.gridX / 2);
     this.player = this.physics.add
       .sprite(this.grid[centerX][0].x, this.grid[0][0].y, "rect")
@@ -256,6 +260,7 @@ class Game extends Phaser.Scene {
     this.player.body.onWorldBounds = true;
     this.gridPos = new Phaser.Math.Vector2(centerX, 0);
     this.canMove = true;
+    this.speedScale = 1;
     this.drawing = false;
   }
 
@@ -439,7 +444,7 @@ class Game extends Phaser.Scene {
           powerup.width * 0.12
         );
 
-      const hsv = Phaser.Display.Color.HSVColorWheel(0.4); // length of list is 360
+      this.colorWheel = Phaser.Display.Color.HSVColorWheel(0.4); // length of list is 360
       const start = Phaser.Math.Between(0, 359 * 8); // 359 * 8 taken from below tween
 
       const tween = this.tweens.add({
@@ -453,10 +458,25 @@ class Game extends Phaser.Scene {
           // do some math shenanigans to loop between 0 and 359
           // in a pretty slow manner using modulus and division
           const i = Math.floor(((tween.totalElapsed + start) % (359 * 8)) / 8);
-          powerup.setTint(hsv[i].color);
+          powerup.setTint(this.colorWheel[i].color);
         },
       });
     }
+
+    const arc = this.add
+      .arc(0, 0, 48, 0, 360, false)
+      .setStrokeStyle(14, COLORS.buttonColor)
+      .setClosePath(false)
+      .setName("arc");
+
+    const image = this.add
+      .image(0, 0, "fastForward")
+      .setScale(0.8)
+      .setName("image");
+
+    this.fastForwardPopup = this.add
+      .container(gameW * 0.675, gameH - 64, [arc, image])
+      .setAlpha(0);
   }
 
   createPhysics() {
@@ -529,15 +549,55 @@ class Game extends Phaser.Scene {
   }
 
   activateFastForward() {
-    console.log("activate fast forward");
+    this.speedScale = 2;
+
+    this.fastForwardPopup.setScale(1);
+    const arc = this.fastForwardPopup.getByName("arc").setEndAngle(360);
+    const image = this.fastForwardPopup.getByName("image");
+
+    // if the tween's already running, remove it so we can reset the tween back to full
+    // this means the player is collecting multiple powerups one after the other
+    this.tweens.killTweensOf([arc, this.fastForwardPopup]);
+    const startColor = Phaser.Math.Between(0, 359);
+
+    this.tweens.chain({
+      tweens: [
+        {
+          targets: this.fastForwardPopup,
+          alpha: 1,
+          duration: 100,
+        },
+        {
+          targets: arc,
+          endAngle: 0,
+          duration: 3000,
+          onUpdate: () => {
+            const i = (Math.floor(arc.endAngle) + startColor) % 360;
+            const color = this.colorWheel[Math.floor(arc.endAngle)].color;
+            arc.setStrokeStyle(
+              14,
+              this.colorWheel[Math.floor(arc.endAngle)].color
+            );
+            image.setTint(this.colorWheel[Math.floor(arc.endAngle)].color);
+          },
+        },
+        {
+          targets: this.fastForwardPopup,
+          alpha: 0,
+          scale: 1.5,
+          duration: 100,
+        },
+      ],
+      onComplete: () => (this.speedScale = 1),
+    });
   }
 
   activateTarget() {
-    console.log("activate target");
+    //console.log("activate target");
   }
 
   activateRewind() {
-    console.log("activate rewind");
+    //console.log("activate rewind");
   }
 
   loadGameText() {
@@ -946,8 +1006,10 @@ class Game extends Phaser.Scene {
     this.player.setPosition(to.x, to.y);
     this.gridPos.x = toPos.x;
     this.gridPos.y = toPos.y;
+
     this.canMove = false;
-    this.time.delayedCall(80 - this.level * 1.6, () => (this.canMove = true));
+    const speed = (80 - this.level * 1.6) / this.speedScale;
+    this.time.delayedCall(speed, () => (this.canMove = true));
   }
 
   completeDrawing(startPos) {
