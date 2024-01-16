@@ -544,8 +544,6 @@ class Game extends Phaser.Scene {
       case "rewind":
         this.activateRewind();
         break;
-      default:
-        break;
     }
   }
 
