@@ -81,7 +81,8 @@ class Game extends Phaser.Scene {
   paused; // see the method createPause for why we need a separate variable for this
   speedScale; // affects movement speed. 1 normally, higher when powered up
   fastForwardPopup; // to show the player how much time is left for powerup
-  colorWheel; // fun color wheel for our popups to cycle through
+  darkWheel; // color wheel. saturation = 0.4
+  lightWheel; // color wheel, saturation = 0.1
 
   constructor() {
     super("Game");
@@ -412,6 +413,9 @@ class Game extends Phaser.Scene {
       this.bounds.height - offset * 2
     );
 
+    this.darkWheel = Phaser.Display.Color.HSVColorWheel(0.4); // length of list is 360
+    this.lightWheel = Phaser.Display.Color.HSVColorWheel(0.1);
+
     for (let i = 0; i < 20; i++) {
       const p = bounds.getRandomPoint();
 
@@ -426,8 +430,6 @@ class Game extends Phaser.Scene {
           break;
         case 3:
           powerup = this.physics.add.image(p.x, p.y, "rewind");
-          break;
-        default:
           break;
       }
 
@@ -444,7 +446,6 @@ class Game extends Phaser.Scene {
           powerup.width * 0.12
         );
 
-      this.colorWheel = Phaser.Display.Color.HSVColorWheel(0.4); // length of list is 360
       const start = Phaser.Math.Between(0, 359 * 8); // 359 * 8 taken from below tween
 
       const tween = this.tweens.add({
@@ -458,14 +459,14 @@ class Game extends Phaser.Scene {
           // do some math shenanigans to loop between 0 and 359
           // in a pretty slow manner using modulus and division
           const i = Math.floor(((tween.totalElapsed + start) % (359 * 8)) / 8);
-          powerup.setTint(this.colorWheel[i].color);
+          powerup.setTint(this.darkWheel[i].color);
         },
       });
     }
 
     const arc = this.add
       .arc(0, 0, 48, 0, 360, false)
-      .setStrokeStyle(14, COLORS.buttonColor)
+      .setStrokeStyle(14, COLORS.white)
       .setClosePath(false)
       .setName("arc");
 
@@ -558,7 +559,7 @@ class Game extends Phaser.Scene {
     // if the tween's already running, remove it so we can reset the tween back to full
     // this means the player is collecting multiple powerups one after the other
     this.tweens.killTweensOf([arc, this.fastForwardPopup]);
-    const startColor = Phaser.Math.Between(0, 359);
+    const startIndex = Phaser.Math.Between(0, 359);
 
     this.tweens.chain({
       tweens: [
@@ -566,19 +567,22 @@ class Game extends Phaser.Scene {
           targets: this.fastForwardPopup,
           alpha: 1,
           duration: 100,
+          onStart: () => {
+            const i = Math.floor(arc.endAngle + startIndex) % 360;
+            const color = this.lightWheel[i].color;
+            arc.setStrokeStyle(14, color);
+            image.setTint(color);
+          },
         },
         {
           targets: arc,
           endAngle: 0,
           duration: 3000,
           onUpdate: () => {
-            const i = (Math.floor(arc.endAngle) + startColor) % 360;
-            const color = this.colorWheel[Math.floor(arc.endAngle)].color;
-            arc.setStrokeStyle(
-              14,
-              this.colorWheel[Math.floor(arc.endAngle)].color
-            );
-            image.setTint(this.colorWheel[Math.floor(arc.endAngle)].color);
+            const i = Math.floor(arc.endAngle + startIndex) % 360;
+            const color = this.lightWheel[i].color;
+            arc.setStrokeStyle(14, color);
+            image.setTint(color);
           },
         },
         {
@@ -624,7 +628,7 @@ class Game extends Phaser.Scene {
       for (let j = 0; j < this.gridY; j++) {
         const p = new Phaser.Math.Vector2(i, j);
         const t = this.grid[i][j];
-        if ((t.body || t.getData("filled")) && this.checkInBounds(p)) count++; // count how many tiles we've filled      }
+        if ((t.body || t.getData("filled")) && this.checkInBounds(p)) count++; // count how many tiles we've filled
       }
     }
 
