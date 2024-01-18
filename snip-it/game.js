@@ -2,7 +2,7 @@ const VERSION = "Snip It! v0.8";
 
 const gameW = 640;
 const gameH = 960;
-const DEV_MODE = false; // sets timer high, enables level select, turns on FPS, and turns on physics debug
+const DEV_MODE = true; // sets timer high, enables level select, turns on FPS, and turns on physics debug
 const MAX_LEVEL = 25;
 
 const FONTS = [
@@ -117,8 +117,8 @@ class Game extends Phaser.Scene {
 
     const numCircles = Math.floor(Math.sqrt(2.8 * this.level));
     const numSquares = Math.floor(this.level * (0.03 * this.level + 0.45));
-    //this.createCircles(numCircles);
-    //this.createSquares(numSquares);
+    this.createCircles(numCircles);
+    this.createSquares(numSquares);
     this.createPowerups();
 
     WebFont.load({
@@ -286,9 +286,6 @@ class Game extends Phaser.Scene {
 
       this.circles.add(circle);
 
-      circle.alive = true; // alive until hit by player
-      this.physics.add.existing(circle);
-
       circle.body
         .setVelocity(
           Phaser.Math.Between(minMaxSpeed[0], minMaxSpeed[1]),
@@ -298,12 +295,9 @@ class Game extends Phaser.Scene {
         .setCollideWorldBounds(true);
       circle.body.isCircle = true;
 
-      // random direction
-      if (Math.random() > 0.5) {
-        circle.body.velocity.x *= -1;
-      } else {
-        circle.body.velocity.y *= -1;
-      }
+      // go in random direction
+      if (Math.random() > 0.5) circle.body.velocity.x *= -1;
+      if (Math.random() > 0.5) circle.body.velocity.y *= -1;
     }
   }
 
@@ -350,56 +344,61 @@ class Game extends Phaser.Scene {
       // how fast every interval is. lower is faster
       const time = Phaser.Math.Between(minMaxTime[0], minMaxTime[1]);
 
-      square.interval = setInterval(() => {
-        // if ded, stop its update loop
-        if (!square.active) clearInterval(square.interval);
+      square.interval = this.time.addEvent({
+        delay: time,
+        callbackScope: this,
+        loop: true,
+        callback: () => {
+          // if ded, stop its update loop
+          if (!square.active) square.interval.remove();
 
-        // if game is paused, don't do anything
-        if (this.paused) return;
+          // if game is paused, don't do anything
+          if (this.paused) return;
 
-        // if not in grid or edge anymore, change direction
-        if (
-          !this.checkInGrid(p.clone().add(dir)) ||
-          !this.checkIfEdge(p.clone().add(dir))
-        ) {
-          const left = dir.clone().rotate(Phaser.Math.DegToRad(-90));
-          const right = dir.clone().rotate(Phaser.Math.DegToRad(90));
-          left.x = Math.round(left.x);
-          left.y = Math.round(left.y);
-          right.x = Math.round(right.x);
-          right.y = Math.round(right.y);
+          // if not in grid or edge anymore, change direction
+          if (
+            !this.checkInGrid(p.clone().add(dir)) ||
+            !this.checkIfEdge(p.clone().add(dir))
+          ) {
+            const left = dir.clone().rotate(Phaser.Math.DegToRad(-90));
+            const right = dir.clone().rotate(Phaser.Math.DegToRad(90));
+            left.x = Math.round(left.x);
+            left.y = Math.round(left.y);
+            right.x = Math.round(right.x);
+            right.y = Math.round(right.y);
 
-          this.edgePoints.list.forEach((edge) => {
-            if (
-              p.clone().add(left).x == edge.x &&
-              p.clone().add(left).y == edge.y
-            ) {
-              dir = left;
-            } else if (
-              p.clone().add(right).x == edge.x &&
-              p.clone().add(right).y == edge.y
-            ) {
-              dir = right;
-            }
-          });
-        }
-
-        // move to next tile
-        p.add(dir);
-        if (this.grid[p.x]) {
-          // okay...
-          const nextTile = this.grid[p.x][p.y];
-          if (nextTile) {
-            // sometimes there's no tile if player just cut them off
-            this.tweens.add({
-              targets: square,
-              x: nextTile.x,
-              y: nextTile.y,
-              duration: time,
+            this.edgePoints.list.forEach((edge) => {
+              if (
+                p.clone().add(left).x == edge.x &&
+                p.clone().add(left).y == edge.y
+              ) {
+                dir = left;
+              } else if (
+                p.clone().add(right).x == edge.x &&
+                p.clone().add(right).y == edge.y
+              ) {
+                dir = right;
+              }
             });
           }
+
+          // move to next tile
+          p.add(dir);
+          if (this.grid[p.x]) {
+            // okay...
+            const nextTile = this.grid[p.x][p.y];
+            if (nextTile) {
+              // sometimes there's no tile if player just cut them off
+              this.tweens.add({
+                targets: square,
+                x: nextTile.x,
+                y: nextTile.y,
+                duration: time,
+              });
+            }
+          }
         }
-      }, time);
+      });
     }
   }
 
@@ -1162,7 +1161,7 @@ class Game extends Phaser.Scene {
   }
 
   squareHitPlayer(player, square) {
-    clearInterval(square.interval);
+    square.interval.remove();
     square.fillColor = COLORS.deathColor;
     this.tweens.add({
       targets: square,
@@ -1216,7 +1215,7 @@ class Game extends Phaser.Scene {
 
     toRemove.forEach((s) => {
       this.scene.get("MainUI").playSound("destroy");
-      clearInterval(s.interval);
+     s.interval.remove()
       s.body.setEnable(false);
       this.tweens.add({
         targets: s,
@@ -1282,7 +1281,7 @@ class Game extends Phaser.Scene {
     });
 
     this.squares.getChildren().forEach((s) => {
-      clearInterval(s.interval);
+      s.interval.remove();
       const pos = this.convertWorldToGrid(s.x, s.y);
       this.tweens.add({
         targets: s,
@@ -1388,7 +1387,7 @@ class Game extends Phaser.Scene {
     });
 
     this.squares.getChildren().forEach((s) => {
-      clearInterval(s.interval);
+      s.interval.remove();
       this.tweens.add({
         targets: s,
         duration: 1000,
