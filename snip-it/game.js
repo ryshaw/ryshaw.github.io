@@ -76,6 +76,7 @@ class Game extends Phaser.Scene {
   powerups; // physics group with powerup items
   level; // the level of the game, contained in localStorage
   levelSelect; // type in number of level and hit enter and it'll load that level
+
   // only enabled in dev mode
   levelSelectText;
   paused; // see the method createPause for why we need a separate variable for this
@@ -139,6 +140,7 @@ class Game extends Phaser.Scene {
     const height = this.scale.gameSize.height;
 
     this.parent = new Phaser.Structs.Size(width, height);
+
     this.sizer = new Phaser.Structs.Size(
       gameW,
       gameH,
@@ -172,6 +174,7 @@ class Game extends Phaser.Scene {
     const aspectRatio = this.bounds.width / this.bounds.height;
 
     this.gridY = 83;
+
     if (!this.sys.game.device.os.desktop) {
       this.gridY = 51;
     }
@@ -180,6 +183,7 @@ class Game extends Phaser.Scene {
     if (this.gridX % 2 == 0) this.gridX++; // must be odd
 
     const perimeter = 2 * (this.gridX + this.gridY) - 4;
+
     // minus four to account for the four corner tiles,
     // so they won't be counted twice
 
@@ -189,11 +193,13 @@ class Game extends Phaser.Scene {
 
     const w = this.bounds.width / this.gridX;
     const h = this.bounds.height / this.gridY;
+
     // w and h should mathematically be equal
     // since we adjusted gridX to gridY via the aspect ratio
 
     for (let i = 0; i < this.gridX; i++) {
       this.grid[i] = [];
+
       for (let j = 0; j < this.gridY; j++) {
         const r = this.add
           .rectangle(
@@ -235,6 +241,7 @@ class Game extends Phaser.Scene {
           v.x = Math.round(v.x);
           v.y = Math.round(v.y);
           v.add(p);
+
           if (this.checkInBounds(v) && !this.grid[v.x][v.y].body && t.body) {
             t.setFillStyle(COLORS.fillColor, 1);
             this.edgePoints.add(p);
@@ -253,6 +260,7 @@ class Game extends Phaser.Scene {
     rectangleDrawer.generateTexture("rect", playerW, playerW);
     rectangleDrawer.destroy();
     const centerX = Math.round(this.gridX / 2);
+
     this.player = this.physics.add
       .sprite(this.grid[centerX][0].x, this.grid[0][0].y, "rect")
       .setName("player");
@@ -267,6 +275,7 @@ class Game extends Phaser.Scene {
 
   createCircles(num) {
     const offset = this.grid[0][0].width * 2; // so circles don't start outside bounds
+
     const bounds = new Phaser.Geom.Rectangle(
       this.bounds.getTopLeft().x + offset,
       this.bounds.getTopLeft().y + offset,
@@ -309,6 +318,7 @@ class Game extends Phaser.Scene {
     for (let i = 0; i < num; i++) {
       // create moving squares along the border
       let p = this.edgePoints.getRandom().clone();
+
       // ensure it doesn't spawn too close to player
       while (p.y == 0) p = this.edgePoints.getRandom().clone();
 
@@ -384,9 +394,11 @@ class Game extends Phaser.Scene {
 
           // move to next tile
           p.add(dir);
+
           if (this.grid[p.x]) {
             // okay...
             const nextTile = this.grid[p.x][p.y];
+
             if (nextTile) {
               // sometimes there's no tile if player just cut them off
               this.tweens.add({
@@ -397,7 +409,7 @@ class Game extends Phaser.Scene {
               });
             }
           }
-        }
+        },
       });
     }
   }
@@ -405,6 +417,7 @@ class Game extends Phaser.Scene {
   createPowerups() {
     // textures are 100x100, scaled down to 0.3 so offset by 100 * 0.3 = 30
     const offset = 30; // so powerups don't start outside bounds
+
     const bounds = new Phaser.Geom.Rectangle(
       this.bounds.getTopLeft().x + offset,
       this.bounds.getTopLeft().y + offset,
@@ -525,6 +538,7 @@ class Game extends Phaser.Scene {
   playerHitPowerup(player, powerup) {
     this.scene.get("MainUI").playSound(powerup.name);
     powerup.body.setEnable(false);
+
     this.tweens.add({
       targets: powerup,
       scale: powerup.scale + 0.8,
@@ -621,6 +635,7 @@ class Game extends Phaser.Scene {
     ).setOrigin(0.5, 1);
 
     let count = 0; // count how many tiles we've filled
+
     for (let i = 0; i < this.gridX; i++) {
       for (let j = 0; j < this.gridY; j++) {
         const p = new Phaser.Math.Vector2(i, j);
@@ -680,12 +695,17 @@ class Game extends Phaser.Scene {
         "c"
       ).setOrigin(0, 0);
 
-      const interval = setInterval(() => {
-        if (fpsText.displayList) {
-          // if still displaying (game not restarted yet)
-          fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`);
-        } else clearInterval(interval); // otherwise clear interval
-      }, 1000);
+      const interval = this.time.addEvent({
+        delay: 1000,
+        loop: true,
+        callbackScope: this,
+        callback: () => {
+          if (fpsText.displayList) {
+            // if still displaying (game not restarted yet)
+            fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`);
+          } else interval.remove(); // otherwise clear interval
+        },
+      });
     }
 
     this.levelSelectText = new GameText(this, gameW, 0, "", "l").setOrigin(
@@ -695,9 +715,9 @@ class Game extends Phaser.Scene {
   }
 
   startGame() {
-    // always clear the interval even if it's undefined
+    // always clear the interval
     // just to make sure it's cleared from a previous level or game sesh
-    clearInterval(this.timeInterval);
+    if (this.timeInterval) this.timeInterval.remove();
     this.gameOver = false;
 
     // every two levels, up the second count by 5
@@ -706,24 +726,26 @@ class Game extends Phaser.Scene {
 
     this.timeText.setVisible(true).setText(`${this.timer}`);
 
-    this.timeInterval = setInterval(() => {
-      if (this.gameOver) {
-        clearInterval(this.timeInterval);
-        return;
-      }
+    this.timeInterval = this.time.addEvent({
+      delay: 1000,
+      callbackScope: this,
+      loop: true,
+      callback: () => {
+        if (this.gameOver) this.timeInterval.remove();
 
-      if (this.paused) return; // if game is paused, don't do anything
+        if (this.paused || this.gameOver) return; // if game is paused or over, don't do anything
 
-      this.timer--;
-      this.timeText.setText(`${this.timer}`);
+        this.timer--;
+        this.timeText.setText(`${this.timer}`);
 
-      if (this.timer <= 0) {
-        clearInterval(this.timeInterval);
-        this.gameLose("time");
-      } else if (this.timer <= 9) {
-        this.timeText.setTint(0xc1121f); // time's boutta run out
-      }
-    }, 1000);
+        if (this.timer <= 0) {
+          this.timeInterval.remove();
+          this.gameLose("time");
+        } else if (this.timer <= 9) {
+          this.timeText.setTint(0xc1121f); // time's boutta run out
+        }
+      },
+    });
   }
 
   resize(gameSize) {
@@ -1029,6 +1051,7 @@ class Game extends Phaser.Scene {
 
       // count how many tiles in this direction
       this.countTilesRecursiely(startPos.clone().add(dir));
+
       if (this.drawingArea > 0 && this.drawingArea < minArea) {
         minArea = this.drawingArea;
         direction = dir.clone();
@@ -1041,6 +1064,7 @@ class Game extends Phaser.Scene {
     this.edgePoints.removeAll();
 
     let count = 0; // count how many tiles we've filled
+
     for (let i = 0; i < this.gridX; i++) {
       for (let j = 0; j < this.gridY; j++) {
         const p = new Phaser.Math.Vector2(i, j);
@@ -1091,6 +1115,7 @@ class Game extends Phaser.Scene {
       if (tile.body || tile.getData("filled")) return; // base case!
       tile.setFillStyle(COLORS.fillColor, 0.2);
       tile.setData("filled", true);
+
       //this.physics.add.existing(tile, true);
     } else return;
 
@@ -1149,6 +1174,7 @@ class Game extends Phaser.Scene {
     // the player's drawing is colored in drawColor
     if (tile.fillColor == COLORS.drawColor) {
       tile.fillColor = COLORS.deathColor;
+
       this.tweens.add({
         targets: tile,
         angle: 360,
@@ -1163,6 +1189,7 @@ class Game extends Phaser.Scene {
   squareHitPlayer(player, square) {
     square.interval.remove();
     square.fillColor = COLORS.deathColor;
+
     this.tweens.add({
       targets: square,
       angle: 360,
@@ -1215,8 +1242,9 @@ class Game extends Phaser.Scene {
 
     toRemove.forEach((s) => {
       this.scene.get("MainUI").playSound("destroy");
-     s.interval.remove()
+      s.interval.remove();
       s.body.setEnable(false);
+
       this.tweens.add({
         targets: s,
         scale: 2,
@@ -1309,6 +1337,7 @@ class Game extends Phaser.Scene {
     for (let i = 0; i < this.gridX; i++) {
       for (let j = 0; j < this.gridY; j++) {
         const t = this.grid[i][j];
+
         this.tweens.add({
           targets: t,
           fillAlpha: 1,
@@ -1330,6 +1359,7 @@ class Game extends Phaser.Scene {
 
     this.time.delayedCall(delay + 1200, () => {
       this.scene.get("MainUI").playSound("highlight");
+
       const t = new GameText(
         this,
         gameW * 0.5,
@@ -1413,6 +1443,7 @@ class Game extends Phaser.Scene {
     for (let i = 0; i < this.gridX; i++) {
       for (let j = 0; j < this.gridY; j++) {
         const t = this.grid[i][j];
+
         this.tweens.add({
           targets: t,
           fillAlpha: 0,
@@ -1541,6 +1572,7 @@ class MainUI extends Phaser.Scene {
 
   create() {
     this.createResolution();
+
     // show the "game window" while in development
     this.add.rectangle(gameW * 0.5, gameH * 0.5, gameW, gameH, 0x000000, 0.08);
 
@@ -1571,6 +1603,7 @@ class MainUI extends Phaser.Scene {
     const height = this.scale.gameSize.height;
 
     this.parent = new Phaser.Structs.Size(width, height);
+
     this.sizer = new Phaser.Structs.Size(
       gameW,
       gameH,
@@ -1670,6 +1703,7 @@ class MainUI extends Phaser.Scene {
       Phaser.Input.Keyboard.KeyCodes.DOWN
     );
     const s = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
+
     const enter = this.input.keyboard.addKey(
       Phaser.Input.Keyboard.KeyCodes.ENTER
     );
@@ -1832,6 +1866,7 @@ class MainUI extends Phaser.Scene {
 
   flipMusic() {
     const music = this.sound.get("music");
+
     if (music.isPlaying) {
       music.pause();
       localStorage.setItem("music", "off");
@@ -1972,6 +2007,7 @@ class MainUI extends Phaser.Scene {
 
   createTitleText() {
     this.titleText = new GameText(this, gameW * 0.5, 2, "snip it!", "g", "l")
+
       //.setFontStyle("bold")
       .setFontSize("120px")
       .setOrigin(0.48, 0)
@@ -2079,8 +2115,10 @@ class MainUI extends Phaser.Scene {
       undefined,
       () => {
         this.pauseOrResumeGame();
+
         //localStorage.setItem("level", 1);
         const g = this.scene.get("Game");
+
         //g.level = 1;
         g.gameOver = true;
         g.restartGame();
@@ -2208,6 +2246,7 @@ class MainUI extends Phaser.Scene {
         // I wrote this but I barely understand how it works.
         const topBound = gameH * 0.18 - s1.y;
         const bottomBound = gameH * 0.85 - s1.y;
+
         if (topBound < 0) {
           s1.setCrop(0, topBound, gameW, bottomBound);
         } else {
@@ -2518,6 +2557,7 @@ class MainUI extends Phaser.Scene {
     switch (this.tutorialSegment) {
       case 1:
         t.text = "welcome to snip it!";
+
         // reset tutorial menu
         bg.setAlpha(1);
         this.tutorialMenu.setY(gameH * 0.55);
@@ -2758,6 +2798,7 @@ class Tutorial extends Phaser.Scene {
     const height = this.scale.gameSize.height;
 
     this.parent = new Phaser.Structs.Size(width, height);
+
     this.sizer = new Phaser.Structs.Size(
       gameW,
       gameH,
@@ -2791,6 +2832,7 @@ class Tutorial extends Phaser.Scene {
     const aspectRatio = this.bounds.width / this.bounds.height;
 
     this.gridY = 83;
+
     if (!this.sys.game.device.os.desktop) {
       this.gridY = 51;
     }
@@ -2799,6 +2841,7 @@ class Tutorial extends Phaser.Scene {
     if (this.gridX % 2 == 0) this.gridX++; // must be odd
 
     const perimeter = 2 * (this.gridX + this.gridY) - 4;
+
     // minus four to account for the four corner tiles,
     // so they won't be counted twice
 
@@ -2808,11 +2851,13 @@ class Tutorial extends Phaser.Scene {
 
     const w = this.bounds.width / this.gridX;
     const h = this.bounds.height / this.gridY;
+
     // w and h should mathematically be equal
     // since we adjusted gridX to gridY via the aspect ratio
 
     for (let i = 0; i < this.gridX; i++) {
       this.grid[i] = [];
+
       for (let j = 0; j < this.gridY; j++) {
         const r = this.add
           .rectangle(
@@ -2854,6 +2899,7 @@ class Tutorial extends Phaser.Scene {
           v.x = Math.round(v.x);
           v.y = Math.round(v.y);
           v.add(p);
+
           if (this.checkInBounds(v) && !this.grid[v.x][v.y].body && t.body) {
             t.setFillStyle(COLORS.fillColor, 1);
             this.edgePoints.add(p);
@@ -2871,6 +2917,7 @@ class Tutorial extends Phaser.Scene {
     rectangleDrawer.strokeRect(0, 0, playerW, playerW);
     rectangleDrawer.generateTexture("rect", playerW, playerW);
     const centerX = Math.round(this.gridX / 2);
+
     this.player = this.physics.add
       .sprite(this.grid[centerX][0].x, this.grid[0][0].y, "rect")
       .setName("player");
@@ -3130,6 +3177,7 @@ class Tutorial extends Phaser.Scene {
 
       // count how many tiles in this direction
       this.countTilesRecursiely(startPos.clone().add(dir));
+
       if (this.drawingArea > 0 && this.drawingArea < minArea) {
         minArea = this.drawingArea;
         direction = dir.clone();
@@ -3142,6 +3190,7 @@ class Tutorial extends Phaser.Scene {
     this.edgePoints.removeAll();
 
     let count = 0; // count how many tiles we've filled
+
     for (let i = 0; i < this.gridX; i++) {
       for (let j = 0; j < this.gridY; j++) {
         const p = new Phaser.Math.Vector2(i, j);
@@ -3188,6 +3237,7 @@ class Tutorial extends Phaser.Scene {
       if (tile.body || tile.getData("filled")) return; // base case!
       tile.setFillStyle(COLORS.fillColor, 0.2);
       tile.setData("filled", true);
+
       //this.physics.add.existing(tile, true);
     } else return;
 
