@@ -2,7 +2,7 @@ const VERSION = "Snip It! v0.8";
 
 const gameW = 640;
 const gameH = 960;
-const DEV_MODE = true; // sets timer high, enables level select, turns on FPS, and turns on physics debug
+const DEV_MODE = false; // sets timer high, enables level select, turns on FPS, and turns on physics debug
 const MAX_LEVEL = 25;
 
 const FONTS = [
@@ -82,6 +82,7 @@ class Game extends Phaser.Scene {
   paused; // see the method createPause for why we need a separate variable for this
   speedScale; // affects movement speed. 1 normally, higher when powered up
   fastForwardPopup; // to show the player how much time is left for powerup
+  rewindPopup; // same as above but for rewind
   darkWheel; // color wheel. saturation = 0.4
   lightWheel; // color wheel, saturation = 0.1
 
@@ -291,7 +292,8 @@ class Game extends Phaser.Scene {
 
       const circle = this.add
         .arc(p.x, p.y, Phaser.Math.Between(6, 12))
-        .setFillStyle(Phaser.Display.Color.RandomRGB(150, 255).color);
+        .setFillStyle(Phaser.Display.Color.RandomRGB(150, 255).color)
+        .setName("circle");
 
       this.circles.add(circle);
 
@@ -324,13 +326,15 @@ class Game extends Phaser.Scene {
 
       const tile = this.grid[p.x][p.y];
 
-      const square = this.add.rectangle(
-        tile.x,
-        tile.y,
-        size,
-        size,
-        Phaser.Display.Color.RandomRGB(150, 255).color
-      );
+      const square = this.add
+        .rectangle(
+          tile.x,
+          tile.y,
+          size,
+          size,
+          Phaser.Display.Color.RandomRGB(150, 255).color
+        )
+        .setName("square");
 
       this.squares.add(square);
 
@@ -405,7 +409,7 @@ class Game extends Phaser.Scene {
                 targets: square,
                 x: nextTile.x,
                 y: nextTile.y,
-                duration: time,
+                duration: time * (1 / square.interval.timeScale),
               });
             }
           }
@@ -428,7 +432,7 @@ class Game extends Phaser.Scene {
     this.darkWheel = Phaser.Display.Color.HSVColorWheel(0.4); // length of list is 360
     this.lightWheel = Phaser.Display.Color.HSVColorWheel(0.1);
 
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 5; i++) {
       const p = bounds.getRandomPoint();
 
       let powerup;
@@ -448,7 +452,7 @@ class Game extends Phaser.Scene {
       this.powerups.add(powerup);
 
       powerup
-        .setScale(0.3)
+        .setScale(0.4)
         .setTint(COLORS.white)
         //.setDepth(-1)
         .setName(powerup.texture.key)
@@ -462,7 +466,7 @@ class Game extends Phaser.Scene {
 
       const tween = this.tweens.add({
         targets: powerup,
-        scale: 0.4,
+        scale: powerup.scale + 0.1,
         duration: 800,
         loop: -1,
         yoyo: true,
@@ -483,12 +487,27 @@ class Game extends Phaser.Scene {
       .setName("arc");
 
     const image = this.add
-      .image(0, 0, "fastForward")
+      .image(2, 0, "fastForward")
       .setScale(0.8)
       .setName("image");
 
     this.fastForwardPopup = this.add
-      .container(gameW * 0.675, gameH - 64, [arc, image])
+      .container(gameW * 0.69, gameH - 64, [arc, image])
+      .setAlpha(0);
+
+    const arc2 = this.add
+      .arc(0, 0, 48, 0, 360, false)
+      .setStrokeStyle(14, COLORS.white)
+      .setClosePath(false)
+      .setName("arc");
+
+    const image2 = this.add
+      .image(-8, 0, "rewind")
+      .setScale(0.8)
+      .setName("image");
+
+    this.rewindPopup = this.add
+      .container(gameW * 0.31, gameH - 64, [arc2, image2])
       .setAlpha(0);
   }
 
@@ -500,7 +519,7 @@ class Game extends Phaser.Scene {
       this.bounds.height + this.player.width
     );
 
-    this.physics.world.on("worldbounds", (body, up, down, left, right) => {});
+    this.physics.world.on("worldbounds", (body, up, down, left, right) => { });
 
     this.circles = this.physics.add.group();
     this.squares = this.physics.add.group();
@@ -552,7 +571,7 @@ class Game extends Phaser.Scene {
         this.activateFastForward();
         break;
       case "target":
-        this.activateTarget();
+        this.activateTarget(powerup);
         break;
       case "rewind":
         this.activateRewind();
@@ -607,12 +626,137 @@ class Game extends Phaser.Scene {
     });
   }
 
-  activateTarget() {
-    //console.log("activate target");
+  activateTarget(powerup) {
+    const a = 0.3;
+    const c = this.add
+      .circle(powerup.x, powerup.y, gameW * 0.4)
+      .setStrokeStyle(10, COLORS.white)
+      .setFillStyle(COLORS.white, a)
+      .setScale(0);
+
+    const n = Phaser.Math.Between(0, 359);
+
+    this.tweens.chain({
+      tweens: [
+        {
+          targets: c,
+          scale: 1,
+          duration: 300,
+          ease: "sine.inout",
+          onStart: () => {
+            c.setStrokeStyle(10, this.lightWheel[n].color).setFillStyle(
+              this.lightWheel[n].color,
+              a
+            );
+          },
+          onUpdate: () => {
+            const i = (Math.floor(c.scale * 359) + n) % 360;
+            c.setStrokeStyle(14, this.lightWheel[i].color).setFillStyle(
+              this.lightWheel[i].color,
+              a
+            );
+          },
+          onComplete: () => {
+            this.physics.overlapCirc(c.x, c.y, c.radius).forEach((body) => {
+              const obj = body.gameObject;
+
+              // obj.body test because could be destroyed already!
+              if (obj.name == "circle" && obj.body) {
+                this.scene.get("MainUI").playSound("destroy");
+                obj.body.setEnable(false);
+
+                this.tweens.add({
+                  targets: obj,
+                  scale: 2,
+                  alpha: 0,
+                  duration: 300,
+                  onComplete: () => this.circles.remove(obj, true, true),
+                });
+              } else if (obj.name == "square" && obj.body) {
+                this.scene.get("MainUI").playSound("destroy");
+                obj.interval.remove();
+                obj.body.setEnable(false);
+
+                this.tweens.add({
+                  targets: obj,
+                  scale: 2,
+                  alpha: 0,
+                  duration: 300,
+                  angle: 180,
+                  onComplete: () => this.squares.remove(obj, true, true),
+                });
+              }
+            });
+          },
+        },
+        {
+          targets: c,
+          scale: 0,
+          duration: 300,
+          ease: "sine.inout",
+          delay: 600,
+          onUpdate: () => {
+            const i = (Math.floor(c.scale * 359) + n) % 360;
+            c.setStrokeStyle(14, this.lightWheel[i].color).setFillStyle(
+              this.lightWheel[i].color,
+              a
+            );
+          },
+          onComplete: () => c.destroy(),
+        },
+      ],
+    });
   }
 
   activateRewind() {
-    //console.log("activate rewind");
+    this.squares.getChildren().forEach((s) => (s.interval.paused = true));
+    this.circles.getChildren().forEach((c) => (c.body.moves = false));
+
+    this.rewindPopup.setScale(1);
+    const arc = this.rewindPopup.getByName("arc").setEndAngle(360);
+    const image = this.rewindPopup.getByName("image");
+
+    // if the tween's already running, remove it so we can reset the tween back to full
+    // this means the player is collecting multiple powerups one after the other
+    this.tweens.killTweensOf([arc, this.rewindPopup]);
+    const startIndex = Phaser.Math.Between(0, 359);
+
+    this.tweens.chain({
+      tweens: [
+        {
+          targets: this.rewindPopup,
+          alpha: 1,
+          duration: 100,
+          onStart: () => {
+            const i = Math.floor(arc.endAngle + startIndex) % 360;
+            const color = this.lightWheel[i].color;
+            arc.setStrokeStyle(14, color);
+            image.setTint(color);
+          },
+        },
+        {
+          targets: arc,
+          endAngle: 0,
+          duration: 3000,
+          onUpdate: () => {
+            const i = Math.floor(arc.endAngle + startIndex) % 360;
+            const color = this.lightWheel[i].color;
+            arc.setStrokeStyle(14, color);
+            image.setTint(color);
+          },
+        },
+        {
+          targets: this.rewindPopup,
+          alpha: 0,
+          scale: 1.5,
+          duration: 100,
+        },
+      ],
+      onComplete: () => {
+        this.circles.getChildren().forEach((c) => (c.body.moves = true));
+        this.squares.getChildren().forEach((s) => (s.interval.paused = false));
+      },
+    });
   }
 
   loadGameText() {
@@ -847,7 +991,7 @@ class Game extends Phaser.Scene {
       const track1 = this.sound.get("track1");
       track1.isPlaying ? track1.pause() : track1.resume();
     });
-
+  
     this.input.keyboard.on("keydown-N", () => {
       this.soundVolume > 0 ? (this.soundVolume = 0) : (this.soundVolume = 0.8);
       Object.values(this.soundEffects).forEach((sound) => sound.stop());
@@ -2938,7 +3082,7 @@ class Tutorial extends Phaser.Scene {
     );
   }
 
-  loadGameText() {}
+  loadGameText() { }
 
   resize(gameSize) {
     const width = gameSize.width;
@@ -3355,10 +3499,10 @@ class GameText extends Phaser.GameObjects.Text {
           size == "g"
             ? "64px"
             : size == "l"
-            ? "48px"
-            : size == "m"
-            ? "32px"
-            : "26px",
+              ? "48px"
+              : size == "m"
+                ? "32px"
+                : "26px",
         fill: "#fff",
         align: "center",
       })
