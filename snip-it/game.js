@@ -75,9 +75,7 @@ class Game extends Phaser.Scene {
   squares; // physics group with the square enemies
   powerups; // physics group with powerup items
   level; // the level of the game, contained in localStorage
-  levelSelect; // type in number of level and hit enter and it'll load that level
-
-  // only enabled in dev mode
+  levelSelect; // in dev mode, type number of level and hit enter and it'll load that level
   levelSelectText;
   paused; // see the method createPause for why we need a separate variable for this
   speedScale; // affects movement speed. 1 normally, higher when powered up
@@ -419,66 +417,8 @@ class Game extends Phaser.Scene {
   }
 
   createPowerups() {
-    // textures are 100x100, scaled down to 0.3 so offset by 100 * 0.3 = 30
-    const offset = 30; // so powerups don't start outside bounds
-
-    const bounds = new Phaser.Geom.Rectangle(
-      this.bounds.getTopLeft().x + offset,
-      this.bounds.getTopLeft().y + offset,
-      this.bounds.width - offset * 2,
-      this.bounds.height - offset * 2
-    );
-
     this.darkWheel = Phaser.Display.Color.HSVColorWheel(0.4); // length of list is 360
     this.lightWheel = Phaser.Display.Color.HSVColorWheel(0.1);
-
-    for (let i = 0; i < 5; i++) {
-      const p = bounds.getRandomPoint();
-
-      let powerup;
-
-      switch (Phaser.Math.Between(1, 3)) {
-        case 1:
-          powerup = this.physics.add.image(p.x, p.y, "fastForward");
-          break;
-        case 2:
-          powerup = this.physics.add.image(p.x, p.y, "target");
-          break;
-        case 3:
-          powerup = this.physics.add.image(p.x, p.y, "rewind");
-          break;
-      }
-
-      this.powerups.add(powerup);
-
-      powerup
-        .setScale(0.4)
-        .setTint(COLORS.white)
-        //.setDepth(-1)
-        .setName(powerup.texture.key)
-        .setCircle(
-          powerup.width * 0.4,
-          powerup.width * 0.1,
-          powerup.width * 0.12
-        );
-
-      const start = Phaser.Math.Between(0, 359 * 8); // 359 * 8 taken from below tween
-
-      const tween = this.tweens.add({
-        targets: powerup,
-        scale: powerup.scale + 0.1,
-        duration: 800,
-        loop: -1,
-        yoyo: true,
-        ease: "sine.inout",
-        onUpdate: () => {
-          // do some math shenanigans to loop between 0 and 359
-          // in a pretty slow manner using modulus and division
-          const i = Math.floor(((tween.totalElapsed + start) % (359 * 8)) / 8);
-          powerup.setTint(this.darkWheel[i].color);
-        },
-      });
-    }
 
     const arc = this.add
       .arc(0, 0, 48, 0, 360, false)
@@ -492,7 +432,7 @@ class Game extends Phaser.Scene {
       .setName("image");
 
     this.fastForwardPopup = this.add
-      .container(gameW * 0.69, gameH - 64, [arc, image])
+      .container(gameW * 0.67, gameH - 64, [arc, image])
       .setAlpha(0);
 
     const arc2 = this.add
@@ -509,6 +449,110 @@ class Game extends Phaser.Scene {
     this.rewindPopup = this.add
       .container(gameW * 0.31, gameH - 64, [arc2, image2])
       .setAlpha(0);
+
+    this.time.delayedCall(2000, this.generatePowerup, undefined, this);
+  }
+
+  generatePowerup() {
+    if (this.gameOver) return;
+
+    this.scene.get("MainUI").playSound("popup");
+    let p = this.bounds.getBounds().getRandomPoint();
+
+    // check two things before inserting a powerup in a location:
+    // 1. is it too close to a wall? check static bodies in radius of 40
+    // (100x100 is powerup resolution, scaled by 0.4. 100 * 0.4 = 40)
+    // 2. is it in a filled zone already? check filled data of tile
+    let staticBodies = this.physics.overlapCirc(p.x, p.y, 40, false, true);
+    let v = this.convertWorldToGrid(p.x, p.y);
+
+    while (staticBodies.length > 0 || this.grid[v.x][v.y].getData("filled")) {
+      // it didn't pass the two questions, so try again
+      p = this.bounds.getBounds().getRandomPoint();
+      staticBodies = this.physics.overlapCirc(p.x, p.y, 40, false, true);
+      v = this.convertWorldToGrid(p.x, p.y);
+    }
+
+    let powerup;
+
+    switch (Phaser.Math.Between(1, 3)) {
+      case 1:
+        powerup = this.physics.add.image(p.x, p.y, "fastForward");
+        break;
+      case 2:
+        powerup = this.physics.add.image(p.x, p.y, "target");
+        break;
+      case 3:
+        powerup = this.physics.add.image(p.x, p.y, "rewind");
+        break;
+    }
+
+    this.powerups.add(powerup);
+
+    powerup
+      .setScale(0.1)
+      .setTint(COLORS.white)
+      .setDepth(-1)
+      .setName(powerup.texture.key)
+      .setCircle(
+        powerup.width * 0.4,
+        powerup.width * 0.1,
+        powerup.width * 0.12
+      );
+
+    this.tweens.add({
+      targets: powerup,
+      scale: 0.4,
+      duration: 200,
+      onStart: () => {
+        // set the color properly
+        const i = Math.floor((start % (359 * 8)) / 8);
+        powerup.setTint(this.darkWheel[i].color);
+      },
+      onComplete: () => {
+        const tween = this.tweens.add({
+          targets: powerup,
+          scale: 0.5,
+          duration: 800,
+          loop: -1,
+          yoyo: true,
+          ease: "sine.inout",
+          onUpdate: () => {
+            // do some math shenanigans to loop between 0 and 359
+            // in a pretty slow manner using modulus and division
+            const i = Math.floor(
+              ((tween.totalElapsed + start) % (359 * 8)) / 8
+            );
+            powerup.setTint(this.darkWheel[i].color);
+          },
+        });
+      },
+    });
+
+    this.tweens.add({
+      targets: powerup,
+      alpha: 0,
+      duration: 120,
+      repeat: 9,
+      repeatDelay: 180,
+      yoyo: true,
+      delay: 8000,
+      onComplete: () => {
+        this.tweens.add({
+          targets: powerup,
+          alpha: 0,
+          delay: 800,
+          duration: 200,
+          onComplete: () => this.powerups.remove(powerup, true, true),
+        });
+      },
+    });
+
+    const start = Phaser.Math.Between(0, 359 * 8); // 359 * 8 taken from below tween
+
+    const t = Phaser.Math.Between(4000, 8000);
+
+    this.time.delayedCall(t, this.generatePowerup, undefined, this);
   }
 
   createPhysics() {
@@ -558,6 +602,7 @@ class Game extends Phaser.Scene {
     this.scene.get("MainUI").playSound(powerup.name);
     powerup.body.setEnable(false);
 
+    this.tweens.killTweensOf(powerup);
     this.tweens.add({
       targets: powerup,
       scale: powerup.scale + 0.8,
@@ -1695,6 +1740,7 @@ class MainUI extends Phaser.Scene {
       "retro_explosion_02.mp3",
     ]);
     this.load.audio("save", ["save.wav", "save.mp3"]);
+    this.load.audio("sharp_echo", ["sharp_echo.wav", "sharp_echo.mp3"]);
     this.load.audio("synth_beep_02", [
       "synth_beep_02.ogg",
       "synth_beep_02.mp3",
@@ -2134,6 +2180,13 @@ class MainUI extends Phaser.Scene {
           break;
         case "rewind":
           this.sound.play("synth_misc_01", {
+            volume: 0.5,
+            mute: this.sound.get("music").isPaused,
+            rate: 1,
+          });
+          break;
+        case "popup":
+          this.sound.play("sharp_echo", {
             volume: 0.5,
             mute: this.sound.get("music").isPaused,
             rate: 1,
