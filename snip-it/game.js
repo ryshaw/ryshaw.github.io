@@ -450,7 +450,7 @@ class Game extends Phaser.Scene {
       .container(gameW * 0.31, gameH - 64, [arc2, image2])
       .setAlpha(0);
 
-    this.time.delayedCall(2000, this.generatePowerup, undefined, this);
+    this.time.delayedCall(5000, this.generatePowerup, undefined, this);
   }
 
   generatePowerup() {
@@ -500,6 +500,8 @@ class Game extends Phaser.Scene {
         powerup.width * 0.12
       );
 
+    const start = Phaser.Math.Between(0, 359 * 8); // 359 * 8 taken from below tween
+
     this.tweens.add({
       targets: powerup,
       scale: 0.4,
@@ -532,9 +534,9 @@ class Game extends Phaser.Scene {
     this.tweens.add({
       targets: powerup,
       alpha: 0,
-      duration: 120,
+      duration: 100,
       repeat: 9,
-      repeatDelay: 180,
+      repeatDelay: 200,
       yoyo: true,
       delay: 8000,
       onComplete: () => {
@@ -548,10 +550,7 @@ class Game extends Phaser.Scene {
       },
     });
 
-    const start = Phaser.Math.Between(0, 359 * 8); // 359 * 8 taken from below tween
-
-    const t = Phaser.Math.Between(4000, 8000);
-
+    const t = Phaser.Math.Between(6000, 10000);
     this.time.delayedCall(t, this.generatePowerup, undefined, this);
   }
 
