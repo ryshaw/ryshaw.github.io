@@ -2412,7 +2412,7 @@ class MainUI extends Phaser.Scene {
   }
 
   createCreditsMenu() {
-    this.creditsMenu = this.add.container();
+    this.creditsMenu = this.add.container(gameW, 0);
     this.creditsOptions = [];
 
     const s1 = new GameText(
@@ -2429,27 +2429,29 @@ class MainUI extends Phaser.Scene {
       .setVisible(false)
       .setWordWrapWidth(650, true);
 
-    this.add.tween({
-      targets: s1,
-      y: -s1.height * 0.9,
-      duration: 32000,
-      loop: -1,
-      paused: true,
-      onUpdate: () => {
-        // creates a scrolling text with a top and bottom cutoff
-        // I wrote this but I barely understand how it works.
-        const topBound = gameH * 0.18 - s1.y;
-        const bottomBound = gameH * 0.85 - s1.y;
+    this.add
+      .tween({
+        targets: s1,
+        y: -s1.height * 0.9,
+        duration: 32000,
+        loop: -1,
+        paused: true,
+        onUpdate: () => {
+          // creates a scrolling text with a top and bottom cutoff
+          // I wrote this but I barely understand how it works.
+          const topBound = gameH * 0.18 - s1.y;
+          const bottomBound = gameH * 0.85 - s1.y;
 
-        if (topBound < 0) {
-          s1.setCrop(0, topBound, gameW, bottomBound);
-        } else {
-          s1.setCrop(0, topBound, gameW, bottomBound - topBound);
-        }
+          if (topBound < 0) {
+            s1.setCrop(0, topBound, gameW, bottomBound);
+          } else {
+            s1.setCrop(0, topBound, gameW, bottomBound - topBound);
+          }
 
-        if (!s1.visible) s1.setVisible(true); // must set crop first
-      },
-    });
+          if (!s1.visible) s1.setVisible(true); // must set crop first
+        },
+      })
+      .pause();
 
     const s2 = new GameText(
       this,
@@ -2461,14 +2463,19 @@ class MainUI extends Phaser.Scene {
       this.closeCredits
     ).setOrigin(1, 1);
 
-    this.creditsMenu.add([s1, s2]).setVisible(false);
+    this.creditsMenu.add([s1, s2]);
 
     this.creditsOptions.push(s2);
   }
 
   openCredits() {
-    this.startMenu.setVisible(false);
-    this.creditsMenu.setVisible(true);
+    this.tweens.add({
+      targets: [this.creditsMenu, this.startMenu],
+      x: `-=${gameW}`,
+      duration: 500,
+      ease: "cubic.out",
+    });
+
     this.activeOptions = this.creditsOptions;
     this.activeOption = -1;
 
@@ -2477,18 +2484,23 @@ class MainUI extends Phaser.Scene {
   }
 
   closeCredits() {
-    this.startMenu.setVisible(true);
-    this.creditsMenu.setVisible(false);
+    this.tweens.add({
+      targets: [this.creditsMenu, this.startMenu],
+      x: `+=${gameW}`,
+      duration: 500,
+      ease: "cubic.out",
+      onComplete: () => {
+        const creditsText = this.creditsMenu.getByName("creditsText");
+        this.tweens.getTweensOf(creditsText)[0].restart().pause();
+      },
+    });
+
     this.activeOptions = this.startOptions;
     this.activeOption = -1;
-
-    const creditsText = this.creditsMenu.getByName("creditsText");
-    this.tweens.getTweensOf(creditsText)[0].restart().pause();
-    creditsText.setVisible(false);
   }
 
   createLevelSelectMenu() {
-    this.levelSelectMenu = this.add.container(gameW * 0.05, gameH * 0.22);
+    this.levelSelectMenu = this.add.container(gameW * 1.05, gameH * 0.22);
     this.levelSelectOptions = [];
 
     const s1 = new GameText(
@@ -2522,8 +2534,8 @@ class MainUI extends Phaser.Scene {
 
     const s2 = new GameText(
       this,
-      gameW - 40 - this.levelSelectMenu.x,
-      gameH - 40 - this.levelSelectMenu.y,
+      gameW * 0.88,
+      gameH * 0.74,
       "return",
       "g",
       undefined,
@@ -2578,20 +2590,30 @@ class MainUI extends Phaser.Scene {
       .setLineSpacing(10)
       .setFontSize("36px");
 
-    this.levelSelectMenu.add([s1, s2, s3, s4, s5, s6]).setVisible(false);
+    this.levelSelectMenu.add([s1, s2, s3, s4, s5, s6]);
     this.levelSelectOptions.push(s2);
   }
 
   openLevelSelect() {
-    this.startMenu.setVisible(false);
-    this.levelSelectMenu.setVisible(true);
+    this.tweens.add({
+      targets: [this.levelSelectMenu, this.startMenu],
+      x: `-=${gameW}`,
+      duration: 500,
+      ease: "cubic.out",
+    });
+
     this.activeOptions = this.levelSelectOptions;
     this.activeOption = -1;
   }
 
   closeLevelSelect() {
-    this.startMenu.setVisible(true);
-    this.levelSelectMenu.setVisible(false);
+    this.tweens.add({
+      targets: [this.levelSelectMenu, this.startMenu],
+      x: `+=${gameW}`,
+      duration: 500,
+      ease: "cubic.out",
+    });
+
     this.activeOptions = this.startOptions;
     this.activeOption = -1;
   }
@@ -2679,7 +2701,7 @@ class MainUI extends Phaser.Scene {
 
   createTutorialMenu() {
     this.tutorialMenu = this.add
-      .container(gameW * 0.5, gameH * 0.2)
+      .container(gameW * 1.5, gameH * 0.2)
       .setDepth(1);
     this.tutorialOptions = [];
 
@@ -2709,7 +2731,7 @@ class MainUI extends Phaser.Scene {
       () => this.setTutorialSegment(this.tutorialSegment + 1)
     ).setName("tutorialNext");
 
-    this.tutorialMenu.add([text, back, next]).setVisible(false);
+    this.tutorialMenu.add([text, back, next]);
     this.tutorialOptions.push(next, back);
   }
 
@@ -2731,9 +2753,10 @@ class MainUI extends Phaser.Scene {
       case 1:
         t.text = "welcome to snip it!";
         t.setFontSize("64px");
+        this.tweens.killTweensOf(t); // make sure it's reset
         this.tweens.add({
           targets: t,
-          y: t.y + 20,
+          y: "+=50",
           yoyo: true,
           duration: 1600,
           loop: -1,
@@ -2754,7 +2777,7 @@ class MainUI extends Phaser.Scene {
         t.text =
           "don't let the circles touch your path!" +
           "\n\ndon't let the squares touch your square!" +
-          "\n\nand finally, avoid time running out!";
+          "\n\nfinally, avoid time running out!";
         break;
       case 4:
         t.text =
@@ -2784,8 +2807,15 @@ class MainUI extends Phaser.Scene {
   }
 
   openTutorial() {
-    this.startMenu.setVisible(false);
-    this.tutorialMenu.setVisible(true);
+    this.tutorialMenu.getByName("tutorialText").setY(0);
+
+    this.tweens.add({
+      targets: [this.tutorialMenu, this.startMenu],
+      x: `-=${gameW}`,
+      duration: 500,
+      ease: "cubic.out",
+    });
+
     this.tutorialSegment = 1;
     this.activeOptions = this.tutorialOptions;
     this.activeOption = -1;
@@ -2794,8 +2824,13 @@ class MainUI extends Phaser.Scene {
   }
 
   closeTutorial() {
-    this.startMenu.setVisible(true);
-    this.tutorialMenu.setVisible(false);
+    this.tweens.add({
+      targets: [this.tutorialMenu, this.startMenu],
+      x: `+=${gameW}`,
+      duration: 500,
+      ease: "cubic.out",
+    });
+
     this.activeOptions = this.startOptions;
     this.activeOption = -1;
   }
