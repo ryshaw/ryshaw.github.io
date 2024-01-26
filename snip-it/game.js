@@ -1699,6 +1699,7 @@ class MainUI extends Phaser.Scene {
   tutorialMenu;
   tutorialOptions;
   tutorialSegment; // which section of tutorial are we on?
+  transition; // are we transitioning between menus or levels?
 
   constructor() {
     super("MainUI");
@@ -1781,6 +1782,7 @@ class MainUI extends Phaser.Scene {
     });
 
     this.gameActive = false;
+    this.transition = false;
   }
 
   createResolution() {
@@ -1873,8 +1875,6 @@ class MainUI extends Phaser.Scene {
     this.input.keyboard.on("keydown-ESC", () => {
       if (Phaser.Input.Keyboard.JustDown(esc)) {
         this.pauseOrResumeGame();
-
-        if (this.creditsMenu.visible) this.closeCredits();
       }
     });
 
@@ -2226,8 +2226,6 @@ class MainUI extends Phaser.Scene {
 
     this.activeOption = -1;
     this.activeOptions = this.startOptions;
-
-    this.startMenu.setVisible(true);
   }
 
   createPauseMenu() {
@@ -2406,7 +2404,7 @@ class MainUI extends Phaser.Scene {
       .setOrigin(1, 1)
       .setPadding(10);
 
-    this.startMenu.add([s1, s2, s3, s4, s5, s6]).setVisible(false);
+    this.startMenu.add([s1, s2, s3, s4, s5, s6]);
 
     this.startOptions.push(s1, s2, s3, s4, s5);
   }
@@ -2470,10 +2468,12 @@ class MainUI extends Phaser.Scene {
 
   openCredits() {
     this.tweens.add({
-      targets: [this.creditsMenu, this.startMenu],
+      targets: [this.startMenu, this.creditsMenu],
       x: `-=${gameW}`,
       duration: 500,
       ease: "cubic.out",
+      onStart: () => (this.transition = true),
+      onComplete: () => (this.transition = false),
     });
 
     this.activeOptions = this.creditsOptions;
@@ -2485,11 +2485,13 @@ class MainUI extends Phaser.Scene {
 
   closeCredits() {
     this.tweens.add({
-      targets: [this.creditsMenu, this.startMenu],
+      targets: [this.startMenu, this.creditsMenu],
       x: `+=${gameW}`,
       duration: 500,
       ease: "cubic.out",
+      onStart: () => (this.transition = true),
       onComplete: () => {
+        this.transition = false;
         const creditsText = this.creditsMenu.getByName("creditsText");
         this.tweens.getTweensOf(creditsText)[0].restart().pause();
       },
@@ -2596,10 +2598,12 @@ class MainUI extends Phaser.Scene {
 
   openLevelSelect() {
     this.tweens.add({
-      targets: [this.levelSelectMenu, this.startMenu],
+      targets: [this.startMenu, this.levelSelectMenu],
       x: `-=${gameW}`,
       duration: 500,
       ease: "cubic.out",
+      onStart: () => (this.transition = true),
+      onComplete: () => (this.transition = false),
     });
 
     this.activeOptions = this.levelSelectOptions;
@@ -2612,6 +2616,8 @@ class MainUI extends Phaser.Scene {
       x: `+=${gameW}`,
       duration: 500,
       ease: "cubic.out",
+      onStart: () => (this.transition = true),
+      onComplete: () => (this.transition = false),
     });
 
     this.activeOptions = this.startOptions;
@@ -2705,12 +2711,6 @@ class MainUI extends Phaser.Scene {
       .setDepth(1);
     this.tutorialOptions = [];
 
-    const text = new GameText(this, 0, 0, "welcome to\nsnip it!", "g", "c")
-      .setOrigin(0.5, 0)
-      .setLineSpacing(24)
-      .setName("tutorialText")
-      .setWordWrapWidth(gameW * 0.94, true);
-
     const back = new GameText(
       this,
       0,
@@ -2731,8 +2731,73 @@ class MainUI extends Phaser.Scene {
       () => this.setTutorialSegment(this.tutorialSegment + 1)
     ).setName("tutorialNext");
 
-    this.tutorialMenu.add([text, back, next]);
+    this.tutorialMenu.add([back, next]);
     this.tutorialOptions.push(next, back);
+
+    this.createTutorialText();
+  }
+
+  createTutorialText() {
+    const texts = this.add.container().setName("texts");
+    this.tutorialMenu.add(texts);
+
+    for (let i = 1; i <= 6; i++) {
+      const x = (i - 1) * gameW;
+      const t = new GameText(this, x, 0, "", "l", "c")
+        .setOrigin(0.5, 0)
+        .setLineSpacing(24)
+        .setName("tutorialText" + i)
+        .setFontSize("40px")
+        .setWordWrapWidth(gameW * 0.94, true);
+
+      switch (i) {
+        case 1:
+          t.text = "welcome to snip it!";
+          t.setFontSize("64px");
+          this.tweens.add({
+            targets: t,
+            y: "+=50",
+            yoyo: true,
+            duration: 1600,
+            loop: -1,
+            ease: "sine.inout",
+          });
+          break;
+        case 2:
+          t.text =
+            "your goal is to complete the picture!" +
+            "\n\ndraw boxes with your little square!" +
+            "\n\nfill up the canvas to win and move on!";
+          break;
+        case 3:
+          t.text =
+            "don't let the circles touch your path!" +
+            "\n\ndon't let the squares touch your square!" +
+            "\n\nfinally, avoid time running out!";
+          break;
+        case 4:
+          t.text =
+            "watch out for powerups!" +
+            "\n\nspeedup - super speed!" +
+            "\n\nrewind - stop time!" +
+            "\n\ntarget - explosion!";
+          break;
+        case 5:
+          t.text =
+            "controls:" +
+            "\nWASD/arrow keys or click/touch to move" +
+            "\n\nesc - pause\n\nm - mute";
+          break;
+        case 6:
+          t.text =
+            "ready for some practice?" +
+            "\n\nclick next to start a practice level" +
+            "\n\nfill up 90% of the canvas to move on!";
+          break;
+      }
+
+      texts.add(t);
+    }
   }
 
   setTutorialSegment(segment) {
@@ -2741,9 +2806,18 @@ class MainUI extends Phaser.Scene {
       this.closeTutorial();
       return;
     }
-    this.tutorialSegment = segment;
 
-    const t = this.tutorialMenu.getByName("tutorialText");
+    console.log(segment, this.tutorialSegment);
+    this.tweens.add({
+      targets: this.tutorialMenu.getByName("texts"),
+      x: gameW * (1 - segment), // fancy math but it works
+      duration: 500,
+      ease: "cubic.out",
+      onStart: () => (this.transition = true),
+      onComplete: () => (this.transition = false),
+    });
+
+    this.tutorialSegment = segment;
 
     // set this text by default, but the segment may change this text further down
     this.tutorialMenu.getByName("tutorialBack").setText("back");
@@ -2751,53 +2825,9 @@ class MainUI extends Phaser.Scene {
 
     switch (this.tutorialSegment) {
       case 1:
-        t.text = "welcome to snip it!";
-        t.setFontSize("64px");
-        this.tweens.killTweensOf(t); // make sure it's reset
-        this.tweens.add({
-          targets: t,
-          y: "+=50",
-          yoyo: true,
-          duration: 1600,
-          loop: -1,
-          ease: "sine.inout",
-        });
-
         this.tutorialMenu.getByName("tutorialBack").setText("return");
         break;
-      case 2:
-        t.text =
-          "your goal is to complete the picture!" +
-          "\n\ndraw boxes with your little square!" +
-          "\n\nfill up the canvas to win and move on!";
-        t.setFontSize("40px").setY(0);
-        this.tweens.killTweensOf(t);
-        break;
-      case 3:
-        t.text =
-          "don't let the circles touch your path!" +
-          "\n\ndon't let the squares touch your square!" +
-          "\n\nfinally, avoid time running out!";
-        break;
-      case 4:
-        t.text =
-          "watch out for powerups!" +
-          "\n\nspeedup - super speed!" +
-          "\n\nrewind - stop time!" +
-          "\n\ntarget - explosion!";
-        break;
-      case 5:
-        t.text =
-          "controls:" +
-          "\nWASD/arrow keys or click/touch to move" +
-          "\n\nesc - pause\n\nm - mute";
-        break;
       case 6:
-        t.text =
-          "ready for some practice?" +
-          "\n\nclick next to start a practice level" +
-          "\n\nfill up 90% of the canvas to move on!";
-
         this.tutorialMenu.getByName("tutorialNext").setText("play!");
         break;
       case 7:
@@ -2807,13 +2837,15 @@ class MainUI extends Phaser.Scene {
   }
 
   openTutorial() {
-    this.tutorialMenu.getByName("tutorialText").setY(0);
+    this.tutorialMenu.setVisible(true);
 
     this.tweens.add({
       targets: [this.tutorialMenu, this.startMenu],
       x: `-=${gameW}`,
       duration: 500,
       ease: "cubic.out",
+      onStart: () => (this.transition = true),
+      onComplete: () => (this.transition = false),
     });
 
     this.tutorialSegment = 1;
@@ -2829,6 +2861,8 @@ class MainUI extends Phaser.Scene {
       x: `+=${gameW}`,
       duration: 500,
       ease: "cubic.out",
+      onStart: () => (this.transition = true),
+      onComplete: () => (this.transition = false),
     });
 
     this.activeOptions = this.startOptions;
@@ -2865,8 +2899,7 @@ class MainUI extends Phaser.Scene {
     this.musicOffButton.setVisible(false);
     this.titleText.setFontSize("120px");
     this.pauseMenu.setVisible(false);
-    this.tutorialMenu.setVisible(false);
-    this.startMenu.setVisible(true);
+    this.startMenu.setVisible(true).setX(gameW * 0.05);
     this.activeOptions = this.startOptions;
     this.activeOption = -1;
     this.gameActive = false;
@@ -2969,6 +3002,9 @@ class GameText extends Phaser.GameObjects.Text {
           this.off("pointerup", callback, scene);
         })
         .on("pointerdown", function () {
+          // don't do anything if tweens are running between menus
+          if (scene.transition) return;
+
           this.setTint(COLORS.clickColor);
           if (this.listenerCount("pointerup") < 2) {
             this.on("pointerup", callback, scene);
