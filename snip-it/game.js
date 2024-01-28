@@ -1294,7 +1294,7 @@ class Game extends Phaser.Scene {
 
     this.areaText.setText(`${Math.round(this.areaFilled * 100)}%`);
 
-    if (Math.round(this.areaFilled * 100) >= 90) this.gameWin();
+    if (Math.round(this.areaFilled * 100) >= 1) this.gameWin();
   }
 
   fillInTilesRecursively(pos) {
@@ -1522,23 +1522,48 @@ class Game extends Phaser.Scene {
       });
     });
 
+    // rainbow effect time
+    const ratio = 360 / (this.gridX + this.gridY); // for a full color gradient
     for (let i = 0; i < this.gridX; i++) {
       for (let j = 0; j < this.gridY; j++) {
         const t = this.grid[i][j];
 
-        this.tweens.add({
+        const index = Math.floor((i + j) * ratio) % 359;
+
+        this.tweens.chain({
           targets: t,
-          fillAlpha: 1,
           delay: (i + j) * 15 + 600,
-          duration: 1200,
-          angle: 180,
-          scale: 0,
-          ease: "sine.inout",
           onStart: () => {
             // don't ask. i tried to separate the sound loops as much as possible
-            if (i % 10 == 0 && i == j)
+            if (i % 9 == 0 && i == j)
               this.scene.get("MainUI").playSound("swirl");
           },
+          tweens: [
+            {
+              scaleX: 0,
+              angle: 180,
+              fillAlpha: 0.7,
+              duration: 800,
+              ease: "sine.inout",
+              onComplete: () => (t.fillColor = this.darkWheel[index].color),
+            },
+            {
+              scaleX: 1,
+              angle: 180,
+              duration: 800,
+              ease: "sine.inout",
+              onComplete: () => {
+                this.tweens.add({
+                  targets: t,
+                  scale: 1.2,
+                  yoyo: true,
+                  loop: -1,
+                  duration: 500,
+                  ease: "sine.inout",
+                });
+              },
+            },
+          ],
         });
       }
     }
@@ -1700,6 +1725,7 @@ class MainUI extends Phaser.Scene {
   tutorialOptions;
   tutorialSegment; // which section of tutorial are we on?
   transition; // are we transitioning between menus or levels?
+  transitionTime; // how fast transition should be. 400-500
 
   constructor() {
     super("MainUI");
@@ -1783,6 +1809,7 @@ class MainUI extends Phaser.Scene {
 
     this.gameActive = false;
     this.transition = false;
+    this.transitionTime = 400;
   }
 
   createResolution() {
@@ -2470,7 +2497,7 @@ class MainUI extends Phaser.Scene {
     this.tweens.add({
       targets: [this.startMenu, this.creditsMenu],
       x: `-=${gameW}`,
-      duration: 500,
+      duration: this.transitionTime,
       ease: "cubic.out",
       onStart: () => (this.transition = true),
       onComplete: () => (this.transition = false),
@@ -2487,7 +2514,7 @@ class MainUI extends Phaser.Scene {
     this.tweens.add({
       targets: [this.startMenu, this.creditsMenu],
       x: `+=${gameW}`,
-      duration: 500,
+      duration: this.transitionTime,
       ease: "cubic.out",
       onStart: () => (this.transition = true),
       onComplete: () => {
@@ -2600,7 +2627,7 @@ class MainUI extends Phaser.Scene {
     this.tweens.add({
       targets: [this.startMenu, this.levelSelectMenu],
       x: `-=${gameW}`,
-      duration: 500,
+      duration: this.transitionTime,
       ease: "cubic.out",
       onStart: () => (this.transition = true),
       onComplete: () => (this.transition = false),
@@ -2614,7 +2641,7 @@ class MainUI extends Phaser.Scene {
     this.tweens.add({
       targets: [this.levelSelectMenu, this.startMenu],
       x: `+=${gameW}`,
-      duration: 500,
+      duration: this.transitionTime,
       ease: "cubic.out",
       onStart: () => (this.transition = true),
       onComplete: () => (this.transition = false),
@@ -2807,11 +2834,10 @@ class MainUI extends Phaser.Scene {
       return;
     }
 
-    console.log(segment, this.tutorialSegment);
     this.tweens.add({
       targets: this.tutorialMenu.getByName("texts"),
       x: gameW * (1 - segment), // fancy math but it works
-      duration: 500,
+      duration: this.transitionTime,
       ease: "cubic.out",
       onStart: () => (this.transition = true),
       onComplete: () => (this.transition = false),
@@ -2831,18 +2857,17 @@ class MainUI extends Phaser.Scene {
         this.tutorialMenu.getByName("tutorialNext").setText("play!");
         break;
       case 7:
+        this.setTutorialSegment(1); // reset tutorial, go back to start
         this.launchGame(0);
         break;
     }
   }
 
   openTutorial() {
-    this.tutorialMenu.setVisible(true);
-
     this.tweens.add({
       targets: [this.tutorialMenu, this.startMenu],
       x: `-=${gameW}`,
-      duration: 500,
+      duration: this.transitionTime,
       ease: "cubic.out",
       onStart: () => (this.transition = true),
       onComplete: () => (this.transition = false),
@@ -2859,7 +2884,7 @@ class MainUI extends Phaser.Scene {
     this.tweens.add({
       targets: [this.tutorialMenu, this.startMenu],
       x: `+=${gameW}`,
-      duration: 500,
+      duration: this.transitionTime,
       ease: "cubic.out",
       onStart: () => (this.transition = true),
       onComplete: () => (this.transition = false),
@@ -2881,6 +2906,7 @@ class MainUI extends Phaser.Scene {
     }
 
     this.titleText.setFontSize("72px");
+
     this.startMenu.setVisible(false);
     this.levelSelectMenu.setVisible(false); // in case we came from here
     this.tutorialMenu.setVisible(false); // or from here
@@ -2900,6 +2926,8 @@ class MainUI extends Phaser.Scene {
     this.titleText.setFontSize("120px");
     this.pauseMenu.setVisible(false);
     this.startMenu.setVisible(true).setX(gameW * 0.05);
+    this.tutorialMenu.setVisible(true).setX(gameW * 1.5);
+    this.levelSelectMenu.setVisible(true).setX(gameW * 1.05);
     this.activeOptions = this.startOptions;
     this.activeOption = -1;
     this.gameActive = false;
