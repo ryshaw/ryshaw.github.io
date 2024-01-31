@@ -106,12 +106,21 @@ class Game extends Phaser.Scene {
     this.level = data.level; // level is any number from 0 (tutorial) to 25
     this.level = this.level / 1; // make sure it's a number
 
+    this.level = 26;
     this.createResolution();
+    this.createEvents();
+
+    // if game fully beaten, just load win stuff
+    if (this.level >= 26) {
+      this.displayWinScreen();
+      return;
+    }
+
+    // otherwise, create game
     this.createLayout();
     this.createPlayer();
     this.createPlayerControls();
     this.createMouseControls();
-    this.createEvents();
     if (DEV_MODE) this.createLevelSelectControls();
     this.createPhysics();
 
@@ -1697,6 +1706,52 @@ class Game extends Phaser.Scene {
 
       this.input.keyboard.once("keydown", () => this.restartGame());
       this.input.once("pointerdown", () => this.restartGame());
+    });
+  }
+
+  displayWinScreen() {
+    WebFont.load({
+      google: {
+        families: FONTS,
+      },
+      active: () => {
+        for (let i = 0; i < 9; i++) {
+          new GameText(
+            this,
+            gameW * 0.5,
+            gameH * (0.15 + i * 0.1),
+            "congratulations",
+            "g",
+            "c"
+          )
+            .setOrigin(0.5, 0.5)
+            .setAlpha(0.0);
+        }
+
+        new GameText(
+          this,
+          gameW * 0.5,
+          gameH * 0.15,
+          "you snipped it all!!\nthank you for playing!\n\nhere's a little pixel\ndude as a prize.",
+          "l",
+          "c"
+        )
+          .setOrigin(0.5, 0)
+          .setLineSpacing(24)
+          .setFontSize("46px");
+
+        new GameText(
+          this,
+          gameW * 0.5,
+          gameH * 0.95,
+          `total deaths: 0\ntotal levels won: 0`,
+          "l",
+          "c"
+        )
+          .setOrigin(0.5, 1)
+          .setLineSpacing(24)
+          .setFontSize("46px");
+      },
     });
   }
 }
