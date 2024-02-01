@@ -1744,7 +1744,7 @@ class Game extends Phaser.Scene {
           this,
           gameW * 0.5,
           gameH * 0.95,
-          `total deaths: 0\ntotal levels won: 0`,
+          `total deaths: ${localStorage.getItem("deaths")}`,
           "l",
           "c"
         )
