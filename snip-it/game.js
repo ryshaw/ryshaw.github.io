@@ -1710,29 +1710,18 @@ class Game extends Phaser.Scene {
   }
 
   displayWinScreen() {
+    this.gameOver = true;
+
     WebFont.load({
       google: {
         families: FONTS,
       },
       active: () => {
-        for (let i = 0; i < 9; i++) {
-          new GameText(
-            this,
-            gameW * 0.5,
-            gameH * (0.15 + i * 0.1),
-            "congratulations",
-            "g",
-            "c"
-          )
-            .setOrigin(0.5, 0.5)
-            .setAlpha(0.0);
-        }
-
-        new GameText(
+        const t = new GameText(
           this,
           gameW * 0.5,
-          gameH * 0.15,
-          "you snipped it all!!\nthank you for playing!\n\nhere's a little pixel\ndude as a prize.",
+          gameH * 0.13,
+          "you snipped it all!!\nthank you for playing!",
           "l",
           "c"
         )
@@ -1740,17 +1729,68 @@ class Game extends Phaser.Scene {
           .setLineSpacing(24)
           .setFontSize("46px");
 
-        new GameText(
-          this,
-          gameW * 0.5,
-          gameH * 0.95,
-          `total deaths: ${localStorage.getItem("deaths")}`,
-          "l",
-          "c"
-        )
-          .setOrigin(0.5, 1)
-          .setLineSpacing(24)
-          .setFontSize("46px");
+        this.tweens.add({
+          targets: t,
+          y: "+=20",
+          yoyo: true,
+          duration: 1600,
+          loop: -1,
+          ease: "sine.inout",
+        });
+
+        const s =
+          "here's how to unlock cheat mode:\n\n" +
+          `- click/tap & hold the "${VERSION}" text on the start menu ` +
+          'for ten seconds\n\n- or type the word "flummox" on the start menu\n\n' +
+          "cheat mode doubles your speed, and powerups will appear 5x as fast. enjoy!\n\n" +
+          "hold any key, or tap & hold to return to the start menu";
+
+        const c = new GameText(this, gameW * 0.5, gameH * 0.35, s, "s", "c")
+          .setOrigin(0.5, 0)
+          .setLineSpacing(14)
+          .setWordWrapWidth(gameW * 0.97, true);
+
+        const r = this.add
+          .rectangle(gameW * 0.05, gameH - 20, 0, 16, COLORS.buttonColor, 1)
+          .setOrigin(0, 0.5);
+
+        const container = this.add.container(0, 0, [t, c, r]);
+
+        const tween = {
+          targets: r,
+          width: gameW * 0.9,
+          duration: 3500,
+          ease: "sine.inout",
+          onComplete: () => {
+            this.tweens.add({
+              targets: container,
+              duration: 1500,
+              alpha: 0,
+              ease: "sine.inout",
+              onComplete: () => {
+                localStorage.setItem("level", 1);
+                this.scene.get("MainUI").returnToTitle();
+              },
+            });
+          },
+        };
+
+        this.input.keyboard.on("keydown", () => {
+          if (this.tweens.getTweensOf(r).length > 0) return;
+          this.tweens.add(tween);
+        });
+        this.input.keyboard.on("keyup", () => {
+          this.tweens.killTweensOf(r);
+          r.width = 0;
+        });
+        this.input.on("pointerdown", () => {
+          if (this.tweens.getTweensOf(r).length > 0) return;
+          this.tweens.add(tween);
+        });
+        this.input.on("pointerup", () => {
+          this.tweens.killTweensOf(r);
+          r.width = 0;
+        });
       },
     });
   }
