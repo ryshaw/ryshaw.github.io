@@ -1759,7 +1759,7 @@ class Game extends Phaser.Scene {
         const tween = {
           targets: r,
           width: gameW * 0.9,
-          duration: 3500,
+          duration: 3000,
           ease: "sine.inout",
           onComplete: () => {
             this.tweens.add({
