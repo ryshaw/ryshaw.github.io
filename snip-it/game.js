@@ -106,7 +106,6 @@ class Game extends Phaser.Scene {
     this.level = data.level; // level is any number from 0 (tutorial) to 25
     this.level = this.level / 1; // make sure it's a number
 
-    this.level = 26;
     this.createResolution();
     this.createEvents();
 
