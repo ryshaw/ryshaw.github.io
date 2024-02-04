@@ -2515,7 +2515,13 @@ class MainUI extends Phaser.Scene {
       this.openCredits
     ).setOrigin(0, 0.5);
 
-    const s6 = new GameText(
+    const callback = () => {
+      if (this.input.activePointer.getDuration() > 1000) {
+        console.log("hit");
+      }
+    };
+
+    const v = new GameText(
       this,
       gameW - this.startMenu.x,
       gameH - this.startMenu.y,
@@ -2523,9 +2529,25 @@ class MainUI extends Phaser.Scene {
       "m"
     )
       .setOrigin(1, 1)
-      .setPadding(10);
+      .setPadding(10)
+      .setInteractive()
+      .on(
+        "pointerdown",
+        function () {
+          // don't do anything if tweens are running between menus
+          if (this.transition) return;
 
-    this.startMenu.add([s1, s2, s3, s4, s5, s6]);
+          if (v.listenerCount("pointerup") < 1) {
+            v.on("pointerup", callback, this);
+          }
+        },
+        this
+      )
+      .on("pointerout", () => {
+        v.off("pointerup");
+      });
+
+    this.startMenu.add([s1, s2, s3, s4, s5, v]);
 
     this.startOptions.push(s1, s2, s3, s4, s5);
   }
