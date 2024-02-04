@@ -83,6 +83,7 @@ class Game extends Phaser.Scene {
   rewindPopup; // same as above but for rewind
   darkWheel; // color wheel. saturation = 0.4
   lightWheel; // color wheel, saturation = 0.1
+  cheatMode; // true if on, false if off
 
   constructor() {
     super("Game");
@@ -103,14 +104,14 @@ class Game extends Phaser.Scene {
 
   create(data) {
     this.scene.get("MainUI").playSound("levelstart");
-    this.level = data.level; // level is any number from 0 (tutorial) to 25
+    this.level = data.level; // level is any number from 0 (tutorial) to 26 (game complete)
     this.level = this.level / 1; // make sure it's a number
 
     this.createResolution();
     this.createEvents();
 
     // if game fully beaten, just load win stuff
-    if (this.level >= 26) {
+    if (this.level > MAX_LEVEL) {
       this.displayWinScreen();
       return;
     }
@@ -122,6 +123,8 @@ class Game extends Phaser.Scene {
     this.createMouseControls();
     if (DEV_MODE) this.createLevelSelectControls();
     this.createPhysics();
+
+    this.cheatMode = localStorage.getItem("cheat") == "on";
 
     const numCircles = Math.floor(Math.sqrt(2.8 * this.level));
     const numSquares = Math.floor(this.level * (0.03 * this.level + 0.45));
@@ -459,7 +462,7 @@ class Game extends Phaser.Scene {
       .setAlpha(0);
 
     let t = 5000;
-    if (localStorage.getItem("cheat") == "on") t /= 5;
+    if (this.cheatMode) t /= 5;
 
     this.time.delayedCall(t, this.generatePowerup, undefined, this);
   }
@@ -562,7 +565,7 @@ class Game extends Phaser.Scene {
     });
 
     let t = Phaser.Math.Between(6000, 10000);
-    if (localStorage.getItem("cheat") == "on") t /= 5;
+    if (this.cheatMode) t /= 5;
     this.time.delayedCall(t, this.generatePowerup, undefined, this);
   }
 
@@ -1233,7 +1236,7 @@ class Game extends Phaser.Scene {
     this.canMove = false;
     let speed = (80 - this.level * 1.6) / this.speedScale;
 
-    if (localStorage.getItem("cheat") == "on") speed /= 2;
+    if (this.cheatMode) speed /= 2;
 
     this.time.delayedCall(speed, () => (this.canMove = true));
   }
@@ -1534,7 +1537,7 @@ class Game extends Phaser.Scene {
       });
     });
 
-    // rainbow effect time
+    // rainbow wave effect time
     const ratio = 360 / (this.gridX + this.gridY); // for a full color gradient
     for (let i = 0; i < this.gridX; i++) {
       for (let j = 0; j < this.gridY; j++) {
@@ -1557,12 +1560,16 @@ class Game extends Phaser.Scene {
               fillAlpha: 0.7,
               duration: 800,
               ease: "sine.inout",
-              onComplete: () => (t.fillColor = this.darkWheel[index].color),
+              onComplete: () => {
+                t.fillColor = this.darkWheel[index].color;
+                t.setScale(0);
+              },
             },
             {
-              scaleX: 1,
-              angle: 180,
-              duration: 800,
+              // cutting out this tween for now because the waves are super cool
+              ///scale: 1,
+              /// angle: 180,
+              duration: 20, //800
               ease: "sine.inout",
               onComplete: () => {
                 this.tweens.add({
@@ -1570,7 +1577,7 @@ class Game extends Phaser.Scene {
                   scale: 1.2,
                   yoyo: true,
                   loop: -1,
-                  duration: 500,
+                  duration: 600, // 500
                   ease: "sine.inout",
                 });
               },
@@ -2551,10 +2558,15 @@ class MainUI extends Phaser.Scene {
 
       if (this.tweens.getTweensOf(v).length > 0) return;
       this.tweens.add(tween);
-    }).on("pointerup", () => {
-      this.tweens.killTweensOf(v);
-      v.setAlpha(1);
-    });
+    })
+      .on("pointerup", () => {
+        this.tweens.killTweensOf(v);
+        v.setAlpha(1);
+      })
+      .on("pointerout", () => {
+        this.tweens.killTweensOf(v);
+        v.setAlpha(1);
+      });
 
     this.startMenu.add([s1, s2, s3, s4, s5, v]);
 
@@ -3059,11 +3071,15 @@ class MainUI extends Phaser.Scene {
   }
 
   flipCheatMode() {
+    this.scene.get("MainUI").playSound("highlight");
+
     const v = this.startMenu.getByName("version");
     v.setAlpha(1);
     this.time.removeAllEvents(); // clear the delayedCall happening later if duplicates exist
 
-    if (localStorage.getItem("cheat") == "off") {
+    const cheat = localStorage.getItem("cheat");
+
+    if (cheat == null || cheat == "off") {
       v.setText("cheat mode on");
       localStorage.setItem("cheat", "on");
     } else {
