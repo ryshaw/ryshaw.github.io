@@ -458,7 +458,10 @@ class Game extends Phaser.Scene {
       .container(gameW * 0.31, gameH - 64, [arc2, image2])
       .setAlpha(0);
 
-    this.time.delayedCall(5000, this.generatePowerup, undefined, this);
+    let t = 5000;
+    if (localStorage.getItem("cheat") == "on") t /= 5;
+
+    this.time.delayedCall(t, this.generatePowerup, undefined, this);
   }
 
   generatePowerup() {
@@ -558,7 +561,8 @@ class Game extends Phaser.Scene {
       },
     });
 
-    const t = Phaser.Math.Between(6000, 10000);
+    let t = Phaser.Math.Between(6000, 10000);
+    if (localStorage.getItem("cheat") == "on") t /= 5;
     this.time.delayedCall(t, this.generatePowerup, undefined, this);
   }
 
@@ -1227,7 +1231,10 @@ class Game extends Phaser.Scene {
     this.gridPos.y = toPos.y;
 
     this.canMove = false;
-    const speed = (80 - this.level * 1.6) / this.speedScale;
+    let speed = (80 - this.level * 1.6) / this.speedScale;
+
+    if (localStorage.getItem("cheat") == "on") speed /= 2;
+
     this.time.delayedCall(speed, () => (this.canMove = true));
   }
 
@@ -1475,11 +1482,8 @@ class Game extends Phaser.Scene {
     this.gameOver = true;
     this.physics.pause();
 
-    // last level is 25
-    if (this.level < MAX_LEVEL) {
-      this.level++;
-      localStorage.setItem("level", this.level);
-    }
+    this.level++;
+    localStorage.setItem("level", this.level);
 
     this.areaText.setTint(0x85ff9e);
 
@@ -1740,7 +1744,7 @@ class Game extends Phaser.Scene {
         const s =
           "here's how to unlock cheat mode:\n\n" +
           `- click/tap & hold the "${VERSION}" text on the start menu ` +
-          'for ten seconds\n\n- or type the word "flummox" on the start menu\n\n' +
+          'for ten seconds\n\n- or type the word "capybara" on the start menu\n\n' +
           "cheat mode doubles your speed, and powerups will appear 5x as fast. enjoy!\n\n" +
           "hold any key, or tap & hold to return to the start menu";
 
@@ -2115,6 +2119,12 @@ class MainUI extends Phaser.Scene {
         const creditsText = this.creditsMenu.getByName("creditsText");
         this.tweens.getTweensOf(creditsText)[0].timeScale = 1;
       }
+    });
+
+    this.input.keyboard.createCombo("CAPYBARA", { resetOnMatch: true });
+
+    this.input.keyboard.on("keycombomatch", () => {
+      if (this.activeOptions == this.startOptions) this.flipCheatMode();
     });
   }
 
@@ -2515,12 +2525,6 @@ class MainUI extends Phaser.Scene {
       this.openCredits
     ).setOrigin(0, 0.5);
 
-    const callback = () => {
-      if (this.input.activePointer.getDuration() > 1000) {
-        console.log("hit");
-      }
-    };
-
     const v = new GameText(
       this,
       gameW - this.startMenu.x,
@@ -2531,21 +2535,26 @@ class MainUI extends Phaser.Scene {
       .setOrigin(1, 1)
       .setPadding(10)
       .setInteractive()
-      .on(
-        "pointerdown",
-        function () {
-          // don't do anything if tweens are running between menus
-          if (this.transition) return;
+      .setName("version");
 
-          if (v.listenerCount("pointerup") < 1) {
-            v.on("pointerup", callback, this);
-          }
-        },
-        this
-      )
-      .on("pointerout", () => {
-        v.off("pointerup");
-      });
+    const tween = {
+      targets: v,
+      alpha: 0,
+      delay: 5000,
+      duration: 5000,
+      onComplete: () => this.flipCheatMode(),
+    };
+
+    v.on("pointerdown", () => {
+      // don't do anything if tweens are running between menus
+      if (this.transition) return;
+
+      if (this.tweens.getTweensOf(v).length > 0) return;
+      this.tweens.add(tween);
+    }).on("pointerup", () => {
+      this.tweens.killTweensOf(v);
+      v.setAlpha(1);
+    });
 
     this.startMenu.add([s1, s2, s3, s4, s5, v]);
 
@@ -3047,6 +3056,21 @@ class MainUI extends Phaser.Scene {
     this.activeOptions = this.startOptions;
     this.activeOption = -1;
     this.gameActive = false;
+  }
+
+  flipCheatMode() {
+    const v = this.startMenu.getByName("version");
+    v.setAlpha(1);
+    this.time.removeAllEvents(); // clear the delayedCall happening later if duplicates exist
+
+    if (localStorage.getItem("cheat") == "off") {
+      v.setText("cheat mode on");
+      localStorage.setItem("cheat", "on");
+    } else {
+      v.setText("cheat mode off");
+      localStorage.setItem("cheat", "off");
+    }
+    this.time.delayedCall(3000, () => v.setText(VERSION));
   }
 }
 
