@@ -1,4 +1,4 @@
-const VERSION = "Snip It! v0.9";
+const VERSION = "Snip It! v1.0";
 
 const gameW = 640;
 const gameH = 960;
@@ -1837,6 +1837,33 @@ class MainUI extends Phaser.Scene {
   }
 
   preload() {
+    var progress = this.add.graphics();
+    const text = new GameText(
+      this,
+      gameW * 0.5,
+      gameH * 0.55,
+      "loading...",
+      "g"
+    );
+
+    this.load.on("progress", function (value) {
+      progress.clear();
+      // the numbers are hsv[45].color, hsv[135].color, hsv[215].color, hsv[305].color
+      // I just didn't want to instantiate a whole color wheel for four colors
+      progress.fillGradientStyle(16773836, 13434841, 13427199, 16764154, 0.6);
+      progress.fillRect(
+        gameW * 0.05,
+        gameH * 0.5,
+        gameW * value * 0.95,
+        gameH * 0.1
+      );
+    });
+
+    this.load.on("complete", function () {
+      progress.destroy();
+      text.destroy();
+    });
+
     // load google's library for the various fonts we want to use
     this.load.script(
       "webfont",
@@ -1894,7 +1921,8 @@ class MainUI extends Phaser.Scene {
     this.createResolution();
 
     // show the "game window" while in development
-    this.add.rectangle(gameW * 0.5, gameH * 0.5, gameW, gameH, 0x000000, 0.08);
+    // no longer in development.
+    //this.add.rectangle(gameW * 0.5, gameH * 0.5, gameW, gameH, 0x000000, 0.02);
 
     this.createButtons();
     this.createControls();
