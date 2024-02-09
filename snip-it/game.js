@@ -314,6 +314,7 @@ class Game extends Phaser.Scene {
         .setBounce(1)
         .setCollideWorldBounds(true);
       circle.body.isCircle = true;
+      circle.body.onWorldBounds = true;
 
       // go in random direction
       if (Math.random() > 0.5) circle.body.velocity.x *= -1;
@@ -577,7 +578,12 @@ class Game extends Phaser.Scene {
       this.bounds.height + this.player.width
     );
 
-    this.physics.world.on("worldbounds", (body, up, down, left, right) => {});
+    // in case a circle goes too fast and flies out of world bounds
+    this.physics.world.on("worldbounds", (body) => {
+      if (body.gameObject.name == "circle") {
+        this.circles.remove(body.gameObject, true, true);
+      }
+    });
 
     this.circles = this.physics.add.group();
     this.squares = this.physics.add.group();
@@ -1466,7 +1472,7 @@ class Game extends Phaser.Scene {
     // converts a position in the world to a position on the grid
     // for enemies to check where they are on the grid to see if it's filled
     const b = this.bounds.getBounds();
-    if (!Phaser.Geom.Rectangle.Contains(b, x, y)) return;
+    if (!Phaser.Geom.Rectangle.Contains(b, x, y)) return null;
 
     const topLeft = this.bounds.getTopLeft();
     const w = this.grid[0][0].width;
@@ -1501,6 +1507,10 @@ class Game extends Phaser.Scene {
 
     this.circles.getChildren().forEach((c) => {
       const pos = this.convertWorldToGrid(c.x, c.y);
+
+      // add a check in case circle flew out of bounds
+      if (pos == null) pos = Phaser.Math.Vector2.ZERO;
+
       this.tweens.add({
         targets: c,
         duration: 1200,
@@ -1838,9 +1848,10 @@ class MainUI extends Phaser.Scene {
 
   preload() {
     var progress = this.add.graphics();
+    // innerWidth works better b/c we haven't done resolution scaling yet
     const text = new GameText(
       this,
-      gameW * 0.5,
+      window.innerWidth * 0.5,
       gameH * 0.55,
       "loading...",
       "g"
@@ -1851,10 +1862,18 @@ class MainUI extends Phaser.Scene {
       // the numbers are hsv[45].color, hsv[135].color, hsv[215].color, hsv[305].color
       // I just didn't want to instantiate a whole color wheel for four colors
       progress.fillGradientStyle(16773836, 13434841, 13427199, 16764154, 0.6);
+      progress.lineStyle(5, COLORS.buttonColor, 1);
+      // loading bar is 600 pixels wide, looks like that works for everything
       progress.fillRect(
-        gameW * 0.05,
+        window.innerWidth * 0.5 - 300,
         gameH * 0.5,
-        gameW * value * 0.95,
+        600 * value,
+        gameH * 0.1
+      );
+      progress.strokeRect(
+        window.innerWidth * 0.5 - 300,
+        gameH * 0.5,
+        600,
         gameH * 0.1
       );
     });
