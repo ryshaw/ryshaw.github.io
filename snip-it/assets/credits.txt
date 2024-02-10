@@ -1,4 +1,4 @@
-a game by ryshaw
+a game by ryshaw/shry
 created w/ phaser 3.6
 @ryshawgames
 

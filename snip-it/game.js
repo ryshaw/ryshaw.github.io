@@ -1852,7 +1852,7 @@ class MainUI extends Phaser.Scene {
     const text = new GameText(
       this,
       window.innerWidth * 0.5,
-      gameH * 0.55,
+      window.innerHeight * 0.5,
       "loading...",
       "g"
     );
@@ -1863,18 +1863,20 @@ class MainUI extends Phaser.Scene {
       // I just didn't want to instantiate a whole color wheel for four colors
       progress.fillGradientStyle(16773836, 13434841, 13427199, 16764154, 0.6);
       progress.lineStyle(5, COLORS.buttonColor, 1);
-      // loading bar is 600 pixels wide, looks like that works for everything
+      // loading bar is 600x50, looks like that works for everything
       progress.fillRect(
         window.innerWidth * 0.5 - 300,
-        gameH * 0.5,
+        window.innerHeight * 0.5 - 50,
+
         600 * value,
-        gameH * 0.1
+        100
       );
       progress.strokeRect(
         window.innerWidth * 0.5 - 300,
-        gameH * 0.5,
+        window.innerHeight * 0.5 - 50,
+
         600,
-        gameH * 0.1
+        100
       );
     });
 
