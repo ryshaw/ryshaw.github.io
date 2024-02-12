@@ -19,7 +19,7 @@ const FONTS = [
 const COLORS = {
   topGradient: 0x3f8efc, // for background
   bottomGradient: 0x7de2d1, // for background
-  fillColor: 0x070600, // colors UI and drawings
+  fillColor: 0x070600, // colors UI #and drawings
   drawColor: 0xfffbfc, // colors player current drawing. other colors: 0xfdd35d, 0xfdca40
   deathColor: 0xc1121f, // when player dies...
   tintColor: 0xfbf8cc, // for highlighting text
