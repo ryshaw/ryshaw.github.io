@@ -1958,12 +1958,41 @@ class MainUI extends Phaser.Scene {
         this.createTitleText();
         this.createErrorText();
         this.createMenus();
+        //this.takeSnapshot();
       },
     });
 
     this.gameActive = false;
     this.transition = false;
     this.transitionTime = 400;
+  }
+
+  takeSnapshot() {
+    // this code is stolen from:
+    // https://phaser.discourse.group/t/save-canvas-using-phaser3/2786/3
+
+    function exportCanvasAsPNG(fileName, dataUrl) {
+      var MIME_TYPE = "image/png";
+      var imgURL = dataUrl;
+      var dlLink = document.createElement("a");
+      dlLink.download = fileName;
+      dlLink.href = imgURL;
+      dlLink.dataset.downloadurl = [
+        MIME_TYPE,
+        dlLink.download,
+        dlLink.href,
+      ].join(":");
+      document.body.appendChild(dlLink);
+      dlLink.click();
+      document.body.removeChild(dlLink);
+    }
+
+    game.renderer.snapshot(function (image) {
+      exportCanvasAsPNG("snapshot", image.src);
+    });
+
+    const t = Phaser.Math.Between(6000, 10000);
+    this.time.delayedCall(t, () => this.takeSnapshot());
   }
 
   createResolution() {
@@ -2388,8 +2417,6 @@ class MainUI extends Phaser.Scene {
 
   createTitleText() {
     this.titleText = new GameText(this, gameW * 0.5, 2, "snip it!", "g", "l")
-
-      //.setFontStyle("bold")
       .setFontSize("120px")
       .setOrigin(0.48, 0)
       .setStroke(COLORS.fillColor, 4)
@@ -2535,7 +2562,12 @@ class MainUI extends Phaser.Scene {
         const lvl = localStorage.getItem("level") || 1;
         this.launchGame(lvl);
       }
-    ).setOrigin(0, 0.5);
+    )
+      .setOrigin(0, 0.5)
+      .setName("start");
+
+    const lvl = localStorage.getItem("level") || 1;
+    if (lvl > 1) s1.setText(`start lvl ${lvl}`);
 
     const s2 = new GameText(
       this,
@@ -3112,6 +3144,11 @@ class MainUI extends Phaser.Scene {
     this.titleText.setFontSize("120px");
     this.pauseMenu.setVisible(false);
     this.startMenu.setVisible(true).setX(gameW * 0.05);
+
+    const lvl = localStorage.getItem("level") || 1;
+    if (lvl > 1) this.startMenu.getByName("start").setText(`start lvl ${lvl}`);
+    else this.startMenu.getByName("start").setText("start game");
+
     this.tutorialMenu.setVisible(true).setX(gameW * 1.5);
     this.levelSelectMenu.setVisible(true).setX(gameW * 1.05);
     this.activeOptions = this.startOptions;
