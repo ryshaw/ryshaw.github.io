@@ -471,23 +471,32 @@ class Game extends Phaser.Scene {
   generatePowerup() {
     if (this.gameOver) return;
 
-    this.scene.get("MainUI").playSound("popup");
     let p = this.bounds.getBounds().getRandomPoint();
 
     // check two things before inserting a powerup in a location:
-    // 1. is it too close to a wall? check static bodies in radius of 40
-    // (100x100 is powerup resolution, scaled by 0.4. 100 * 0.4 = 40)
+    // 1. is it too close to a wall? check for static bodies in a radius of 32
+    // (100x100 is powerup resolution)
     // 2. is it in a filled zone already? check filled data of tile
-    let staticBodies = this.physics.overlapCirc(p.x, p.y, 40, false, true);
+    let staticBodies = this.physics.overlapCirc(p.x, p.y, 32, false, true);
     let v = this.convertWorldToGrid(p.x, p.y);
 
-    while (staticBodies.length > 0 || this.grid[v.x][v.y].getData("filled")) {
+    let limit = 1000; // so we don't run this loop forever
+    // if the play area is so narrow that the overlapping circle isn't valid at all,
+    // the while loop could go on forever. limit fixes that bug
+    while (
+      limit > 0 &&
+      (staticBodies.length > 0 || this.grid[v.x][v.y].getData("filled"))
+    ) {
+      limit--;
       // it didn't pass the two questions, so try again
       p = this.bounds.getBounds().getRandomPoint();
-      staticBodies = this.physics.overlapCirc(p.x, p.y, 40, false, true);
+      staticBodies = this.physics.overlapCirc(p.x, p.y, 32, false, true);
       v = this.convertWorldToGrid(p.x, p.y);
     }
 
+    if (limit <= 0) return; // no valid area to generate powerup so just give up.
+
+    this.scene.get("MainUI").playSound("popup");
     let powerup;
 
     switch (Phaser.Math.Between(1, 3)) {
