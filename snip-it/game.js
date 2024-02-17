@@ -5,16 +5,7 @@ const gameH = 960;
 const DEV_MODE = false; // sets timer high, enables level select, turns on FPS, and turns on physics debug
 const MAX_LEVEL = 25;
 
-const FONTS = [
-  "IBM Plex Mono",
-  "Finger Paint",
-  "Anonymous Pro",
-  "Roboto Mono",
-  "PT Sans",
-  "Quicksand",
-  "IBM Plex Sans",
-  "Titillium Web",
-];
+const FONTS = ["Roboto Mono"];
 
 const COLORS = {
   topGradient: 0x3f8efc, // for background
@@ -3250,9 +3241,6 @@ class GameText extends Phaser.GameObjects.Text {
     if (size == "s") {
       cT.setStroke(COLORS.fillColor).setShadow(2, 2, "#333333", 0, true, true);
     }
-
-    //"IBM Plex Mono", "Finger Paint", "Anonymous Pro"
-    //"Roboto Mono", "PT Sans", "Quicksand", "IBM Plex Sans", "Titillium Web"
 
     // if callback is given, assume it's a button and add callback.
     // fine-tuned this code so button only clicks if player
