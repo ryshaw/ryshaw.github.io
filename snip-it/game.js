@@ -1991,7 +1991,7 @@ class MainUI extends Phaser.Scene {
       exportCanvasAsPNG("snapshot", image.src);
     });
 
-    const t = Phaser.Math.Between(6000, 10000);
+    const t = Phaser.Math.Between(10000, 20000);
     this.time.delayedCall(t, () => this.takeSnapshot());
   }
 
