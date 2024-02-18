@@ -975,6 +975,9 @@ class Game extends Phaser.Scene {
   }
 
   resize(gameSize) {
+    // don't resize if scene stopped. this fixes a bug
+    if (!this.scene.isActive("Game") && !this.scene.isPaused("Game")) return;
+
     const width = gameSize.width;
     const height = gameSize.height;
 
