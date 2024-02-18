@@ -21,6 +21,8 @@ const COLORS = {
 };
 
 class Background extends Phaser.Scene {
+  graphics;
+
   constructor() {
     super("Background");
   }
@@ -29,17 +31,32 @@ class Background extends Phaser.Scene {
     const w = window.innerWidth; // take up the full browser window
     const h = window.innerHeight;
 
-    const graphics = this.add.graphics();
+    this.graphics = this.add.graphics();
 
-    graphics.fillGradientStyle(
+    this.graphics.fillGradientStyle(
       COLORS.topGradient,
       COLORS.topGradient,
       COLORS.bottomGradient,
       COLORS.bottomGradient,
       0.9
     );
-    graphics.fillRect(0, 0, w, h);
+    this.graphics.fillRect(0, 0, w, h);
+
     this.scene.launch("MainUI"); // start menu, tutorial, and game launcher
+
+    this.scale.on("resize", this.resize, this);
+  }
+
+  resize(gameSize) {
+    this.graphics.clear();
+    this.graphics.fillGradientStyle(
+      COLORS.topGradient,
+      COLORS.topGradient,
+      COLORS.bottomGradient,
+      COLORS.bottomGradient,
+      0.9
+    );
+    this.graphics.fillRect(0, 0, gameSize.width, gameSize.height);
   }
 }
 
