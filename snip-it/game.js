@@ -995,9 +995,18 @@ class Game extends Phaser.Scene {
     const scaleX = this.sizer.width / gameW;
     const scaleY = this.sizer.height / gameH;
 
+    // this offset was meant to move the game screen a little up
+    // because it was being centered a little down when playing it on
+    // my phone (iPhone 12). I'm going to remove it now because
+    // I'm prioritizing a multi-platform game and the offset looks
+    // weird on other platforms.
+
     // offset is comparing the game's height to the window's height,
     // and centering the game in (kind of) the middle of the window.
-    const offset = (1 + this.parent.height / this.sizer.height) / 2;
+    // old line:
+    //const offset = (1 + this.parent.height / this.sizer.height) / 2;
+    // new line:
+    const offset = this.parent.height / this.sizer.height;
 
     camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
     camera.setZoom(Math.max(scaleX, scaleY));
@@ -2056,9 +2065,18 @@ class MainUI extends Phaser.Scene {
     const scaleX = this.sizer.width / gameW;
     const scaleY = this.sizer.height / gameH;
 
+    // this offset was meant to move the game screen a little up
+    // because it was being centered a little down when playing it on
+    // my phone (iPhone 12). I'm going to remove it now because
+    // I'm prioritizing a multi-platform game and the offset looks
+    // weird on other platforms.
+
     // offset is comparing the game's height to the window's height,
     // and centering the game in (kind of) the middle of the window.
-    const offset = (1 + this.parent.height / this.sizer.height) / 2;
+    // old line:
+    //const offset = (1 + this.parent.height / this.sizer.height) / 2;
+    // new line:
+    const offset = this.parent.height / this.sizer.height;
 
     camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
     camera.setZoom(Math.max(scaleX, scaleY));
