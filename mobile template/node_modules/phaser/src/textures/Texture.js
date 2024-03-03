@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -32,7 +32,7 @@ var TEXTURE_MISSING_ERROR = 'Texture "%s" has no frame "%s"';
  *
  * @param {Phaser.Textures.TextureManager} manager - A reference to the Texture Manager this Texture belongs to.
  * @param {string} key - The unique string-based key of this Texture.
- * @param {(HTMLImageElement|HTMLCanvasElement|HTMLImageElement[]|HTMLCanvasElement[])} source - An array of sources that are used to create the texture. Usually Images, but can also be a Canvas.
+ * @param {(HTMLImageElement|HTMLCanvasElement|HTMLImageElement[]|HTMLCanvasElement[]|Phaser.Renderer.WebGL.Wrappers.WebGLTextureWrapper)} source - An array of sources that are used to create the texture. Usually Images, but can also be a Canvas.
  * @param {number} [width] - The width of the Texture. This is optional and automatically derived from the source images.
  * @param {number} [height] - The height of the Texture. This is optional and automatically derived from the source images.
  */
@@ -314,6 +314,59 @@ var Texture = new Class({
         }
 
         return out;
+    },
+
+    /**
+     * Based on the given Texture Source Index, this method will get all of the Frames using
+     * that source and then work out the bounds that they encompass, returning them in an object.
+     *
+     * This is useful if this Texture is, for example, a sprite sheet within an Atlas, and you
+     * need to know the total bounds of the sprite sheet.
+     *
+     * @method Phaser.Textures.Texture#getFrameBounds
+     * @since 3.80.0
+     *
+     * @param {number} sourceIndex - The index of the TextureSource to get the Frame bounds from.
+     *
+     * @return {Phaser.Types.Math.RectangleLike} An object containing the bounds of the Frames using the given Texture Source Index.
+     */
+    getFrameBounds: function (sourceIndex)
+    {
+        if (sourceIndex === undefined) { sourceIndex = 0; }
+
+        var frames = this.getFramesFromTextureSource(sourceIndex);
+
+        var minX = Infinity;
+        var minY = Infinity;
+        var maxX = 0;
+        var maxY = 0;
+
+        for (var i = 0; i < frames.length; i++)
+        {
+            var frame = frames[i];
+
+            if (frame.cutX < minX)
+            {
+                minX = frame.cutX;
+            }
+
+            if (frame.cutY < minY)
+            {
+                minY = frame.cutY;
+            }
+
+            if (frame.cutX + frame.cutWidth > maxX)
+            {
+                maxX = frame.cutX + frame.cutWidth;
+            }
+
+            if (frame.cutY + frame.cutHeight > maxY)
+            {
+                maxY = frame.cutY + frame.cutHeight;
+            }
+        }
+
+        return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
     },
 
     /**

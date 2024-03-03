@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -73,10 +73,10 @@ var Displacement = new Class({
         this.y = y;
 
         /**
-         * The underlying WebGLTexture used for displacement.
+         * The underlying texture used for displacement.
          *
          * @name Phaser.FX.Displacement#glTexture
-         * @type {WebGLTexture}
+         * @type {Phaser.Renderer.WebGL.Wrappers.WebGLTextureWrapper}
          * @since 3.60.0
          */
         this.glTexture;
@@ -89,7 +89,7 @@ var Displacement = new Class({
      *
      * You can only use a whole texture, not a frame from a texture atlas or sprite sheet.
      *
-     * @method Phaser.GameObjects.Components.FX#setTexture
+     * @method Phaser.FX.Displacement#setTexture
      * @since 3.60.0
      *
      * @param {string} [texture='__WHITE'] - The unique string-based key of the texture to use for displacement, which must exist in the Texture Manager.

@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -42,7 +42,7 @@ var Tileset = new Class({
         if (tileData === undefined) { tileData = {}; }
 
         /**
-         * The name of the Tileset.
+         * The name of the Tileset.s
          *
          * @name Phaser.Tilemaps.Tileset#name
          * @type {string}
@@ -148,7 +148,7 @@ var Tileset = new Class({
          * The gl texture used by the WebGL renderer.
          *
          * @name Phaser.Tilemaps.Tileset#glTexture
-         * @type {?WebGLTexture}
+         * @type {?Phaser.Renderer.WebGL.Wrappers.WebGLTextureWrapper}
          * @readonly
          * @since 3.11.0
          */
@@ -302,9 +302,20 @@ var Tileset = new Class({
     {
         this.image = texture;
 
-        this.glTexture = texture.get().source.glTexture;
+        var frame = texture.get();
 
-        this.updateTileData(this.image.source[0].width, this.image.source[0].height);
+        var bounds = texture.getFrameBounds();
+
+        this.glTexture = frame.source.glTexture;
+
+        if (frame.width > bounds.width || frame.height > bounds.height)
+        {
+            this.updateTileData(frame.width, frame.height);
+        }
+        else
+        {
+            this.updateTileData(bounds.width, bounds.height, bounds.x, bounds.y);
+        }
 
         return this;
     },
@@ -365,11 +376,16 @@ var Tileset = new Class({
      *
      * @param {number} imageWidth - The (expected) width of the image to slice.
      * @param {number} imageHeight - The (expected) height of the image to slice.
+     * @param {number} [offsetX=0] - The x offset in the source texture where the tileset starts.
+     * @param {number} [offsetY=0] - The y offset in the source texture where the tileset starts.
      *
      * @return {Phaser.Tilemaps.Tileset} This Tileset object.
      */
-    updateTileData: function (imageWidth, imageHeight)
+    updateTileData: function (imageWidth, imageHeight, offsetX, offsetY)
     {
+        if (offsetX === undefined) { offsetX = 0; }
+        if (offsetY === undefined) { offsetY = 0; }
+
         var rowCount = (imageHeight - this.tileMargin * 2 + this.tileSpacing) / (this.tileHeight + this.tileSpacing);
         var colCount = (imageWidth - this.tileMargin * 2 + this.tileSpacing) / (this.tileWidth + this.tileSpacing);
 
@@ -391,8 +407,8 @@ var Tileset = new Class({
 
         this.texCoordinates.length = 0;
 
-        var tx = this.tileMargin;
-        var ty = this.tileMargin;
+        var tx = this.tileMargin + offsetX;
+        var ty = this.tileMargin + offsetY;
 
         for (var y = 0; y < this.rows; y++)
         {
@@ -402,7 +418,7 @@ var Tileset = new Class({
                 tx += this.tileWidth + this.tileSpacing;
             }
 
-            tx = this.tileMargin;
+            tx = this.tileMargin + offsetX;
             ty += this.tileHeight + this.tileSpacing;
         }
 

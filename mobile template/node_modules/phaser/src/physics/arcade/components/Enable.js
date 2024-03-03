@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -11,6 +11,28 @@
  * @since 3.0.0
  */
 var Enable = {
+
+    /**
+     * Sets whether this Body should calculate its velocity based on its change in
+     * position every frame. The default, which is to not do this, means that you
+     * make this Body move by setting the velocity directly. However, if you are
+     * trying to move this Body via a Tween, or have it follow a Path, then you
+     * should enable this instead. This will allow it to still collide with other
+     * bodies, something that isn't possible if you're just changing its position directly.
+     *
+     * @method Phaser.Physics.Arcade.Components.Enable#setDirectControl
+     * @since 3.70.0
+     *
+     * @param {boolean} [value=true] - `true` if the Body calculate velocity based on changes in position, otherwise `false`.
+     *
+     * @return {this} This Game Object.
+     */
+    setDirectControl: function (value)
+    {
+        this.body.setDirectControl(value);
+
+        return this;
+    },
 
     /**
      * Enables this Game Object's Body.

@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -64,6 +64,9 @@ var Vector4 = require('../../math/Vector4');
  * listeners directly. The final limitation is to do with cameras. The DOM Container is sized to match the game canvas
  * entirely and clipped accordingly. DOM Elements respect camera scrolling and scrollFactor settings, but if you
  * change the size of the camera so it no longer matches the size of the canvas, they won't be clipped accordingly.
+ *
+ * DOM Game Objects can be added to a Phaser Container, however you should only nest them **one level deep**.
+ * Any further down the chain and they will ignore all root container properties.
  *
  * Also, all DOM Elements are inserted into the same DOM Container, regardless of which Scene they are created in.
  *

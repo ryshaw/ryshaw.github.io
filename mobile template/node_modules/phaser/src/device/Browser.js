@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -76,16 +76,17 @@ function init ()
         Browser.firefoxVersion = parseInt(RegExp.$1, 10);
         Browser.es2019 = (Browser.firefoxVersion > 10);
     }
-    else if ((/AppleWebKit/).test(ua) && OS.iOS)
+    else if ((/AppleWebKit\/(?!.*CriOS)/).test(ua) && OS.iOS)
     {
         Browser.mobileSafari = true;
+        Browser.es2019 = true;
     }
     else if ((/MSIE (\d+\.\d+);/).test(ua))
     {
         Browser.ie = true;
         Browser.ieVersion = parseInt(RegExp.$1, 10);
     }
-    else if ((/Version\/(\d+\.\d+) Safari/).test(ua) && !OS.windowsPhone)
+    else if ((/Version\/(\d+\.\d+(\.\d+)?) Safari/).test(ua) && !OS.windowsPhone)
     {
         Browser.safari = true;
         Browser.safariVersion = parseInt(RegExp.$1, 10);

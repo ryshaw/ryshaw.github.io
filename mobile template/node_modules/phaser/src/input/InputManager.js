@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -614,7 +614,7 @@ var InputManager = new Class({
 
                 if (pointer.active && pointer.identifier === changedTouch.identifier)
                 {
-                    var element = document.elementFromPoint(changedTouch.pageX, changedTouch.pageY);
+                    var element = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY);
                     var overCanvas = element === this.canvas;
 
                     if (!this.isOver && overCanvas)

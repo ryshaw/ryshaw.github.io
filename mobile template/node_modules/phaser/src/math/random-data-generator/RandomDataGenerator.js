@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -390,7 +390,7 @@ var RandomDataGenerator = new Class({
      */
     weightedPick: function (array)
     {
-        return array[~~(Math.pow(this.frac(), 2) * (array.length - 1) + 0.5)];
+        return array[~~(Math.pow(this.frac(), 2) * (array.length - 0.5) + 0.5)];
     },
 
     /**

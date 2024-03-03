@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -161,7 +161,7 @@ var PreFXPipeline = new Class({
          * The WebGLBuffer that holds the quadVertexData.
          *
          * @name Phaser.Renderer.WebGL.Pipelines.PreFXPipeline#quadVertexBuffer
-         * @type {WebGLBuffer}
+         * @type {Phaser.Renderer.WebGL.Wrappers.WebGLBufferWrapper}
          * @readonly
          * @since 3.60.0
          */
@@ -254,6 +254,9 @@ var PreFXPipeline = new Class({
 
         //  So calls to set uniforms in onPreRender target the right shader:
         this.currentShader = this.copyShader;
+
+        this.set2f('uResolution', renderer.width, renderer.height);
+        this.set1i('uRoundPixels', renderer.config.roundPixels);
     },
 
     /**
@@ -327,7 +330,7 @@ var PreFXPipeline = new Class({
      * @param {number} tintBL - The bottom-left tint color value.
      * @param {number} tintBR - The bottom-right tint color value.
      * @param {(number|boolean)} tintEffect - The tint effect for the shader to use.
-     * @param {WebGLTexture} [texture] - WebGLTexture that will be assigned to the current batch if a flush occurs.
+     * @param {Phaser.Renderer.WebGL.Wrappers.WebGLTextureWrapper} [texture] - Texture that will be assigned to the current batch if a flush occurs.
      *
      * @return {boolean} `true` if this method caused the batch to flush, otherwise `false`.
      */
@@ -366,6 +369,8 @@ var PreFXPipeline = new Class({
         this.setShader(this.drawSpriteShader);
 
         this.set1i('uMainSampler', 0);
+        this.set2f('uResolution', renderer.width, renderer.height);
+        this.set1i('uRoundPixels', renderer.config.roundPixels);
 
         this.flipProjectionMatrix(true);
 
@@ -381,8 +386,8 @@ var PreFXPipeline = new Class({
         this.flush();
 
         gl.viewport(0, 0, renderer.width, renderer.height);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, fsTarget.framebuffer);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, fsTarget.texture, 0);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fsTarget.framebuffer.webGLFramebuffer);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, fsTarget.texture.webGLTexture, 0);
 
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
@@ -404,7 +409,7 @@ var PreFXPipeline = new Class({
         //  Now we've got the sprite drawn to our screen-sized fbo, copy the rect we need to our target
 
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, target.texture);
+        gl.bindTexture(gl.TEXTURE_2D, target.texture.webGLTexture);
         gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, targetBounds.x, targetBounds.y, targetBounds.width, targetBounds.height);
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -508,7 +513,11 @@ var PreFXPipeline = new Class({
 
         shader.bind(wasBound, false);
 
+        var renderer = this.renderer;
+
         this.set1i('uMainSampler', 0);
+        this.set2f('uResolution', renderer.width, renderer.height);
+        this.set1i('uRoundPixels', renderer.config.roundPixels);
 
         sprite.preFX.onFXCopy(this);
 
@@ -521,7 +530,7 @@ var PreFXPipeline = new Class({
         }
 
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, source.texture);
+        gl.bindTexture(gl.TEXTURE_2D, source.texture.webGLTexture);
 
         if (source.height > target.height)
         {
@@ -538,8 +547,8 @@ var PreFXPipeline = new Class({
             this.resetUVs();
         }
 
-        gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target.texture, 0);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer.webGLFramebuffer);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target.texture.webGLTexture, 0);
 
         if (clear)
         {
@@ -589,15 +598,15 @@ var PreFXPipeline = new Class({
         this.set1i('uMainSampler', 0);
 
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, source.texture);
+        gl.bindTexture(gl.TEXTURE_2D, source.texture.webGLTexture);
 
         //  source and target must always be the same size
         gl.viewport(0, 0, source.width, source.height);
 
         this.setUVs(0, 0, 0, 1, 1, 1, 1, 0);
 
-        gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target.texture, 0);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer.webGLFramebuffer);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target.texture.webGLTexture, 0);
 
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
@@ -770,7 +779,7 @@ var PreFXPipeline = new Class({
 
         //  Clear the source framebuffer out, ready for the next pass
         // gl.clearColor(0, 0, 0, 0);
-        // gl.bindFramebuffer(gl.FRAMEBUFFER, source.framebuffer);
+        // gl.bindFramebuffer(gl.FRAMEBUFFER, source.framebuffer.webGLFramebuffer);
         // gl.clear(gl.COLOR_BUFFER_BIT);
         // gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
@@ -890,7 +899,7 @@ var PreFXPipeline = new Class({
      */
     destroy: function ()
     {
-        this.gl.deleteBuffer(this.quadVertexBuffer);
+        this.renderer.deleteBuffer(this.quadVertexBuffer);
 
         this.drawSpriteShader = null;
         this.copyShader = null;

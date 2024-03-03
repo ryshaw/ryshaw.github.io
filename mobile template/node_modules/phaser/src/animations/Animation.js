@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -198,6 +198,16 @@ var Animation = new Class({
         this.hideOnComplete = GetValue(config, 'hideOnComplete', false);
 
         /**
+         * Start playback of this animation from a random frame?
+         *
+         * @name Phaser.Animations.Animation#randomFrame
+         * @type {boolean}
+         * @default false
+         * @since 3.60.0
+         */
+        this.randomFrame = GetValue(config, 'randomFrame', false);
+
+        /**
          * Global pause. All Game Objects using this Animation instance are impacted by this property.
          *
          * @name Phaser.Animations.Animation#paused
@@ -352,14 +362,13 @@ var Animation = new Class({
         //  When is the first update due?
         state.accumulator = 0;
 
-        state.nextTick = state.msPerFrame + state.currentFrame.duration;
+        state.nextTick = (state.currentFrame.duration) ? state.currentFrame.duration : state.msPerFrame;
     },
 
     /**
      * Returns the AnimationFrame at the provided index
      *
      * @method Phaser.Animations.Animation#getFrameAt
-     * @protected
      * @since 3.0.0
      *
      * @param {number} index - The index in the AnimationFrame array
@@ -506,7 +515,7 @@ var Animation = new Class({
     {
         state.accumulator -= state.nextTick;
 
-        state.nextTick = state.msPerFrame + state.currentFrame.duration;
+        state.nextTick = (state.currentFrame.duration) ? state.currentFrame.duration : state.msPerFrame;
     },
 
     /**
@@ -806,6 +815,7 @@ var Animation = new Class({
             yoyo: this.yoyo,
             showBeforeDelay: this.showBeforeDelay,
             showOnStart: this.showOnStart,
+            randomFrame: this.randomFrame,
             hideOnComplete: this.hideOnComplete
         };
 

@@ -1,7 +1,7 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
+ * @author       Richard Davey <rich@phaser.io>
  * @author       Felipe Alfonso <@bitnenfer>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -438,7 +438,7 @@ var Container = new Class({
      */
     addHandler: function (gameObject)
     {
-        gameObject.once(Events.DESTROY, this.remove, this);
+        gameObject.once(Events.DESTROY, this.onChildDestroyed, this);
 
         if (this.exclusive)
         {
@@ -976,7 +976,7 @@ var Container = new Class({
             {
                 if (list[i] && list[i].scene)
                 {
-                    list[i].off(Events.DESTROY, this.remove, this);
+                    list[i].off(Events.DESTROY, this.onChildDestroyed, this);
 
                     list[i].destroy();
                 }
@@ -1452,6 +1452,25 @@ var Container = new Class({
         this.tempTransformMatrix.destroy();
 
         this.list = [];
+    },
+
+    /**
+     * Internal handler, called when a child is destroyed.
+     *
+     * @method Phaser.GameObjects.Container#onChildDestroyed
+     * @protected
+     * @since 3.80.0
+     */
+    onChildDestroyed: function (gameObject)
+    {
+        ArrayUtils.Remove(this.list, gameObject);
+
+        if (this.exclusive)
+        {
+            gameObject.parentContainer = null;
+
+            gameObject.removedFromScene();
+        }
     }
 
 });

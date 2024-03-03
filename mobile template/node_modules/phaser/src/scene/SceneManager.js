@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -181,6 +181,7 @@ var SceneManager = new Class({
      *
      * @method Phaser.Scenes.SceneManager#bootQueue
      * @private
+     * @fires Phaser.Core.Events#SYSTEM_READY
      * @since 3.2.0
      */
     bootQueue: function ()
@@ -192,6 +193,8 @@ var SceneManager = new Class({
 
         //  Create the system Scene
         this.systemScene = this.createSceneFromInstance('__SYSTEM', new Scene());
+
+        this.game.events.emit(GameEvents.SYSTEM_READY, this.systemScene, this);
 
         var i;
         var entry;
@@ -574,7 +577,7 @@ var SceneManager = new Class({
                 sys.step(time, delta);
             }
 
-            if (sys.scenePlugin._target)
+            if (sys.scenePlugin && sys.scenePlugin._target)
             {
                 sys.scenePlugin.step(time, delta);
             }

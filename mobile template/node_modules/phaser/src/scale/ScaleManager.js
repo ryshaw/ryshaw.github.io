@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -431,7 +431,7 @@ var ScaleManager = new Class({
 
         this.fullscreen = game.device.fullscreen;
 
-        if (this.scaleMode !== CONST.SCALE_MODE.RESIZE)
+        if ((this.scaleMode !== CONST.SCALE_MODE.RESIZE) && (this.scaleMode !== CONST.SCALE_MODE.EXPAND))
         {
             this.displaySize.setAspectMode(this.scaleMode);
         }
@@ -487,33 +487,50 @@ var ScaleManager = new Class({
         //  If width = '100%', or similar value
         if (typeof width === 'string')
         {
-            //  If we have a parent with a height, we'll work it out from that
-            var parentWidth = this.parentSize.width;
-
-            if (parentWidth === 0)
+            //  Does width have a % character at the end? If not, we use it as a numeric value.
+            if (width.substr(-1) !== '%')
             {
-                parentWidth = window.innerWidth;
+                width = parseInt(width, 10);
+            }
+            else
+            {
+                //  If we have a parent with a width, we'll work it out from that
+                var parentWidth = this.parentSize.width;
+
+                if (parentWidth === 0)
+                {
+                    parentWidth = window.innerWidth;
+                }
+
+                var parentScaleX = parseInt(width, 10) / 100;
+
+                width = Math.floor(parentWidth * parentScaleX);
             }
 
-            var parentScaleX = parseInt(width, 10) / 100;
-
-            width = Math.floor(parentWidth * parentScaleX);
         }
 
         //  If height = '100%', or similar value
         if (typeof height === 'string')
         {
-            //  If we have a parent with a height, we'll work it out from that
-            var parentHeight = this.parentSize.height;
-
-            if (parentHeight === 0)
+            //  Does height have a % character at the end? If not, we use it as a numeric value.
+            if (height.substr(-1) !== '%')
             {
-                parentHeight = window.innerHeight;
+                height = parseInt(height, 10);
             }
+            else
+            {
+                //  If we have a parent with a height, we'll work it out from that
+                var parentHeight = this.parentSize.height;
 
-            var parentScaleY = parseInt(height, 10) / 100;
+                if (parentHeight === 0)
+                {
+                    parentHeight = window.innerHeight;
+                }
 
-            height = Math.floor(parentHeight * parentScaleY);
+                var parentScaleY = parseInt(height, 10) / 100;
+
+                height = Math.floor(parentHeight * parentScaleY);
+            }
         }
 
         this.scaleMode = scaleMode;
@@ -567,6 +584,11 @@ var ScaleManager = new Class({
         //  The size used for the canvas style, factoring in the scale mode and parent and zoom value
         //  We just use the w/h here as this is what sets the aspect ratio (which doesn't then change)
         this.displaySize.setSize(width, height);
+
+        if (config.snapWidth > 0 || config.snapHeight > 0)
+        {
+            this.displaySize.setSnap(config.snapWidth, config.snapHeight);
+        }
 
         this.orientation = GetScreenOrientation(width, height);
     },
@@ -893,6 +915,36 @@ var ScaleManager = new Class({
     },
 
     /**
+     * By setting a Snap value, when the browser size is modified, its dimensions will automatically
+     * be snapped to the nearest grid slice, using floor. For example, if you have snap value of 16,
+     * and the width changes to 68, then it will snap down to 64 (the closest multiple of 16 when floored)
+     *
+     * This mode is best used with the `FIT` scale mode.
+     *
+     * Call this method with no arguments to reset the snap values.
+     *
+     * Calling this method automatically invokes `ScaleManager.refresh` which emits a `RESIZE` event.
+     *
+     * @method Phaser.Scale.ScaleManager#setSnap
+     * @fires Phaser.Scale.Events#RESIZE
+     * @since 3.80.0
+     *
+     * @param {number} [snapWidth=0] - The amount to snap the width to. If you don't want to snap the width, pass a value of zero.
+     * @param {number} [snapHeight=snapWidth] - The amount to snap the height to. If not provided it will use the `snapWidth` value. If you don't want to snap the height, pass a value of zero.
+     *
+     * @return {this} The Scale Manager instance.
+     */
+    setSnap: function (snapWidth, snapHeight)
+    {
+        if (snapWidth === undefined) { snapWidth = 0; }
+        if (snapHeight === undefined) { snapHeight = snapWidth; }
+
+        this.displaySize.setSnap(snapWidth, snapHeight);
+
+        return this.refresh();
+    },
+
+    /**
      * Refreshes the internal scale values, bounds sizes and orientation checks.
      *
      * Once finished, dispatches the resize event.
@@ -1020,6 +1072,53 @@ var ScaleManager = new Class({
 
             styleWidth = this.displaySize.width;
             styleHeight = this.displaySize.height;
+
+            if (autoRound)
+            {
+                styleWidth = Math.floor(styleWidth);
+                styleHeight = Math.floor(styleHeight);
+            }
+
+            this.canvas.width = styleWidth;
+            this.canvas.height = styleHeight;
+        }
+        else if (this.scaleMode === CONST.SCALE_MODE.EXPAND)
+        {
+            //  Resize to match parent, like RESIZE mode
+
+            //  This will constrain using min/max
+            this.displaySize.setSize(this.parentSize.width, this.parentSize.height);
+
+            styleWidth = this.displaySize.width;
+            styleHeight = this.displaySize.height;
+
+            if (autoRound)
+            {
+                styleWidth = Math.floor(styleWidth);
+                styleHeight = Math.floor(styleHeight);
+            }
+
+            style.width = styleWidth + 'px';
+            style.height = styleHeight + 'px';
+
+
+            // Expand canvas size to fit game size's width or height
+
+            var scaleX = this.parentSize.width / this.gameSize.width;
+
+            var scaleY = this.parentSize.height / this.gameSize.height;
+
+            if (scaleX < scaleY)
+            {
+                this.baseSize.setSize(this.gameSize.width, this.parentSize.height / scaleX);
+            }
+            else
+            {
+                this.baseSize.setSize(this.displaySize.width / scaleY, this.gameSize.height);
+            }
+
+            styleWidth = this.baseSize.width;
+            styleHeight = this.baseSize.height;
 
             if (autoRound)
             {
@@ -1412,6 +1511,8 @@ var ScaleManager = new Class({
 
             _this._checkOrientation = true;
             _this.dirty = true;
+
+            _this.refresh();
         };
 
         listeners.windowResize = function ()

@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -203,7 +203,10 @@ var Graphics = new Class({
          * @private
          * @since 3.0.0
          */
-        this._lineWidth = 1.0;
+        this._lineWidth = 1;
+
+        this.lineStyle(1, 0, 0);
+        this.fillStyle(0, 0);
 
         this.setDefaultStyles(options);
     },

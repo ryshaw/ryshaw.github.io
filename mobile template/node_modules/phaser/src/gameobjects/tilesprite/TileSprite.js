@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -11,6 +11,7 @@ var GameObject = require('../GameObject');
 var GetPowerOfTwo = require('../../math/pow2/GetPowerOfTwo');
 var Smoothing = require('../../display/canvas/Smoothing');
 var TileSpriteRender = require('./TileSpriteRender');
+var UUID = require('../../utils/string/UUID');
 var Vector2 = require('../../math/Vector2');
 
 //  bitmask flag for GameObject.renderMask
@@ -220,13 +221,23 @@ var TileSprite = new Class({
         this._crop = this.resetCropObject();
 
         /**
+         * The internal unique key to refer to the texture in the TextureManager.
+         *
+         * @name Phaser.GameObjects.TileSprite#_textureKey
+         * @type {string}
+         * @private
+         * @since 3.80.0
+         */
+        this._textureKey = UUID();
+
+        /**
          * The Texture this Game Object is using to render with.
          *
          * @name Phaser.GameObjects.TileSprite#texture
          * @type {Phaser.Textures.Texture|Phaser.Textures.CanvasTexture}
          * @since 3.0.0
          */
-        this.texture = scene.sys.textures.addCanvas(null, this.canvas, true);
+        this.texture = scene.sys.textures.addCanvas(this._textureKey, this.canvas);
 
         /**
          * The Texture Frame this Game Object is using to render with.
@@ -276,10 +287,10 @@ var TileSprite = new Class({
 
         /**
          * The texture that the Tile Sprite is rendered to, which is then rendered to a Scene.
-         * In WebGL this is a WebGLTexture. In Canvas it's a Canvas Fill Pattern.
+         * In WebGL this is a WebGLTextureWrapper. In Canvas it's a Canvas Fill Pattern.
          *
          * @name Phaser.GameObjects.TileSprite#fillPattern
-         * @type {?(WebGLTexture|CanvasPattern)}
+         * @type {?(Phaser.Renderer.WebGL.Wrappers.WebGLTextureWrapper|CanvasPattern)}
          * @since 3.12.0
          */
         this.fillPattern = null;
@@ -460,8 +471,7 @@ var TileSprite = new Class({
 
             if (typeof WEBGL_DEBUG)
             {
-                // eslint-disable-next-line camelcase
-                this.fillPattern.__SPECTOR_Metadata = { textureKey: 'TileSprite Game Object' };
+                this.fillPattern.spectorMetadata = { textureKey: 'TileSprite Game Object' };
             }
         }
         else
@@ -556,7 +566,12 @@ var TileSprite = new Class({
         this.displayTexture = null;
         this.displayFrame = null;
 
-        this.texture.destroy();
+        var texture = this.texture;
+
+        if (texture)
+        {
+            texture.destroy();
+        }
 
         this.renderer = null;
     },

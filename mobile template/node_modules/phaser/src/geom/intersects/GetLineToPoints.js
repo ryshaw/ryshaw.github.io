@@ -1,6 +1,6 @@
 /**
  * @author       Richard Davey
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -46,9 +46,9 @@ var GetLineToPoints = function (line, points, isRay, out)
     out.set();
     tempIntersect.set();
 
-    var prev = points[0];
+    var prev = points[points.length - 1];
 
-    for (var i = 1; i < points.length; i++)
+    for (var i = 0; i < points.length; i++)
     {
         var current = points[i];
 

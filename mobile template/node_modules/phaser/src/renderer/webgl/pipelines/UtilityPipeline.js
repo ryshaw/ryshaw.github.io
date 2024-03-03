@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -59,16 +59,20 @@ var UtilityPipeline = new Class({
     {
         config.renderTarget = GetFastValue(config, 'renderTarget', [
             {
-                scale: 1
+                scale: 1,
+                autoResize: true
             },
             {
-                scale: 1
+                scale: 1,
+                autoResize: true
             },
             {
-                scale: 0.5
+                scale: 0.5,
+                autoResize: true
             },
             {
-                scale: 0.5
+                scale: 0.5,
+                autoResize: true
             }
         ]);
 
@@ -287,13 +291,13 @@ var UtilityPipeline = new Class({
         this.set1f('uBrightness', brightness);
 
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, source.texture);
+        gl.bindTexture(gl.TEXTURE_2D, source.texture.webGLTexture);
 
         if (target)
         {
             gl.viewport(0, 0, target.width, target.height);
-            gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer);
-            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target.texture, 0);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer.webGLFramebuffer);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target.texture.webGLTexture, 0);
         }
         else
         {
@@ -357,7 +361,7 @@ var UtilityPipeline = new Class({
         this.set1f('uBrightness', brightness);
 
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, source.texture);
+        gl.bindTexture(gl.TEXTURE_2D, source.texture.webGLTexture);
 
         if (source.height > target.height)
         {
@@ -372,8 +376,8 @@ var UtilityPipeline = new Class({
             gl.viewport(0, diff, source.width, source.height);
         }
 
-        gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target.texture, 0);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer.webGLFramebuffer);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target.texture.webGLTexture, 0);
 
         if (clear)
         {
@@ -443,8 +447,8 @@ var UtilityPipeline = new Class({
 
         var gl = this.gl;
 
-        gl.bindFramebuffer(gl.FRAMEBUFFER, source.framebuffer);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, source.texture, 0);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, source.framebuffer.webGLFramebuffer);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, source.texture.webGLTexture, 0);
 
         if (clear)
         {
@@ -461,7 +465,7 @@ var UtilityPipeline = new Class({
         }
 
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, target.texture);
+        gl.bindTexture(gl.TEXTURE_2D, target.texture.webGLTexture);
 
         gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, 0, 0, x, y, width, height);
 
@@ -496,7 +500,7 @@ var UtilityPipeline = new Class({
         this.renderer.popFramebuffer();
 
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, source.texture);
+        gl.bindTexture(gl.TEXTURE_2D, source.texture.webGLTexture);
 
         gl.bufferData(gl.ARRAY_BUFFER, this.vertexData, gl.STATIC_DRAW);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -533,13 +537,13 @@ var UtilityPipeline = new Class({
         this.set1f('uAlpha', colorMatrix.alpha);
 
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, source.texture);
+        gl.bindTexture(gl.TEXTURE_2D, source.texture.webGLTexture);
 
         if (target)
         {
             gl.viewport(0, 0, target.width, target.height);
-            gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer);
-            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target.texture, 0);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer.webGLFramebuffer);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target.texture.webGLTexture, 0);
         }
         else
         {
@@ -593,15 +597,15 @@ var UtilityPipeline = new Class({
         this.set1f('uStrength', strength);
 
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, source1.texture);
+        gl.bindTexture(gl.TEXTURE_2D, source1.texture.webGLTexture);
 
         gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, source2.texture);
+        gl.bindTexture(gl.TEXTURE_2D, source2.texture.webGLTexture);
 
         if (target)
         {
-            gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer);
-            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target.texture, 0);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer.webGLFramebuffer);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target.texture.webGLTexture, 0);
             gl.viewport(0, 0, target.width, target.height);
         }
         else
@@ -662,7 +666,7 @@ var UtilityPipeline = new Class({
 
         gl.viewport(0, 0, target.width, target.height);
 
-        gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer.webGLFramebuffer);
 
         if (clearAlpha)
         {
@@ -677,7 +681,7 @@ var UtilityPipeline = new Class({
 
         var fbo = this.renderer.currentFramebuffer;
 
-        gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fbo.webGLFramebuffer);
     },
 
     /**

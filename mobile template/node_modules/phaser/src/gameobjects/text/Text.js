@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -14,6 +14,7 @@ var GetValue = require('../../utils/object/GetValue');
 var RemoveFromDOM = require('../../dom/RemoveFromDOM');
 var TextRender = require('./TextRender');
 var TextStyle = require('./TextStyle');
+var UUID = require('../../utils/string/UUID');
 
 /**
  * @classdesc
@@ -144,7 +145,7 @@ var Text = new Class({
          * @type {CanvasRenderingContext2D}
          * @since 3.0.0
          */
-        this.context = this.canvas.getContext('2d', { willReadFrequently: true });
+        this.context;
 
         /**
          * The Text Style object.
@@ -233,14 +234,17 @@ var Text = new Class({
         this.lineSpacing = 0;
 
         /**
-         * Whether the text or its settings have changed and need updating.
+         * Adds / Removes spacing between characters.
+         * Can be a negative or positive number.
          *
-         * @name Phaser.GameObjects.Text#dirty
-         * @type {boolean}
-         * @default false
-         * @since 3.0.0
+         * If you update this property directly, instead of using the `setLetterSpacing` method, then
+         * be sure to call `updateText` after, or you won't see the change reflected in the Text object.
+         *
+         * @name Phaser.GameObjects.Text#letterSpacing
+         * @type {number}
+         * @since 3.60.0
          */
-        this.dirty = false;
+        this.letterSpacing = 0;
 
         //  If resolution wasn't set, force it to 1
         if (this.style.resolution === 0)
@@ -258,8 +262,21 @@ var Text = new Class({
          */
         this._crop = this.resetCropObject();
 
+        /**
+         * The internal unique key to refer to the texture in the TextureManager.
+         *
+         * @name Phaser.GameObjects.Text#_textureKey
+         * @type {string}
+         * @private
+         * @since 3.80.0
+         */
+        this._textureKey = UUID();
+
         //  Create a Texture for this Text object
-        this.texture = scene.sys.textures.addCanvas(null, this.canvas, true);
+        this.texture = scene.sys.textures.addCanvas(this._textureKey, this.canvas);
+
+        //  Set the context to be the CanvasTexture context
+        this.context = this.texture.context;
 
         //  Get the frame
         this.frame = this.texture.get();
@@ -819,7 +836,7 @@ var Text = new Class({
      * @method Phaser.GameObjects.Text#setFill
      * @since 3.0.0
      *
-     * @param {(string|any)} color - The text fill style. Can be any valid CanvasRenderingContext `fillStyle` value.
+     * @param {(string|CanvasGradient|CanvasPattern)} color - The text fill style. Can be any valid CanvasRenderingContext `fillStyle` value.
      *
      * @return {this} This Text object.
      */
@@ -834,7 +851,7 @@ var Text = new Class({
      * @method Phaser.GameObjects.Text#setColor
      * @since 3.0.0
      *
-     * @param {string} color - The text fill color.
+     * @param {(string|CanvasGradient|CanvasPattern)} color - The text fill color.
      *
      * @return {this} This Text object.
      */
@@ -849,7 +866,7 @@ var Text = new Class({
      * @method Phaser.GameObjects.Text#setStroke
      * @since 3.0.0
      *
-     * @param {string} color - The stroke color.
+     * @param {(string|CanvasGradient|CanvasPattern)} color - The stroke color.
      * @param {number} thickness - The stroke thickness.
      *
      * @return {this} This Text object.
@@ -1014,9 +1031,6 @@ var Text = new Class({
     /**
      * Set the resolution used by this Text object.
      *
-     * By default it will be set to match the resolution set in the Game Config,
-     * but you can override it via this method, or by specifying it in the Text style configuration object.
-     *
      * It allows for much clearer text on High DPI devices, at the cost of memory because it uses larger
      * internal Canvas textures for the Text.
      *
@@ -1050,6 +1064,32 @@ var Text = new Class({
     setLineSpacing: function (value)
     {
         this.lineSpacing = value;
+
+        return this.updateText();
+    },
+
+    /**
+     * Sets the letter spacing value.
+     *
+     * This will add, or remove spacing between each character of this Text Game Object. The value can be
+     * either positive or negative. Positive values increase the space between each character, whilst negative
+     * values decrease it. Note that some fonts are spaced naturally closer together than others.
+     *
+     * Please understand that enabling this feature will cause Phaser to render each character in this Text object
+     * one by one, rather than use a draw for the whole string. This makes it extremely expensive when used with
+     * either long strings, or lots of strings in total. You will be better off creating bitmap font text if you
+     * need to display large quantities of characters with fine control over the letter spacing.
+     *
+     * @method Phaser.GameObjects.Text#setLetterSpacing
+     * @since 3.70.0
+     *
+     * @param {number} value - The amount to add to the letter width. Set to zero to disable.
+     *
+     * @return {this} This Text object.
+     */
+    setLetterSpacing: function (value)
+    {
+        this.letterSpacing = value;
 
         return this.updateText();
     },
@@ -1133,6 +1173,55 @@ var Text = new Class({
     setMaxLines: function (max)
     {
         return this.style.setMaxLines(max);
+    },
+
+    /**
+     * Render text from right-to-left or left-to-right.
+     *
+     * @method Phaser.GameObjects.Text#setRTL
+     * @since 3.70.0
+     *
+     * @param {boolean} [rtl=true] - Set to `true` to render from right-to-left.
+     *
+     * @return {this} This Text object.
+     */
+    setRTL: function (rtl)
+    {
+        if (rtl === undefined) { rtl = true; }
+
+        var style = this.style;
+
+        if (style.rtl === rtl)
+        {
+            return this;
+        }
+
+        style.rtl = rtl;
+
+        if (rtl)
+        {
+            this.canvas.dir = 'rtl';
+            this.context.direction = 'rtl';
+            this.canvas.style.display = 'none';
+
+            AddToDOM(this.canvas, this.scene.sys.canvas);
+        }
+        else
+        {
+            this.canvas.dir = 'ltr';
+            this.context.direction = 'ltr';
+        }
+
+        if (style.align === 'left')
+        {
+            style.align = 'right';
+        }
+        else if (style.align === 'right')
+        {
+            style.align = 'left';
+        }
+
+        return this;
     },
 
     /**
@@ -1313,7 +1402,28 @@ var Text = new Class({
             {
                 style.syncShadow(context, style.shadowFill);
 
-                context.fillText(lines[i], linePositionX, linePositionY);
+                // Looping fillText could be an expensive operation, we should ignore it if it is not needed
+
+                var letterSpacing = this.letterSpacing;
+
+                if (letterSpacing !== 0)
+                {
+                    var charPositionX = 0;
+
+                    var line = lines[i].split('');
+
+                    //  Draw text letter by letter
+                    for (var l = 0; l < line.length; l++)
+                    {
+                        context.fillText(line[l], linePositionX + charPositionX, linePositionY);
+
+                        charPositionX += context.measureText(line[l]).width + letterSpacing;
+                    }
+                }
+                else
+                {
+                    context.fillText(lines[i], linePositionX, linePositionY);
+                }
             }
         }
 
@@ -1323,16 +1433,11 @@ var Text = new Class({
         {
             this.frame.source.glTexture = this.renderer.canvasToTexture(canvas, this.frame.source.glTexture, true);
 
-            this.frame.glTexture = this.frame.source.glTexture;
-
             if (typeof WEBGL_DEBUG)
             {
-                // eslint-disable-next-line camelcase
-                this.frame.glTexture.__SPECTOR_Metadata = { textureKey: 'Text Game Object' };
+                this.frame.glTexture.spectorMetadata = { textureKey: 'Text Game Object' };
             }
         }
-
-        this.dirty = true;
 
         var input = this.input;
 
@@ -1419,14 +1524,16 @@ var Text = new Class({
      */
     preDestroy: function ()
     {
-        if (this.style.rtl)
-        {
-            RemoveFromDOM(this.canvas);
-        }
+        RemoveFromDOM(this.canvas);
 
         CanvasPool.remove(this.canvas);
 
-        this.texture.destroy();
+        var texture = this.texture;
+
+        if (texture)
+        {
+            texture.destroy();
+        }
     }
 
     /**

@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -25,7 +25,7 @@ var PostFXPipeline = require('../PostFXPipeline');
  * ```
  *
  * @class VignetteFXPipeline
- * @extends Phaser.Renderer.WebGL.WebGLPipeline
+ * @extends Phaser.Renderer.WebGL.Pipelines.PostFXPipeline
  * @memberof Phaser.Renderer.WebGL.Pipelines.FX
  * @constructor
  * @since 3.60.0

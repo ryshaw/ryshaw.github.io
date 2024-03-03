@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -86,7 +86,7 @@ var ImageFile = new Class({
             loader.addFile(normalMap);
         }
 
-        this.useImageElementLoad = loader.imageLoadType === 'HTMLImageElement';
+        this.useImageElementLoad = (loader.imageLoadType === 'HTMLImageElement') || this.base64;
 
         if (this.useImageElementLoad)
         {
@@ -165,32 +165,25 @@ var ImageFile = new Class({
 
         this.src = GetURL(this, this.loader.baseURL);
 
-        if (this.src.indexOf('data:') === 0)
+        this.data = new Image();
+
+        this.data.crossOrigin = this.crossOrigin;
+
+        var _this = this;
+
+        this.data.onload = function ()
         {
-            console.warn('Local data URIs are not supported: ' + this.key);
-        }
-        else
+            _this.state = CONST.FILE_LOADED;
+
+            _this.loader.nextFile(_this, true);
+        };
+
+        this.data.onerror = function ()
         {
-            this.data = new Image();
+            _this.loader.nextFile(_this, false);
+        };
 
-            this.data.crossOrigin = this.crossOrigin;
-
-            var _this = this;
-
-            this.data.onload = function ()
-            {
-                _this.state = CONST.FILE_LOADED;
-
-                _this.loader.nextFile(_this, true);
-            };
-
-            this.data.onerror = function ()
-            {
-                _this.loader.nextFile(_this, false);
-            };
-
-            this.data.src = this.src;
-        }
+        this.data.src = this.src;
     },
 
     /**
@@ -209,8 +202,11 @@ var ImageFile = new Class({
             //  We do, but has it loaded?
             if (linkFile.state >= CONST.FILE_COMPLETE)
             {
-                //  Both files have loaded
-                if (this.type === 'normalMap')
+                if (linkFile.type === 'spritesheet')
+                {
+                    linkFile.addToCache();
+                }
+                else if (this.type === 'normalMap')
                 {
                     //  linkFile.data = Image
                     //  this.data = Normal Map
@@ -321,7 +317,7 @@ var ImageFile = new Class({
  * It is available in the default build but can be excluded from custom builds.
  *
  * @method Phaser.Loader.LoaderPlugin#image
- * @fires Phaser.Loader.LoaderPlugin#ADD
+ * @fires Phaser.Loader.Events#ADD
  * @since 3.0.0
  *
  * @param {(string|Phaser.Types.Loader.FileTypes.ImageFileConfig|Phaser.Types.Loader.FileTypes.ImageFileConfig[])} key - The key to use for this file, or a file configuration object, or array of them.

@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -413,7 +413,7 @@ var TweenManager = new Class({
      *
      * The tweens are played in order, from start to finish. You can optionally set the chain
      * to repeat as many times as you like. Once the chain has finished playing, or repeating if set,
-     * all tweens in the chain will be destroyed automatically. To override this, set the 'persists'
+     * all tweens in the chain will be destroyed automatically. To override this, set the `persist`
      * argument to 'true'.
      *
      * Playback will start immediately unless the _first_ Tween has been configured to be paused.

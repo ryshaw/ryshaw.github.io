@@ -1,7 +1,7 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
+ * @author       Richard Davey <rich@phaser.io>
  * @author       Felipe Alfonso <@bitnenfer>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -779,12 +779,6 @@ var CanvasRenderer = new Class({
         var gx = sprite.x;
         var gy = sprite.y;
 
-        if (camera.roundPixels)
-        {
-            gx = Math.floor(gx);
-            gy = Math.floor(gy);
-        }
-
         spriteMatrix.applyITRS(gx, gy, sprite.rotation, sprite.scaleX * flipX, sprite.scaleY * flipY);
 
         camMatrix.copyFrom(camera.matrix);
@@ -830,7 +824,26 @@ var CanvasRenderer = new Class({
 
         if (frameWidth > 0 && frameHeight > 0)
         {
-            ctx.drawImage(frame.source.image, frameX, frameY, frameWidth, frameHeight, x, y, frameWidth / res, frameHeight / res);
+            if (camera.roundPixels)
+            {
+                ctx.drawImage(
+                    frame.source.image,
+                    frameX, frameY,
+                    frameWidth, frameHeight,
+                    Math.round(x), Math.round(y),
+                    Math.round(frameWidth / res), Math.round(frameHeight / res)
+                );
+            }
+            else
+            {
+                ctx.drawImage(
+                    frame.source.image,
+                    frameX, frameY,
+                    frameWidth, frameHeight,
+                    x, y,
+                    frameWidth / res, frameHeight / res
+                );
+            }
         }
 
         if (sprite.mask)

@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -37,6 +37,17 @@ var LayerData = new Class({
          * @since 3.0.0
          */
         this.name = GetFastValue(config, 'name', 'layer');
+
+        /**
+         * The id of the layer, as specified in the map data.
+         *
+         * Note: This is not the index of the layer in the map data, but its actual ID in Tiled.
+         *
+         * @name Phaser.Tilemaps.LayerData#id
+         * @type {number}
+         * @since 3.70.0
+         */
+        this.id = GetFastValue(config, 'id', 0);
 
         /**
          * The x offset of where to draw from the top left.

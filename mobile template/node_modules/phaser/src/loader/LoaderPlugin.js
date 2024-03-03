@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -1066,6 +1066,8 @@ var LoaderPlugin = new Class({
         this.reset();
 
         this.state = CONST.LOADER_SHUTDOWN;
+
+        this.removeAllListeners();
 
         this.systems.events.off(SceneEvents.UPDATE, this.update, this);
         this.systems.events.off(SceneEvents.SHUTDOWN, this.shutdown, this);

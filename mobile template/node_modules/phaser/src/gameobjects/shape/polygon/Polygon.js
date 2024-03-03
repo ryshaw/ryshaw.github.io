@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -32,6 +32,10 @@ var Smooth = require('../../../geom/polygon/Smooth');
  *
  * By default the `x` and `y` coordinates of this Shape refer to the center of it. However, depending
  * on the coordinates of the points provided, the final shape may be rendered offset from its origin.
+ *
+ * Note: The method `getBounds` will return incorrect bounds if any of the points in the Polygon are negative.
+ * If this is the case, please use the function `Phaser.Geom.Polygon.GetAABB(polygon.geom)` instead and then
+ * adjust the returned Rectangle position accordingly.
  *
  * @class Polygon
  * @extends Phaser.GameObjects.Shape

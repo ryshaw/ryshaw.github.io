@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -8,6 +8,7 @@ var CanvasPool = require('../display/canvas/CanvasPool');
 var Class = require('../utils/Class');
 var IsSizePowerOfTwo = require('../math/pow2/IsSizePowerOfTwo');
 var ScaleModes = require('../renderer/ScaleModes');
+var WebGLTextureWrapper = require('../renderer/webgl/wrappers/WebGLTextureWrapper');
 
 /**
  * @classdesc
@@ -23,7 +24,7 @@ var ScaleModes = require('../renderer/ScaleModes');
  * @since 3.0.0
  *
  * @param {Phaser.Textures.Texture} texture - The Texture this TextureSource belongs to.
- * @param {(HTMLImageElement|HTMLCanvasElement|HTMLVideoElement|Phaser.GameObjects.RenderTexture|WebGLTexture|Phaser.Types.Textures.CompressedTextureData|Phaser.Textures.DynamicTexture)} source - The source image data.
+ * @param {(HTMLImageElement|HTMLCanvasElement|HTMLVideoElement|Phaser.GameObjects.RenderTexture|Phaser.Renderer.WebGL.Wrappers.WebGLTextureWrapper|Phaser.Types.Textures.CompressedTextureData|Phaser.Textures.DynamicTexture)} source - The source image data.
  * @param {number} [width] - Optional width of the source image. If not given it's derived from the source itself.
  * @param {number} [height] - Optional height of the source image. If not given it's derived from the source itself.
  * @param {boolean} [flipY=false] - Sets the `UNPACK_FLIP_Y_WEBGL` flag the WebGL Texture uses during upload.
@@ -59,12 +60,12 @@ var TextureSource = new Class({
         /**
          * The source of the image data.
          *
-         * This is either an Image Element, a Canvas Element, a Video Element, a RenderTexture or a WebGLTexture.
+         * This is either an Image Element, a Canvas Element, a Video Element, a RenderTexture or a WebGLTextureWrapper.
          *
          * In Phaser 3.60 and above it can also be a Compressed Texture data object.
          *
          * @name Phaser.Textures.TextureSource#source
-         * @type {(HTMLImageElement|HTMLCanvasElement|HTMLVideoElement|Phaser.GameObjects.RenderTexture|WebGLTexture|Phaser.Types.Textures.CompressedTextureData|Phaser.Textures.DynamicTexture)}
+         * @type {(HTMLImageElement|HTMLCanvasElement|HTMLVideoElement|Phaser.GameObjects.RenderTexture|Phaser.Renderer.WebGL.Wrappers.WebGLTextureWrapper|Phaser.Types.Textures.CompressedTextureData|Phaser.Textures.DynamicTexture)}
          * @since 3.12.0
          */
         this.source = source;
@@ -72,10 +73,10 @@ var TextureSource = new Class({
         /**
          * The image data.
          *
-         * This is either an Image element, Canvas element or a Video Element.
+         * This is either an Image element, Canvas element, Video Element, or Uint8Array.
          *
          * @name Phaser.Textures.TextureSource#image
-         * @type {(HTMLImageElement|HTMLCanvasElement|HTMLVideoElement)}
+         * @type {(HTMLImageElement|HTMLCanvasElement|HTMLVideoElement|Uint8Array)}
          * @since 3.0.0
          */
         this.image = (source.compressed) ? null : source;
@@ -160,13 +161,13 @@ var TextureSource = new Class({
         this.isRenderTexture = (source.type === 'RenderTexture' || source.type === 'DynamicTexture');
 
         /**
-         * Is the source image a WebGLTexture?
+         * Is the source image a WebGLTextureWrapper?
          *
          * @name Phaser.Textures.TextureSource#isGLTexture
          * @type {boolean}
          * @since 3.19.0
          */
-        this.isGLTexture = (window.hasOwnProperty('WebGLTexture') && source instanceof WebGLTexture);
+        this.isGLTexture = source instanceof WebGLTextureWrapper;
 
         /**
          * Are the source image dimensions a power of two?
@@ -178,11 +179,12 @@ var TextureSource = new Class({
         this.isPowerOf2 = IsSizePowerOfTwo(this.width, this.height);
 
         /**
-         * The WebGL Texture of the source image. If this TextureSource is driven from a WebGLTexture
-         * already, then this is a reference to that WebGLTexture.
+         * The wrapped WebGL Texture of the source image.
+         * If this TextureSource is driven from a WebGLTexture already,
+         * then this wrapper contains a reference to that WebGLTexture.
          *
          * @name Phaser.Textures.TextureSource#glTexture
-         * @type {?WebGLTexture}
+         * @type {?Phaser.Renderer.WebGL.Wrappers.WebGLTextureWrapper}
          * @default null
          * @since 3.0.0
          */
@@ -242,7 +244,11 @@ var TextureSource = new Class({
                 }
                 else if (this.compressionAlgorithm)
                 {
-                    this.glTexture = renderer.createTextureFromSource(source);
+                    this.glTexture = renderer.createTextureFromSource(source, undefined, undefined, scaleMode);
+                }
+                else if (source instanceof Uint8Array)
+                {
+                    this.glTexture = renderer.createUint8ArrayTexture(source, width, height, scaleMode);
                 }
                 else
                 {
@@ -251,8 +257,7 @@ var TextureSource = new Class({
 
                 if (typeof WEBGL_DEBUG)
                 {
-                    // eslint-disable-next-line camelcase
-                    this.glTexture.__SPECTOR_Metadata = { textureKey: this.texture.key };
+                    this.glTexture.spectorMetadata = { textureKey: this.texture.key };
                 }
             }
             else if (this.isRenderTexture)
@@ -281,7 +286,7 @@ var TextureSource = new Class({
      */
     setFilter: function (filterMode)
     {
-        if (this.renderer.gl)
+        if (this.renderer && this.renderer.gl)
         {
             this.renderer.setTextureFilter(this.glTexture, filterMode);
         }
@@ -301,7 +306,10 @@ var TextureSource = new Class({
     {
         if (value === undefined) { value = true; }
 
+        if (value === this.flipY) { return this; }
+
         this.flipY = value;
+        this.update();
 
         return this;
     },
@@ -322,11 +330,11 @@ var TextureSource = new Class({
 
         if (gl && this.isCanvas)
         {
-            this.glTexture = renderer.updateCanvasTexture(image, this.glTexture, flipY);
+            renderer.updateCanvasTexture(image, this.glTexture, flipY);
         }
         else if (gl && this.isVideo)
         {
-            this.glTexture = renderer.updateVideoTexture(image, this.glTexture, flipY);
+            renderer.updateVideoTexture(image, this.glTexture, flipY);
         }
     },
 
@@ -340,7 +348,7 @@ var TextureSource = new Class({
     {
         if (this.glTexture)
         {
-            this.renderer.deleteTexture(this.glTexture, true);
+            this.renderer.deleteTexture(this.glTexture);
         }
 
         if (this.isCanvas)

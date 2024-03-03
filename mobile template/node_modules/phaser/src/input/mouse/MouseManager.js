@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -397,6 +397,11 @@ var MouseManager = new Class({
 
         this.onMouseDownWindow = function (event)
         {
+            if (event.sourceCapabilities && event.sourceCapabilities.firesTouchEvents)
+            {
+                return;
+            }
+
             if (!event.defaultPrevented && _this.enabled && manager && manager.enabled && event.target !== canvas)
             {
                 //  Only process the event if the target isn't the canvas
@@ -419,6 +424,11 @@ var MouseManager = new Class({
 
         this.onMouseUpWindow = function (event)
         {
+            if (event.sourceCapabilities && event.sourceCapabilities.firesTouchEvents)
+            {
+                return;
+            }
+
             if (!event.defaultPrevented && _this.enabled && manager && manager.enabled && event.target !== canvas)
             {
                 //  Only process the event if the target isn't the canvas

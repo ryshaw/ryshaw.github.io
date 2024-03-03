@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -79,7 +79,7 @@ var Blur = new Class({
          * @type {number}
          * @since 3.60.0
          */
-        this.quality = 0;
+        this.quality = quality;
 
         /**
          * The horizontal offset of the blur effect.

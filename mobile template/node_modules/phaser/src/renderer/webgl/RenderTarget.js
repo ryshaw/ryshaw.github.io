@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -52,23 +52,23 @@ var RenderTarget = new Class({
         this.renderer = renderer;
 
         /**
-         * The WebGLFramebuffer of this Render Target.
+         * The Framebuffer of this Render Target.
          *
          * This is created in the `RenderTarget.resize` method.
          *
          * @name Phaser.Renderer.WebGL.RenderTarget#framebuffer
-         * @type {WebGLFramebuffer}
+         * @type {Phaser.Renderer.WebGL.Wrappers.WebGLFramebufferWrapper}
          * @since 3.50.0
          */
         this.framebuffer = null;
 
         /**
-         * The WebGLTexture of this Render Target.
+         * The WebGLTextureWrapper of this Render Target.
          *
          * This is created in the `RenderTarget.resize` method.
          *
          * @name Phaser.Renderer.WebGL.RenderTarget#texture
-         * @type {WebGLTexture}
+         * @type {Phaser.Renderer.WebGL.Wrappers.WebGLTextureWrapper}
          * @since 3.50.0
          */
         this.texture = null;
@@ -220,32 +220,26 @@ var RenderTarget = new Class({
      */
     resize: function (width, height)
     {
-        var scaledWidth = width * this.scale;
-        var scaledHeight = height * this.scale;
+        width = Math.round(width * this.scale);
+        height = Math.round(height * this.scale);
 
-        if (this.autoResize && (scaledWidth !== this.width || scaledHeight !== this.height))
+        if (width <= 0)
+        {
+            width = 1;
+        }
+
+        if (height <= 0)
+        {
+            height = 1;
+        }
+
+        if (this.autoResize && (width !== this.width || height !== this.height))
         {
             var renderer = this.renderer;
 
             renderer.deleteFramebuffer(this.framebuffer);
 
             renderer.deleteTexture(this.texture);
-
-            width *= this.scale;
-            height *= this.scale;
-
-            width = Math.round(width);
-            height = Math.round(height);
-
-            if (width <= 0)
-            {
-                width = 1;
-            }
-
-            if (height <= 0)
-            {
-                height = 1;
-            }
 
             this.texture = renderer.createTextureFromSource(null, width, height, this.minFilter, this.forceClamp);
             this.framebuffer = renderer.createFramebuffer(width, height, this.texture, this.hasDepthBuffer);
@@ -255,6 +249,36 @@ var RenderTarget = new Class({
         }
 
         return this;
+    },
+
+    /**
+     * Checks if this Render Target will resize, or not, if given the new
+     * width and height values.
+     *
+     * @method Phaser.Renderer.WebGL.RenderTarget#willResize
+     * @since 3.70.0
+     *
+     * @param {number} width - The new width of this Render Target.
+     * @param {number} height - The new height of this Render Target.
+     *
+     * @return {boolean} `true` if the Render Target will resize, otherwise `false`.
+     */
+    willResize: function (width, height)
+    {
+        width = Math.round(width * this.scale);
+        height = Math.round(height * this.scale);
+
+        if (width <= 0)
+        {
+            width = 1;
+        }
+
+        if (height <= 0)
+        {
+            height = 1;
+        }
+
+        return (width !== this.width || height !== this.height);
     },
 
     /**
@@ -355,7 +379,7 @@ var RenderTarget = new Class({
      *
      * @param {boolean} [flush=false] - Flush the WebGL Renderer before unbinding?
      *
-     * @return {WebGLFramebuffer} The Framebuffer that was set, or `null` if there aren't any more in the stack.
+     * @return {Phaser.Renderer.WebGL.Wrappers.WebGLFramebufferWrapper} The Framebuffer that was set, or `null` if there aren't any more in the stack.
      */
     unbind: function (flush)
     {
@@ -384,10 +408,10 @@ var RenderTarget = new Class({
     {
         var renderer = this.renderer;
 
+        renderer.off(Events.RESIZE, this.resize, this);
+
         renderer.deleteFramebuffer(this.framebuffer);
         renderer.deleteTexture(this.texture);
-
-        renderer.off(Events.RESIZE, this.resize, this);
 
         this.renderer = null;
         this.framebuffer = null;

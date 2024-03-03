@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -44,7 +44,9 @@ var WebGLPipeline = require('../WebGLPipeline');
  * The default shader uniforms for this pipeline are:
  *
  * `uProjectionMatrix` (mat4)
- * `uMainSampler` (sampler2D)
+ * `uRoundPixels` (int)
+ * `uResolution` (vec2)
+ * `uMainSampler` (sampler2D, or sampler2D array)
  *
  * @class MobilePipeline
  * @extends Phaser.Renderer.WebGL.Pipelines.MultiPipeline
@@ -87,6 +89,7 @@ var MobilePipeline = new Class({
             }
         ]);
         config.forceZero = true;
+        config.resizeUniform = 'uResolution';
 
         MultiPipeline.call(this, config);
     },
@@ -104,7 +107,11 @@ var MobilePipeline = new Class({
     {
         WebGLPipeline.prototype.boot.call(this);
 
+        var renderer = this.renderer;
+
         this.set1i('uMainSampler', 0);
+        this.set2f('uResolution', renderer.width, renderer.height);
+        this.set1i('uRoundPixels', renderer.config.roundPixels);
     }
 
 });

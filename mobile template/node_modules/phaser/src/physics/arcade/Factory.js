@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -297,7 +297,7 @@ var Factory = new Class({
      * @param {number} [width=64] - The width of the Body in pixels. Cannot be negative or zero.
      * @param {number} [height=64] - The height of the Body in pixels. Cannot be negative or zero.
      *
-     * @return {Phaser.Physics.Arcade.Body} The Body that was created.
+     * @return {Phaser.Physics.Arcade.StaticBody} The Static Body that was created.
      */
     staticBody: function (x, y, width, height)
     {

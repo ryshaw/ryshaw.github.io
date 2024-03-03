@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -1061,6 +1061,20 @@ var World = new Class({
     },
 
     /**
+     * Advances the simulation by a single step.
+     *
+     * @method Phaser.Physics.Arcade.World#singleStep
+     * @fires Phaser.Physics.Arcade.Events#WORLD_STEP
+     * @since 3.70.0
+     */
+    singleStep: function ()
+    {
+        this.update(0, this._frameTimeMS);
+
+        this.postUpdate();
+    },
+
+    /**
      * Updates bodies, draws the debug display, and handles pending queue operations.
      *
      * @method Phaser.Physics.Arcade.World#postUpdate
@@ -1978,6 +1992,27 @@ var World = new Class({
     },
 
     /**
+     * Checks if the two given Arcade Physics bodies will collide, or not,
+     * based on their collision mask and collision categories.
+     *
+     * @method Phaser.Physics.Arcade.World#canCollide
+     * @since 3.70.0
+     *
+     * @param {Phaser.Types.Physics.Arcade.ArcadeCollider} body1 - The first body to check.
+     * @param {Phaser.Types.Physics.Arcade.ArcadeCollider} body2 - The second body to check.
+     *
+     * @return {boolean} True if the two bodies will collide, otherwise false.
+     */
+    canCollide: function (body1, body2)
+    {
+        return (
+            (body1 && body2) &&
+            (body1.collisionMask & body2.collisionCategory) !== 0 &&
+            (body2.collisionMask & body1.collisionCategory) !== 0
+        );
+    },
+
+    /**
      * Internal handler for Sprite vs. Sprite collisions.
      * Please use Phaser.Physics.Arcade.World#collide instead.
      *
@@ -1999,7 +2034,7 @@ var World = new Class({
         var body1 = (sprite1.isBody) ? sprite1 : sprite1.body;
         var body2 = (sprite2.isBody) ? sprite2 : sprite2.body;
 
-        if (!body1 || !body2)
+        if (!this.canCollide(body1, body2))
         {
             return false;
         }
@@ -2031,14 +2066,18 @@ var World = new Class({
      * @param {Phaser.Types.Physics.Arcade.ArcadePhysicsCallback} processCallback - The callback to invoke when the two objects collide. Must return a boolean.
      * @param {any} callbackContext - The scope in which to call the callbacks.
      * @param {boolean} overlapOnly - Whether this is a collision or overlap check.
-     *
-     * @return {boolean} `true` if the Sprite collided with the given Group, otherwise `false`.
      */
     collideSpriteVsGroup: function (sprite, group, collideCallback, processCallback, callbackContext, overlapOnly)
     {
         var bodyA = (sprite.isBody) ? sprite : sprite.body;
 
-        if (group.length === 0 || !bodyA || !bodyA.enable || bodyA.checkCollision.none)
+        if (
+            group.length === 0 ||
+            !bodyA ||
+            !bodyA.enable ||
+            bodyA.checkCollision.none ||
+            !this.canCollide(bodyA, group)
+        )
         {
             return;
         }
@@ -2131,6 +2170,11 @@ var World = new Class({
      */
     collideGroupVsTilemapLayer: function (group, tilemapLayer, collideCallback, processCallback, callbackContext, overlapOnly)
     {
+        if (!this.canCollide(group, tilemapLayer))
+        {
+            return false;
+        }
+
         var children = group.getChildren();
 
         if (children.length === 0)
@@ -2170,6 +2214,8 @@ var World = new Class({
      * tiles as the interesting face calculations are skipped. However, for quick-fire small collision set tests on
      * dynamic maps, this method can prove very useful.
      *
+     * This method does not factor in the Collision Mask or Category.
+     *
      * @method Phaser.Physics.Arcade.World#collideTiles
      * @fires Phaser.Physics.Arcade.Events#TILE_COLLIDE
      * @since 3.17.0
@@ -2204,6 +2250,8 @@ var World = new Class({
      * having to set any collision attributes on the tiles in question. This allows you to perform quick dynamic overlap
      * tests on small sets of Tiles. As such, no culling or checks are made to the array of Tiles given to this method,
      * you should filter them before passing them to this method.
+     *
+     * This method does not factor in the Collision Mask or Category.
      *
      * @method Phaser.Physics.Arcade.World#overlapTiles
      * @fires Phaser.Physics.Arcade.Events#TILE_OVERLAP
@@ -2251,32 +2299,20 @@ var World = new Class({
     {
         var body = (sprite.isBody) ? sprite : sprite.body;
 
-        if (!body.enable || body.checkCollision.none)
+        if (!body.enable || body.checkCollision.none || !this.canCollide(body, tilemapLayer))
         {
             return false;
         }
 
-        var x = body.x;
-        var y = body.y;
-        var w = body.width;
-        var h = body.height;
-
         var layerData = tilemapLayer.layer;
 
-        if (layerData.tileWidth > layerData.baseTileWidth)
-        {
-            // The x origin of a tile is the left side, so x and width need to be adjusted.
-            var xDiff = (layerData.tileWidth - layerData.baseTileWidth) * tilemapLayer.scaleX;
-            x -= xDiff;
-            w += xDiff;
-        }
+        //  Increase the hit area of the body by the size of the tiles * the scale
+        //  This will allow GetTilesWithinWorldXY to include the tiles around the body
 
-        if (layerData.tileHeight > layerData.baseTileHeight)
-        {
-            // The y origin of a tile is the bottom side, so just the height needs to be adjusted.
-            var yDiff = (layerData.tileHeight - layerData.baseTileHeight) * tilemapLayer.scaleY;
-            h += yDiff;
-        }
+        var x = body.x - (layerData.tileWidth * tilemapLayer.scaleX);
+        var y = body.y - (layerData.tileHeight * tilemapLayer.scaleY);
+        var w = body.width + (layerData.tileWidth * tilemapLayer.scaleX);
+        var h = body.height + layerData.tileHeight * tilemapLayer.scaleY;
 
         var options = (overlapOnly) ? null : this.tileFilterOptions;
 
@@ -2332,20 +2368,14 @@ var World = new Class({
             tileWorldRect.left = point.x;
             tileWorldRect.top = point.y;
 
-            //  If the maps base tile size differs from the layer tile size, only the top of the rect
-            //  needs to be adjusted since its origin is (0, 1).
-            if (tile.baseHeight !== tile.height)
-            {
-                tileWorldRect.top -= (tile.height - tile.baseHeight) * tilemapLayer.scaleY;
-            }
-
             tileWorldRect.right = tileWorldRect.left + tile.width * tilemapLayer.scaleX;
             tileWorldRect.bottom = tileWorldRect.top + tile.height * tilemapLayer.scaleY;
 
-            if (TileIntersectsBody(tileWorldRect, body)
-                && (!processCallback || processCallback.call(callbackContext, sprite, tile))
-                && ProcessTileCallbacks(tile, sprite)
-                && (overlapOnly || SeparateTile(i, body, tile, tileWorldRect, tilemapLayer, this.TILE_BIAS, isLayer)))
+            if (
+                TileIntersectsBody(tileWorldRect, body) &&
+                (!processCallback || processCallback.call(callbackContext, sprite, tile)) &&
+                ProcessTileCallbacks(tile, sprite) &&
+                (overlapOnly || SeparateTile(i, body, tile, tileWorldRect, tilemapLayer, this.TILE_BIAS, isLayer)))
             {
                 this._total++;
 
@@ -2389,7 +2419,7 @@ var World = new Class({
      */
     collideGroupVsGroup: function (group1, group2, collideCallback, processCallback, callbackContext, overlapOnly)
     {
-        if (group1.length === 0 || group2.length === 0)
+        if (group1.length === 0 || group2.length === 0 || !this.canCollide(group1, group2))
         {
             return;
         }

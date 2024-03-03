@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -450,14 +450,6 @@ var AnimationManager = new Class({
                             totalDuration += frameDuration;
                         }
                     }
-
-                    // Fix duration to play nice with how the next tick is calculated.
-                    var msPerFrame = totalDuration / animFrames.length;
-
-                    animFrames.forEach(function (entry)
-                    {
-                        entry.duration -= msPerFrame;
-                    });
 
                     if (direction === 'reverse')
                     {

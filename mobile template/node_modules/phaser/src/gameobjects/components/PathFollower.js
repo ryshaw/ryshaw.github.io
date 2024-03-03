@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -359,7 +359,7 @@ var PathFollower = {
     {
         var tween = this.pathTween;
 
-        if (tween)
+        if (tween && tween.data)
         {
             var tweenData = tween.data[0];
             var pathDelta = this.pathDelta;

@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -27,7 +27,7 @@ var PostFXPipeline = require('../PostFXPipeline');
  * ```
  *
  * @class DisplacementFXPipeline
- * @extends Phaser.Renderer.WebGL.WebGLPipeline
+ * @extends Phaser.Renderer.WebGL.Pipelines.PostFXPipeline
  * @memberof Phaser.Renderer.WebGL.Pipelines.FX
  * @constructor
  * @since 3.60.0
@@ -66,10 +66,10 @@ var DisplacementFXPipeline = new Class({
         this.y = 0.005;
 
         /**
-         * The underlying WebGLTexture used for displacement.
+         * The underlying texture used for displacement.
          *
          * @name Phaser.Renderer.WebGL.Pipelines.FX.DisplacementFXPipeline#glTexture
-         * @type {WebGLTexture}
+         * @type {Phaser.Renderer.WebGL.Wrappers.WebGLTextureWrapper}
          * @since 3.60.0
          */
         this.glTexture;

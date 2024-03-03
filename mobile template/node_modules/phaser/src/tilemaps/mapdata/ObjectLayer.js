@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -39,6 +39,15 @@ var ObjectLayer = new Class({
          * @since 3.0.0
          */
         this.name = GetFastValue(config, 'name', 'object layer');
+
+        /**
+         * The id of the object layer, as specified in the map data.
+         *
+         * @name Phaser.Tilemaps.ObjectLayer#id
+         * @type {number}
+         * @since 3.70.0
+         */
+        this.id = GetFastValue(config, 'id', 0);
 
         /**
          * The opacity of the layer, between 0 and 1.

@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -75,9 +75,10 @@ var PutTileAt = function (tile, tileX, tileY, recalculateFaces, layer)
     }
     else
     {
-        var tiles = layer.tilemapLayer.tilemap.tiles;
+        var tilemap = layer.tilemapLayer.tilemap;
+        var tiles = tilemap.tiles;
         var sid = tiles[index][2];
-        var set = layer.tilemapLayer.tileset[sid];
+        var set = tilemap.tilesets[sid];
 
         newTile.width = set.tileWidth;
         newTile.height = set.tileHeight;

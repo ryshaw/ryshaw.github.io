@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -479,7 +479,10 @@ var BaseTween = new Class({
      */
     remove: function ()
     {
-        this.parent.remove(this);
+        if (this.parent)
+        {
+            this.parent.remove(this);
+        }
 
         return this;
     },
@@ -505,7 +508,7 @@ var BaseTween = new Class({
      */
     stop: function ()
     {
-        if (!this.isRemoved() && !this.isPendingRemove() && !this.isDestroyed())
+        if (this.parent && !this.isRemoved() && !this.isPendingRemove() && !this.isDestroyed())
         {
             this.dispatchEvent(Events.TWEEN_STOP, 'onStop');
 

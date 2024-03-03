@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -943,12 +943,6 @@ var BaseCamera = new Class({
         {
             sx = this.clampX(sx);
             sy = this.clampY(sy);
-        }
-
-        if (this.roundPixels)
-        {
-            originX = Math.round(originX);
-            originY = Math.round(originY);
         }
 
         //  Values are in pixels and not impacted by zooming the Camera

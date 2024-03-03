@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -67,16 +67,6 @@ var Frame = new Class({
          * @since 3.0.0
          */
         this.sourceIndex = sourceIndex;
-
-        /**
-         * A reference to the Texture Source WebGL Texture that this Frame is using.
-         *
-         * @name Phaser.Textures.Frame#glTexture
-         * @type {?WebGLTexture}
-         * @default null
-         * @since 3.11.0
-         */
-        this.glTexture = this.source.glTexture;
 
         /**
          * X position within the source image to cut from.
@@ -332,6 +322,14 @@ var Frame = new Class({
                 y: 0,
                 width: 0,
                 height: 0
+            },
+            is3Slice: false,
+            scale9: false,
+            scale9Borders: {
+                x: 0,
+                y: 0,
+                w: 0,
+                h: 0
             }
         };
 
@@ -452,9 +450,43 @@ var Frame = new Class({
     },
 
     /**
+     * Sets the scale9 center rectangle values.
+     *
+     * Scale9 is a feature of Texture Packer, allowing you to define a nine-slice scaling grid.
+     *
+     * This is set automatically by the JSONArray and JSONHash parsers.
+     *
+     * @method Phaser.Textures.Frame#setScale9
+     * @since 3.70.0
+     *
+     * @param {number} x - The left coordinate of the center scale9 rectangle.
+     * @param {number} y - The top coordinate of the center scale9 rectangle.
+     * @param {number} width - The width of the center scale9 rectangle.
+     * @param {number} height - The height coordinate of the center scale9 rectangle.
+     *
+     * @return {this} This Frame object.
+     */
+    setScale9: function (x, y, width, height)
+    {
+        var data = this.data;
+
+        data.scale9 = true;
+        data.is3Slice = (y === 0 && height === this.height);
+
+        data.scale9Borders.x = x;
+        data.scale9Borders.y = y;
+        data.scale9Borders.w = width;
+        data.scale9Borders.h = height;
+
+        return this;
+    },
+
+    /**
      * Takes a crop data object and, based on the rectangular region given, calculates the
      * required UV coordinates in order to crop this Frame for WebGL and Canvas rendering.
      *
+     * The crop size as well as coordinates can not exceed the the size of the frame.
+     * 
      * This is called directly by the Game Object Texture Components `setCrop` method.
      * Please use that method to crop a Game Object.
      *
@@ -752,11 +784,26 @@ var Frame = new Class({
      */
     destroy: function ()
     {
-        this.source = null;
         this.texture = null;
-        this.glTexture = null;
+        this.source = null;
         this.customData = null;
         this.data = null;
+    },
+
+    /**
+     * A reference to the Texture Source WebGL Texture that this Frame is using.
+     * 
+     * @name Phaser.Textures.Frame#glTexture
+     * @type {Phaser.Renderer.WebGL.Wrappers.WebGLTextureWrapper}
+     * @readonly
+     * @since 3.11.0
+     */
+    glTexture: {
+
+        get: function ()
+        {
+            return this.source.glTexture;
+        }
     },
 
     /**
@@ -825,6 +872,40 @@ var Frame = new Class({
         get: function ()
         {
             return this.data.trim;
+        }
+
+    },
+
+    /**
+     * Does the Frame have scale9 border data?
+     *
+     * @name Phaser.Textures.Frame#scale9
+     * @type {boolean}
+     * @readonly
+     * @since 3.70.0
+     */
+    scale9: {
+
+        get: function ()
+        {
+            return this.data.scale9;
+        }
+
+    },
+
+    /**
+     * If the Frame has scale9 border data, is it 3-slice or 9-slice data?
+     *
+     * @name Phaser.Textures.Frame#is3Slice
+     * @type {boolean}
+     * @readonly
+     * @since 3.70.0
+     */
+    is3Slice: {
+
+        get: function ()
+        {
+            return this.data.is3Slice;
         }
 
     },

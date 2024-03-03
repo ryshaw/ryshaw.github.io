@@ -2,7 +2,7 @@
  * @typedef {object} Phaser.Types.Loader.FileConfig
  * @since 3.0.0
  *
- * @property {string} type - The file type string (image, json, etc) for sorting within the Loader.
+ * @property {string} type - The name of the Loader method that loads this file, e.g., 'image', 'json', 'spritesheet'.
  * @property {string} key - Unique cache key (unique within its file type)
  * @property {object|string} [url] - The URL of the file, not including baseURL.
  * @property {string} [path] - The path of the file, not including the baseURL.
@@ -35,7 +35,7 @@
  * @property {(Phaser.Types.Loader.FileTypes.CompressedTextureFileEntry | string)} [RGTC] - The string, or file entry object, for an RGTC format texture.
  * @property {(Phaser.Types.Loader.FileTypes.CompressedTextureFileEntry | string)} [PVRTC] - The string, or file entry object, for an PVRTC format texture.
  * @property {(Phaser.Types.Loader.FileTypes.CompressedTextureFileEntry | string)} [S3TC] - The string, or file entry object, for an S3TC format texture.
- * @property {(Phaser.Types.Loader.FileTypes.CompressedTextureFileEntry | string)} [S3TCRGB] - The string, or file entry object, for an S3TCRGB format texture.
+ * @property {(Phaser.Types.Loader.FileTypes.CompressedTextureFileEntry | string)} [S3TCSRGB] - The string, or file entry object, for an S3TCSRGB format texture.
  * @property {(Phaser.Types.Loader.FileTypes.CompressedTextureFileEntry | string)} [IMG] - The string, or file entry object, for the fallback image file.
  * @property {string} [shaderType='fragment'] - The type of shader. Either `fragment` for a fragment shader, or `vertex` for a vertex shader. This is ignored if you load a shader bundle.
  * @property {number} [width=512] - The width of the texture the HTML will be rendered to.

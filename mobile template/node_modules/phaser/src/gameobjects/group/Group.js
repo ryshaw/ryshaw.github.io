@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -429,6 +429,16 @@ var Group = new Class({
         if (options.removeCallback)
         {
             this.removeCallback = options.removeCallback;
+        }
+
+        if (options.internalCreateCallback)
+        {
+            this.internalCreateCallback = options.internalCreateCallback;
+        }
+
+        if (options.internalRemoveCallback)
+        {
+            this.internalRemoveCallback = options.internalRemoveCallback;
         }
 
         for (var c = 0; c < range.length; c++)

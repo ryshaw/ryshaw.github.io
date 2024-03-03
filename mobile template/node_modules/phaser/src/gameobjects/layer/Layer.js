@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -730,7 +730,9 @@ var Layer = new Class({
      */
     addChildCallback: function (gameObject)
     {
-        if (gameObject.displayList && gameObject.displayList !== this)
+        var displayList = gameObject.displayList;
+
+        if (displayList && displayList !== this)
         {
             gameObject.removeFromDisplayList();
         }
@@ -933,7 +935,7 @@ var Layer = new Class({
      * @method Phaser.GameObjects.Layer#destroy
      * @fires Phaser.GameObjects.Events#DESTROY
      * @since 3.50.0
-     * 
+     *
      * @param {boolean} [fromScene=false] - `True` if this Game Object is being destroyed by the Scene, `false` if not.
      */
     destroy: function (fromScene)
@@ -959,7 +961,7 @@ var Layer = new Class({
 
         if (this.displayList)
         {
-            this.displayList.remove(this, true);
+            this.displayList.remove(this, true, false);
 
             this.displayList.queueDepthSort();
         }

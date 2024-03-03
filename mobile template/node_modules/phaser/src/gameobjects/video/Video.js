@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -97,6 +97,7 @@ var VideoRender = require('./VideoRender');
  *
  * @extends Phaser.GameObjects.Components.Alpha
  * @extends Phaser.GameObjects.Components.BlendMode
+ * @extends Phaser.GameObjects.Components.ComputedSize
  * @extends Phaser.GameObjects.Components.Depth
  * @extends Phaser.GameObjects.Components.Flip
  * @extends Phaser.GameObjects.Components.GetBounds
@@ -105,7 +106,6 @@ var VideoRender = require('./VideoRender');
  * @extends Phaser.GameObjects.Components.Pipeline
  * @extends Phaser.GameObjects.Components.PostPipeline
  * @extends Phaser.GameObjects.Components.ScrollFactor
- * @extends Phaser.GameObjects.Components.Size
  * @extends Phaser.GameObjects.Components.TextureCrop
  * @extends Phaser.GameObjects.Components.Tint
  * @extends Phaser.GameObjects.Components.Transform
@@ -123,6 +123,7 @@ var Video = new Class({
     Mixins: [
         Components.Alpha,
         Components.BlendMode,
+        Components.ComputedSize,
         Components.Depth,
         Components.Flip,
         Components.GetBounds,
@@ -131,7 +132,6 @@ var Video = new Class({
         Components.Pipeline,
         Components.PostPipeline,
         Components.ScrollFactor,
-        Components.Size,
         Components.TextureCrop,
         Components.Tint,
         Components.Transform,
@@ -388,6 +388,16 @@ var Video = new Class({
          * @since 3.60.0
          */
         this._loadCallbackHandler = this.loadErrorHandler.bind(this);
+
+        /**
+         * The locally bound callback handler specifically for the loadedmetadata event.
+         *
+         * @name Phaser.GameObjects.Video#_metadataCallbackHandler
+         * @type {function}
+         * @private
+         * @since 3.80.0
+         */
+        this._metadataCallbackHandler = this.metadataHandler.bind(this);
 
         /**
          * The internal crop data object, as used by `setCrop` and passed to the `Frame.setCropUVs` method.
@@ -777,14 +787,18 @@ var Video = new Class({
             video.src = url;
         }
 
-        this.addLoadEventHandlers();
-
         this.retry = 0;
         this.video = video;
 
         this._playCalled = false;
 
         video.load();
+
+        this.addLoadEventHandlers();
+
+        var texture = this.scene.sys.textures.get(this._key);
+
+        this.setTexture(texture);
 
         return this;
     },
@@ -1004,6 +1018,7 @@ var Video = new Class({
         {
             video.addEventListener('error', this._loadCallbackHandler);
             video.addEventListener('abort', this._loadCallbackHandler);
+            video.addEventListener('loadedmetadata', this._metadataCallbackHandler);
         }
     },
 
@@ -1452,6 +1467,66 @@ var Video = new Class({
         this.stop(false);
 
         this.emit(Events.VIDEO_ERROR, this, event);
+    },
+
+    /**
+     * This internal method is called automatically when the video metadata is available.
+     *
+     * @method Phaser.GameObjects.Video#metadataHandler
+     * @fires Phaser.GameObjects.Events#VIDEO_METADATA
+     * @since 3.80.0
+     *
+     * @param {Event} event - The loadedmetadata Event.
+     */
+    metadataHandler: function (event)
+    {
+        this.emit(Events.VIDEO_METADATA, this, event);
+    },
+
+    /**
+     * Sets the size of this Game Object to be that of the given Frame.
+     *
+     * This will not change the size that the Game Object is rendered in-game.
+     * For that you need to either set the scale of the Game Object (`setScale`) or call the
+     * `setDisplaySize` method, which is the same thing as changing the scale but allows you
+     * to do so by giving pixel values.
+     *
+     * If you have enabled this Game Object for input, changing the size will _not_ change the
+     * size of the hit area. To do this you should adjust the `input.hitArea` object directly.
+     *
+     * @method Phaser.GameObjects.Video#setSizeToFrame
+     * @since 3.0.0
+     *
+     * @param {Phaser.Textures.Frame|boolean} [frame] - The frame to base the size of this Game Object on.
+     *
+     * @return {this} This Game Object instance.
+     */
+    setSizeToFrame: function (frame)
+    {
+        if (!frame) { frame = this.frame; }
+
+        this.width = frame.realWidth;
+        this.height = frame.realHeight;
+
+        if (this.scaleX !== 1)
+        {
+            this.scaleX = this.displayWidth / this.width;
+        }
+
+        if (this.scaleY !== 1)
+        {
+            this.scaleY = this.displayHeight / this.height;
+        }
+
+        var input = this.input;
+
+        if (input && !input.customHitArea)
+        {
+            input.hitArea.width = this.width;
+            input.hitArea.height = this.height;
+        }
+
+        return this;
     },
 
     /**

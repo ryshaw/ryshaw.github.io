@@ -1,7 +1,7 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
+ * @author       Richard Davey <rich@phaser.io>
  * @author       Pavle Goloskokovic <pgoloskokovic@gmail.com> (http://prunegames.com)
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -314,7 +314,7 @@ var WebAudioSoundManager = new Class({
         {
             if (_this.context && body)
             {
-                var bodyRemove = body.removeEventListener;
+                var bodyRemove = body.removeEventListener.bind(body);
 
                 _this.context.resume().then(function ()
                 {

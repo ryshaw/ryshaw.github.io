@@ -1,6 +1,6 @@
 /**
- * @author       Richard Davey <rich@photonstorm.com>
- * @copyright    2013-2023 Photon Storm Ltd.
+ * @author       Richard Davey <rich@phaser.io>
+ * @copyright    2013-2024 Phaser Studio Inc.
  * @license      {@link https://opensource.org/licenses/MIT|MIT License}
  */
 
@@ -34,7 +34,8 @@ var UUID = require('../../utils/string/UUID');
  * atlas or sprite sheet.
  *
  * The Plane Game Object also has the Animation component, allowing you to play animations
- * across the Plane just as you would with a Sprite.
+ * across the Plane just as you would with a Sprite. The animation frame size must be fixed
+ * as the first frame will be the size of the entire animation, for example use a `SpriteSheet`.
  *
  * Note that the Plane object is WebGL only and does not have a Canvas counterpart.
  *
@@ -134,6 +135,42 @@ var Plane = new Class({
         this.setGridSize(width, height, tile);
         this.setSizeToFrame(false);
         this.setViewHeight();
+    },
+
+    /**
+     * Do not change this value. It has no effect other than to break things.
+     *
+     * @name Phaser.GameObjects.Plane#originX
+     * @type {number}
+     * @readonly
+     * @override
+     * @since 3.70.0
+     */
+    originX: {
+
+        get: function ()
+        {
+            return 0.5;
+        }
+
+    },
+
+    /**
+     * Do not change this value. It has no effect other than to break things.
+     *
+     * @name Phaser.GameObjects.Plane#originY
+     * @type {number}
+     * @readonly
+     * @override
+     * @since 3.70.0
+     */
+    originY: {
+
+        get: function ()
+        {
+            return 0.5;
+        }
+
     },
 
     /**
@@ -349,17 +386,6 @@ var Plane = new Class({
         if (alpha2 === undefined) { alpha2 = 255; }
         if (height === undefined) { height = 128; }
 
-        var gl = this.scene.sys.renderer.gl;
-
-        var glTexture = gl.createTexture();
-
-        gl.activeTexture(gl.TEXTURE0);
-
-        gl.bindTexture(gl.TEXTURE_2D, glTexture);
-
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-
         //  Let's assume 16x16 for our texture size and 8x8 cell size
 
         var c1 = IntegerToRGB(color1);
@@ -382,20 +408,9 @@ var Plane = new Class({
             }
         }
 
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 16, 16, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(colors));
-
-        glTexture.isAlphaPremultiplied = true;
-        glTexture.isRenderTexture = false;
-        glTexture.width = 16;
-        glTexture.height = 16;
-
-        var texture = this.scene.sys.textures.addGLTexture(UUID(), glTexture, 16, 16);
+        var texture = this.scene.sys.textures.addUint8Array(UUID(), new Uint8Array(colors), 16, 16);
 
         this.removeCheckerboard();
-
-        this._checkerboard = texture;
-
-        gl.bindTexture(gl.TEXTURE_2D, null);
 
         this.setTexture(texture);
 
