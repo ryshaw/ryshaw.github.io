@@ -1,4 +1,4 @@
-const VERSION = "mobile template";
+const VERSION = "template";
 
 const DEV_MODE = false;
 
