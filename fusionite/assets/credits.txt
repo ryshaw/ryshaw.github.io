@@ -1,0 +1,20 @@
+a game by ryshaw/shry
+created w/ phaser 3.6
+@ryshawgames
+
+music 
+"Bossa Nova" by Joth
+@Joth_Music
+
+sound effects
+created by Kenney, LokiF, rubberduck
+
+playtesters
+Noah, Enrique, Elle
+
+with special thanks
+Gabyyu
+@gabyyu_lovelity
+
+thank you
+for playing!!
