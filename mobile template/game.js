@@ -1,9 +1,9 @@
 const VERSION = "mobile template";
 
+const DEV_MODE = false;
+
 const gameW = 640;
 const gameH = 960;
-const DEV_MODE = false; // sets timer high, enables level select, turns on FPS, and turns on physics debug
-const MAX_LEVEL = 25;
 
 const FONTS = ["Roboto Mono"];
 
@@ -1494,14 +1494,6 @@ const config = {
     mode: Phaser.Scale.RESIZE,
     width: 640,
     height: 960,
-    min: {
-      width: 320,
-      height: 480,
-    },
-    max: {
-      width: 1400,
-      height: 1200,
-    },
   },
   scene: [Background, MainUI, Game],
   physics: {
