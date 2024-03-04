@@ -1,18 +1,16 @@
 const VERSION = "Fusionite v0.1";
 
-const DEV_MODE = false;
+const DEV_MODE = false; // turns on physics debug mode
 
-const gameW = 640;
-const gameH = 960;
+const gameW = 1920;
+const gameH = 1080;
 
 const FONTS = ["Roboto Mono"];
 
 const COLORS = {
-  topGradient: 0x3f8efc, // for background
+  topGradient: 0xe2ece9, // for background
   bottomGradient: 0x7de2d1, // for background
   fillColor: 0x070600, // colors UI #and drawings
-  drawColor: 0xfffbfc, // colors player current drawing. other colors: 0xfdd35d, 0xfdca40
-  deathColor: 0xc1121f, // when player dies...
   tintColor: 0xfbf8cc, // for highlighting text
   clickColor: 0xdddddd, // when text is clicked
   buttonColor: 0xe0fbfc, // for coloring buttons and the title
@@ -42,7 +40,8 @@ class Background extends Phaser.Scene {
     );
     this.graphics.fillRect(0, 0, w, h);
 
-    this.scene.launch("MainUI"); // start menu, tutorial, and game launcher
+    //this.scene.launch("MainUI"); // start menu, tutorial, and game launcher
+    this.scene.launch("Game");
 
     this.scale.on("resize", this.resize, this);
   }
@@ -79,10 +78,12 @@ class Game extends Phaser.Scene {
   }
 
   create(data) {
-    this.scene.get("MainUI").playSound("levelstart");
+    // this.scene.get("MainUI").playSound("levelstart");
 
     this.createResolution();
-    this.createEvents();
+
+    this.createLayout();
+    this.createPlayer();
 
     WebFont.load({
       google: {
@@ -117,7 +118,42 @@ class Game extends Phaser.Scene {
     this.scale.on("resize", this.resize, this);
   }
 
-  loadGameText() {}
+  createLayout() {
+    // show bounds while in development
+    this.add
+      .rectangle(gameW * 0.5, gameH * 0.5, gameW, gameH)
+      .setStrokeStyle(5, 0xffffff, 0.5);
+  }
+
+  createPlayer() {
+    // taken from bouncy balls!
+    // build hexagon with some trigonometry
+
+    const r = 30;
+    const points = [];
+    for (let index = 1; index < 8; index++) {
+      points.push([
+        r * Math.cos((index * Math.PI) / 3),
+        r * Math.sin((index * Math.PI) / 3),
+      ]);
+    }
+
+    this.player = this.add
+      .polygon(gameW * 0.5, gameH * 0.5, points, 0xffffff, 0.5)
+      .setStrokeStyle(10, 0xffffff)
+      .setDisplayOrigin(0, 0);
+  }
+
+  loadGameText() {
+    new GameText(
+      this,
+      gameW * 0.5,
+      5,
+      "welcome to fusionite",
+      "g",
+      "c"
+    ).setOrigin(0.5, 0);
+  }
 
   resize(gameSize) {
     // don't resize if scene stopped. this fixes a bug
@@ -156,21 +192,6 @@ class Game extends Phaser.Scene {
     camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
     camera.setZoom(Math.max(scaleX, scaleY));
     camera.centerOn(gameW / 2, gameH / 2);
-  }
-
-  createEvents() {
-    /* phaser has isActive(scene) or isPaused(scene) to check whether a scene
-    is paused or not. however, that information is not immediately updated if
-    the user clicks away from the page. we have intervals that we run in the game 
-    (the timer and the squares) and they will keep running if the user clicks
-    onto a different tab if we use isActive() or isPaused() as our check.
-    so, instead, we have a variable called paused that updates immediately
-    upon blur and resume, so all timers use this variable to check if they
-    should still be running or not. */
-    this.paused = false;
-
-    this.events.on("pause", () => (this.paused = true));
-    this.events.on("resume", () => (this.paused = false));
   }
 
   update() {}
@@ -1492,8 +1513,8 @@ const config = {
   backgroundColor: 0x000000,
   scale: {
     mode: Phaser.Scale.RESIZE,
-    width: 640,
-    height: 960,
+    width: gameW,
+    height: gameH,
   },
   scene: [Background, MainUI, Game],
   physics: {
