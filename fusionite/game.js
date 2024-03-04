@@ -1,11 +1,21 @@
 const VERSION = "Fusionite v0.1";
 
-const DEV_MODE = false; // turns on physics debug mode
+const DEV_MODE = true; // turns on physics debug mode
 
 const gameW = 1920;
 const gameH = 1080;
 
-const FONTS = ["Roboto Mono"];
+const FONTS = [
+  "Roboto Mono",
+  "IBM Plex Mono",
+  "Finger Paint",
+  "Anonymous Pro",
+  "Roboto Mono",
+  "PT Sans",
+  "Quicksand",
+  "IBM Plex Sans",
+  "Titillium Web",
+];
 
 const COLORS = {
   topGradient: 0xe2ece9, // for background
@@ -83,6 +93,7 @@ class Game extends Phaser.Scene {
     this.createResolution();
 
     this.createLayout();
+    this.createPhysics();
     this.createPlayer();
 
     WebFont.load({
@@ -125,33 +136,66 @@ class Game extends Phaser.Scene {
       .setStrokeStyle(5, 0xffffff, 0.5);
   }
 
+  createPhysics() {
+    this.matter.world.setBounds().disableGravity();
+  }
+
   createPlayer() {
     // taken from bouncy balls!
     // build hexagon with some trigonometry
 
     const r = 30;
     const points = [];
-    for (let index = 1; index < 8; index++) {
-      points.push([
-        r * Math.cos((index * Math.PI) / 3),
-        r * Math.sin((index * Math.PI) / 3),
-      ]);
+    for (let index = 1; index < 7; index++) {
+      points.push({
+        x: r * Math.cos((index * Math.PI) / 3),
+        y: r * Math.sin((index * Math.PI) / 3),
+      });
     }
 
+    // don't ask me why we do this listing of vertices twice...
+    // it just doesn't look like an exact hexagon!!
+    const list = "15 26 -15 26 -30 0 -15 -26 15 -26 30 0";
+
     this.player = this.add
-      .polygon(gameW * 0.5, gameH * 0.5, points, 0xffffff, 0.5)
-      .setStrokeStyle(10, 0xffffff)
-      .setDisplayOrigin(0, 0);
+      .polygon(gameW * 0.5, gameH * 0.5, list, 0xffffff, 0.5)
+      .setStrokeStyle(8, 0xffffff);
+
+    this.matter.add.gameObject(this.player, {
+      vertices: points,
+    });
+
+    this.player.setDisplayOrigin(0.5, 0.5);
   }
 
   loadGameText() {
+    new GameText(this, gameW * 0.5, 5, "welcome to fusionite", "g").setOrigin(
+      0.5,
+      0
+    );
+
     new GameText(
       this,
       gameW * 0.5,
-      5,
+      gameH * 0.15,
       "welcome to fusionite",
-      "g",
-      "c"
+      "l"
+    ).setOrigin(0.5, 0);
+
+    new GameText(
+      this,
+      gameW * 0.5,
+      gameH * 0.27,
+      "welcome to fusionite",
+      "m"
+    ).setOrigin(0.5, 0);
+
+    new GameText(
+      this,
+      gameW * 0.5,
+      gameH * 0.37,
+      "welcome to fusionite",
+      "s"
     ).setOrigin(0.5, 0);
   }
 
@@ -1518,8 +1562,8 @@ const config = {
   },
   scene: [Background, MainUI, Game],
   physics: {
-    default: "arcade",
-    arcade: {
+    default: "matter",
+    matter: {
       debug: DEV_MODE,
     },
   },
@@ -1533,36 +1577,35 @@ class GameText extends Phaser.GameObjects.Text {
     x,
     y,
     text,
-    size = "m", // s, m, l, or g for small, medium, or large
-    align = "c", // l, c, or r for left, center, or right
+    size = "m", // s, m, l, or g for small, medium, large, or giant
     callback = null // provided only for buttons
   ) {
     super(scene);
 
-    this.clickedOn = false;
-
+    // isn't this just creating two text objects...?
     const cT = scene.add
       .text(x, y, text, {
         font:
           size == "g"
-            ? "64px"
+            ? "144px"
             : size == "l"
-            ? "48px"
+            ? "108px"
             : size == "m"
-            ? "32px"
-            : "26px",
+            ? "84px"
+            : "60px",
         fill: "#fff",
         align: "center",
       })
-      .setFontFamily("Roboto Mono")
-      .setOrigin(align == "l" ? 0 : align == "c" ? 0.5 : 1, 0.5)
-      .setPadding(3)
-      .setStroke(COLORS.fillColor, 2)
-      .setShadow(2, 2, "#333333", 2, true, true);
-
-    if (size == "s") {
-      cT.setStroke(COLORS.fillColor).setShadow(2, 2, "#333333", 0, true, true);
-    }
+      .setFontFamily("Titillium Web")
+      .setStroke(COLORS.fillColor, 1)
+      .setShadow(
+        2,
+        2,
+        "#333333",
+        size == "g" ? 5 : size == "l" ? 4 : size == "m" ? 3 : 2,
+        true,
+        true
+      );
 
     // if callback is given, assume it's a button and add callback.
     // fine-tuned this code so button only clicks if player
