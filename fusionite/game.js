@@ -1,6 +1,6 @@
 const VERSION = "Fusionite v0.1";
 
-const DEV_MODE = true; // turns on physics debug mode
+const DEV_MODE = true; // turns on physics debug mode, devtext, fps
 
 const gameW = 1920;
 const gameH = 1080;
@@ -70,6 +70,11 @@ class Background extends Phaser.Scene {
 }
 
 class Game extends Phaser.Scene {
+  player;
+  keysDown;
+  bounds; // 1920x1080 rectangle showcasing the game resolution
+  devText; // corner text displaying game data so we don't spam the console
+
   constructor() {
     super("Game");
   }
@@ -95,6 +100,8 @@ class Game extends Phaser.Scene {
     this.createLayout();
     this.createPhysics();
     this.createPlayer();
+
+    this.createKeyboardControls();
 
     WebFont.load({
       google: {
@@ -131,13 +138,13 @@ class Game extends Phaser.Scene {
 
   createLayout() {
     // show bounds while in development
-    this.add
+    this.bounds = this.add
       .rectangle(gameW * 0.5, gameH * 0.5, gameW, gameH)
-      .setStrokeStyle(5, 0xffffff, 0.5);
+      .setStrokeStyle(8, 0xffffff, 0.8);
   }
 
   createPhysics() {
-    this.matter.world.setBounds().disableGravity();
+    this.matter.world.setBounds(0, 0, gameW, gameH);
   }
 
   createPlayer() {
@@ -155,17 +162,101 @@ class Game extends Phaser.Scene {
 
     // don't ask me why we do this listing of vertices twice...
     // it just doesn't look like an exact hexagon!!
-    const list = "15 26 -15 26 -30 0 -15 -26 15 -26 30 0";
+    // I give up. no more list
+    // const list = "15 26 -15 26 -30 0 -15 -26 15 -26 30 0";
 
     this.player = this.add
-      .polygon(gameW * 0.5, gameH * 0.5, list, 0xffffff, 0.5)
+      .polygon(gameW * 0.5, gameH * 0.5, points, 0xffffff, 0.5)
       .setStrokeStyle(8, 0xffffff);
 
     this.matter.add.gameObject(this.player, {
       vertices: points,
     });
 
+    this.player.setMass(10);
+    this.player.body.inertia = Math.round(10 ** 7.4);
+    this.player.setFriction(0, 0.02, 1);
+
     this.player.setDisplayOrigin(0.5, 0.5);
+  }
+
+  createKeyboardControls() {
+    this.keysDown = new Phaser.Structs.List();
+
+    this.input.keyboard.on("keydown-W", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.UP);
+    });
+
+    this.input.keyboard.on("keyup-W", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.UP);
+    });
+
+    this.input.keyboard.on("keydown-UP", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.UP);
+    });
+
+    this.input.keyboard.on("keyup-UP", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.UP);
+    });
+
+    this.input.keyboard.on("keydown-S", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.DOWN);
+    });
+
+    this.input.keyboard.on("keyup-S", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.DOWN);
+    });
+
+    this.input.keyboard.on("keydown-DOWN", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.DOWN);
+    });
+
+    this.input.keyboard.on("keyup-DOWN", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.DOWN);
+    });
+
+    this.input.keyboard.on("keydown-A", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.LEFT);
+    });
+
+    this.input.keyboard.on("keyup-A", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.LEFT);
+    });
+
+    this.input.keyboard.on("keydown-LEFT", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.LEFT);
+    });
+
+    this.input.keyboard.on("keyup-LEFT", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.LEFT);
+    });
+
+    this.input.keyboard.on("keydown-D", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.RIGHT);
+    });
+
+    this.input.keyboard.on("keyup-D", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.RIGHT);
+    });
+
+    this.input.keyboard.on("keydown-RIGHT", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.RIGHT);
+    });
+
+    this.input.keyboard.on("keyup-RIGHT", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.RIGHT);
+    });
+
+    /*
+    this.input.keyboard.on("keydown-M", () => {
+      const track1 = this.sound.get("track1");
+      track1.isPlaying ? track1.pause() : track1.resume();
+    });
+  
+    this.input.keyboard.on("keydown-N", () => {
+      this.soundVolume > 0 ? (this.soundVolume = 0) : (this.soundVolume = 0.8);
+      Object.values(this.soundEffects).forEach((sound) => sound.stop());
+    });*/
   }
 
   loadGameText() {
@@ -174,29 +265,30 @@ class Game extends Phaser.Scene {
       0
     );
 
-    new GameText(
+    const fpsText = new GameText(
       this,
-      gameW * 0.5,
-      gameH * 0.15,
-      "welcome to fusionite",
-      "l"
-    ).setOrigin(0.5, 0);
+      0,
+      0,
+      `${Math.round(this.sys.game.loop.actualFps)}`
+    )
+      .setOrigin(0, 0)
+      .setVisible(DEV_MODE);
 
-    new GameText(
-      this,
-      gameW * 0.5,
-      gameH * 0.27,
-      "welcome to fusionite",
-      "m"
-    ).setOrigin(0.5, 0);
+    this.time.addEvent({
+      delay: 500,
+      loop: DEV_MODE,
+      callbackScope: this,
+      callback: () => {
+        fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`);
+      },
+    });
 
-    new GameText(
-      this,
-      gameW * 0.5,
-      gameH * 0.37,
-      "welcome to fusionite",
-      "s"
-    ).setOrigin(0.5, 0);
+    // records player direction, player velocity, etc
+    this.devText = new GameText(this, gameW, gameH, "", "s")
+      .setAlign("right")
+      .setPadding(10)
+      .setOrigin(1, 1)
+      .setVisible(DEV_MODE);
   }
 
   resize(gameSize) {
@@ -238,7 +330,34 @@ class Game extends Phaser.Scene {
     camera.centerOn(gameW / 2, gameH / 2);
   }
 
-  update() {}
+  update() {
+    const speed = 0.01; // how much force is applied to player
+    // calculate intended direction from the keys currently down
+    let direction = new Phaser.Math.Vector2(0, 0);
+
+    this.keysDown.each((keyVector) => direction.add(keyVector));
+
+    direction.normalize();
+
+    if (this.keysDown.length > 0) {
+      this.player.applyForceFrom(
+        new Phaser.Math.Vector2(0, 0),
+        direction.scale(speed)
+      );
+    }
+
+    if (this.devText) this.updateDevText();
+  }
+
+  updateDevText() {
+    const b = this.player.body;
+    const x = Phaser.Math.RoundTo(b.velocity.x, 0);
+    const y = Phaser.Math.RoundTo(b.velocity.y, 0);
+    const velocityText = `velocity: (${x}, ${y})`;
+    const speedText = `speed: ${Phaser.Math.RoundTo(b.speed, 0)}`;
+    const bodyText = `mass: ${b.mass}\nfriction: ${b.friction}\nair: ${b.frictionAir}\nstatic: ${b.frictionStatic}`;
+    this.devText.text = `${velocityText}\n${speedText}\n${bodyText}`;
+  }
 
   restartGame() {}
 }
@@ -1564,6 +1683,10 @@ const config = {
   physics: {
     default: "matter",
     matter: {
+      gravity: {
+        x: 0,
+        y: 0,
+      },
       debug: DEV_MODE,
     },
   },
