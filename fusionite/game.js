@@ -100,6 +100,7 @@ class Game extends Phaser.Scene {
     this.createLayout();
     this.createPhysics();
     this.createPlayer();
+    this.createBodies();
 
     this.createKeyboardControls();
 
@@ -178,6 +179,34 @@ class Game extends Phaser.Scene {
     this.player.setFriction(0, 0.02, 1);
 
     this.player.setDisplayOrigin(0.5, 0.5);
+  }
+
+  createBodies() {
+    const r = 30;
+    const points = [];
+    for (let index = 1; index < 7; index++) {
+      points.push({
+        x: r * Math.cos((index * Math.PI) / 3),
+        y: r * Math.sin((index * Math.PI) / 3),
+      });
+    }
+
+    const hexB = this.add
+      .polygon(gameW * 0.54, gameH * 0.5, points, 0xffffff, 0.5)
+      .setStrokeStyle(8, 0xffffff);
+
+    this.matter.add.gameObject(hexB, {
+      vertices: points,
+    });
+
+    hexB.setMass(10);
+    hexB.body.inertia = Math.round(10 ** 7.4);
+    hexB.setFriction(0, 0.02, 1);
+
+    hexB.setDisplayOrigin(0.5, 0.5);
+
+    this.matter.add.constraint(this.player, hexB, 60, 1);
+
   }
 
   createKeyboardControls() {
