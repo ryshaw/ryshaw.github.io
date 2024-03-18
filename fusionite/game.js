@@ -100,7 +100,7 @@ class Game extends Phaser.Scene {
     this.createLayout();
     this.createPhysics();
     this.createPlayer();
-    this.createBodies();
+    // this.createBodies();
 
     this.createKeyboardControls();
 
@@ -166,19 +166,42 @@ class Game extends Phaser.Scene {
     // I give up. no more list
     // const list = "15 26 -15 26 -30 0 -15 -26 15 -26 30 0";
 
-    this.player = this.add
-      .polygon(gameW * 0.5, gameH * 0.5, points, 0xffffff, 0.5)
+    const hexA = this.add
+      .polygon(7.5, 13, points, 0xffffff, 0.5)
       .setStrokeStyle(8, 0xffffff);
 
-    this.matter.add.gameObject(this.player, {
-      vertices: points,
-    });
+    const hexB = this.add
+      .polygon(45 + 7.5, 26 + 13, points, 0xffffff, 0.5)
+      .setStrokeStyle(8, 0xffffff);
 
-    this.player.setMass(10);
+    this.player = this.add.container(0, 0, [hexA, hexB]);
+
+    const b = this.matter.bodies.polygon(100, 100, 6, 30, {
+      angle: Math.PI / 2,
+    });
+    const p = this.matter.bodies.polygon(145, 126, 6, 30, {
+      angle: Math.PI / 2,
+    });
+    //this.matter.add.fromVertices(300, 300, points);
+    const compoundBody = this.matter.body.create({ parts: [b, p] });
+
+    //this.player.body = b;
+    this.matter.add.gameObject(this.player);
+
+    this.player.setExistingBody(compoundBody);
+    //this.matter.add.gameObject(this.player, { parts: [b] }, false);
+
+    /*this.matter.add.gameObject(this.player, {
+      vertices: points,
+    });*/
+
+    this.player.setMass(20);
     this.player.body.inertia = Math.round(10 ** 7.4);
     this.player.setFriction(0, 0.02, 1);
 
-    this.player.setDisplayOrigin(0.5, 0.5);
+    //this.player.setDisplayOrigin();
+
+    //container.setPosition(gameW * 0.4, gameH * 0.4);
   }
 
   createBodies() {
@@ -207,6 +230,7 @@ class Game extends Phaser.Scene {
 
     this.matter.add.constraint(this.player, hexB, 60, 1);
 
+    this.matter.composit;
   }
 
   createKeyboardControls() {
