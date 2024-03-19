@@ -100,7 +100,7 @@ class Game extends Phaser.Scene {
     this.createLayout();
     this.createPhysics();
     this.createPlayer();
-    // this.createBodies();
+    this.createFusion(400, 400, 3);
 
     this.createKeyboardControls();
 
@@ -170,6 +170,9 @@ class Game extends Phaser.Scene {
       .setStrokeStyle(8, 0xffffff)
       .setDisplayOrigin(offset.x * 1.5, offset.y * 0.5);
 
+    const hexC = Phaser.Utils.Objects.Clone(hexA);
+    hexC.setPosition(300, 300);
+
     const hexB = this.add
       .polygon(offset.x * 3, offset.y, points, 0xffffff, 0.5)
       .setStrokeStyle(8, 0xffffff)
@@ -200,7 +203,54 @@ class Game extends Phaser.Scene {
     this.player.setFriction(0, 0.02, 1);
   }
 
-  createFusion() {}
+  createFusion(x, y, numHex) {
+    const r = 30;
+    const points = [];
+    for (let index = 1; index < 7; index++) {
+      points.push({
+        x: r * Math.cos((index * Math.PI) / 3),
+        y: r * Math.sin((index * Math.PI) / 3),
+      });
+    }
+
+    const offset = new Phaser.Math.Vector2(
+      r * Math.cos(Math.PI / 3),
+      r * Math.sin(Math.PI / 3)
+    );
+
+    const hexagons = [];
+    const bodies = [];
+    for (let i = 0; i < numHex; i++) {
+      const hex = this.add
+        .polygon(offset.x * 3 * i, offset.y * i, points, 0xffffff, 0.4 * i)
+        .setStrokeStyle(8, 0xffffff)
+        .setDisplayOrigin(offset.x * 1.5 * i, offset.y * 0.5 * i);
+
+      const body = this.matter.bodies.polygon(
+        x + offset.x * 3 * i,
+        y + offset.y * i,
+        6,
+        30,
+        {
+          angle: Math.PI / 2,
+        }
+      );
+
+      hexagons.push(hex);
+      bodies.push(body);
+    }
+
+    const fusion = this.add.container(0, 0, hexagons);
+
+    const compoundBody = this.matter.body.create({ parts: bodies });
+
+    this.matter.add.gameObject(fusion);
+    fusion.setExistingBody(compoundBody);
+
+    fusion.setMass(5 + numHex * 5);
+    fusion.body.inertia = Math.round(10 ** 7.4);
+    fusion.setFriction(0, 0.02, 1);
+  }
 
   createKeyboardControls() {
     this.keysDown = new Phaser.Structs.List();
