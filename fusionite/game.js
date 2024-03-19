@@ -100,7 +100,7 @@ class Game extends Phaser.Scene {
     this.createLayout();
     this.createPhysics();
     this.createPlayer();
-    this.createFusion(400, 400, 3);
+    this.createFusion(700, 400, 3);
 
     this.createKeyboardControls();
 
@@ -218,38 +218,56 @@ class Game extends Phaser.Scene {
       r * Math.sin(Math.PI / 3)
     );
 
-    const hexagons = [];
-    const bodies = [];
-    for (let i = 0; i < numHex; i++) {
-      const hex = this.add
-        .polygon(offset.x * 3 * i, offset.y * i, points, 0xffffff, 0.4 * i)
-        .setStrokeStyle(8, 0xffffff)
-        .setDisplayOrigin(offset.x * 1.5 * i, offset.y * 0.5 * i);
+    const hexagons = [
+      this.add.polygon(0, 0, points, 0xffff00, 0.2).setStrokeStyle(8, 0xffffff),
+    ];
+    const bodies = [
+      this.matter.bodies.polygon(0, 0, 6, 30, {
+        angle: Math.PI / 2,
+      }),
+    ];
+    for (let i = 1; i < numHex; i++) {
+      const direction = Phaser.Math.Between(1, 6) + 0.5;
+      const x = (2 * r - 8) * Math.cos((direction * Math.PI) / 3);
+      const y = (2 * r - 8) * Math.sin((direction * Math.PI) / 3);
 
-      const body = this.matter.bodies.polygon(
-        x + offset.x * 3 * i,
-        y + offset.y * i,
-        6,
-        30,
-        {
-          angle: Math.PI / 2,
-        }
-      );
+      const hex = this.add
+        .polygon(x, y, points, 0xffffff, 0.2)
+        .setStrokeStyle(8, 0xffffff);
+      const body = this.matter.bodies.polygon(x, y, 6, 30, {
+        angle: Math.PI / 2,
+      });
 
       hexagons.push(hex);
       bodies.push(body);
     }
 
-    const fusion = this.add.container(0, 0, hexagons);
+    const fusion = this.add.container(x, y, hexagons);
 
     const compoundBody = this.matter.body.create({ parts: bodies });
 
     this.matter.add.gameObject(fusion);
     fusion.setExistingBody(compoundBody);
 
+    console.log(this.matter.bodyBounds.getCenter(fusion.body));
+
+    const c = this.matter.bodyBounds.getCenter(fusion.body)
+
+    console.log(fusion.body.centerOffset)
+
+    console.log(fusion.body)
+
+console.log(this.matter.bodyBounds.getCenter(fusion.body)
+)
+
+fusion.setPolygon(40, 6);
+
     fusion.setMass(5 + numHex * 5);
     fusion.body.inertia = Math.round(10 ** 7.4);
     fusion.setFriction(0, 0.02, 1);
+
+    fusion.x = x;
+    fusion.y = y;
   }
 
   createKeyboardControls() {
