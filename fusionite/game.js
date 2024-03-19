@@ -149,8 +149,7 @@ class Game extends Phaser.Scene {
   }
 
   createPlayer() {
-    // taken from bouncy balls!
-    // build hexagon with some trigonometry
+    // build hexagon with some trigonometry. taken from bouncy balls!
 
     const r = 30;
     const points = [];
@@ -161,77 +160,47 @@ class Game extends Phaser.Scene {
       });
     }
 
-    // don't ask me why we do this listing of vertices twice...
-    // it just doesn't look like an exact hexagon!!
-    // I give up. no more list
-    // const list = "15 26 -15 26 -30 0 -15 -26 15 -26 30 0";
+    const offset = new Phaser.Math.Vector2(
+      r * Math.cos(Math.PI / 3),
+      r * Math.sin(Math.PI / 3)
+    );
 
     const hexA = this.add
-      .polygon(7.5, 13, points, 0xffffff, 0.5)
-      .setStrokeStyle(8, 0xffffff);
+      .polygon(0, 0, points, 0xffffff, 0.5)
+      .setStrokeStyle(8, 0xffffff)
+      .setDisplayOrigin(offset.x * 1.5, offset.y * 0.5);
 
     const hexB = this.add
-      .polygon(45 + 7.5, 26 + 13, points, 0xffffff, 0.5)
-      .setStrokeStyle(8, 0xffffff);
+      .polygon(offset.x * 3, offset.y, points, 0xffffff, 0.5)
+      .setStrokeStyle(8, 0xffffff)
+      .setDisplayOrigin(offset.x * 1.5, offset.y * 0.5);
 
     this.player = this.add.container(0, 0, [hexA, hexB]);
 
-    const b = this.matter.bodies.polygon(100, 100, 6, 30, {
+    const bodyA = this.matter.bodies.polygon(200, 200, 6, 30, {
       angle: Math.PI / 2,
     });
-    const p = this.matter.bodies.polygon(145, 126, 6, 30, {
-      angle: Math.PI / 2,
-    });
-    //this.matter.add.fromVertices(300, 300, points);
-    const compoundBody = this.matter.body.create({ parts: [b, p] });
+    const bodyB = this.matter.bodies.polygon(
+      200 + offset.x * 3,
+      200 + offset.y,
+      6,
+      30,
+      {
+        angle: Math.PI / 2,
+      }
+    );
 
-    //this.player.body = b;
+    const compoundBody = this.matter.body.create({ parts: [bodyA, bodyB] });
+
     this.matter.add.gameObject(this.player);
-
     this.player.setExistingBody(compoundBody);
-    //this.matter.add.gameObject(this.player, { parts: [b] }, false);
 
-    /*this.matter.add.gameObject(this.player, {
-      vertices: points,
-    });*/
-
-    this.player.setMass(20);
+    this.player.setMass(15);
     this.player.body.inertia = Math.round(10 ** 7.4);
     this.player.setFriction(0, 0.02, 1);
-
-    //this.player.setDisplayOrigin();
-
-    //container.setPosition(gameW * 0.4, gameH * 0.4);
   }
 
-  createBodies() {
-    const r = 30;
-    const points = [];
-    for (let index = 1; index < 7; index++) {
-      points.push({
-        x: r * Math.cos((index * Math.PI) / 3),
-        y: r * Math.sin((index * Math.PI) / 3),
-      });
-    }
-
-    const hexB = this.add
-      .polygon(gameW * 0.54, gameH * 0.5, points, 0xffffff, 0.5)
-      .setStrokeStyle(8, 0xffffff);
-
-    this.matter.add.gameObject(hexB, {
-      vertices: points,
-    });
-
-    hexB.setMass(10);
-    hexB.body.inertia = Math.round(10 ** 7.4);
-    hexB.setFriction(0, 0.02, 1);
-
-    hexB.setDisplayOrigin(0.5, 0.5);
-
-    this.matter.add.constraint(this.player, hexB, 60, 1);
-
-    this.matter.composit;
-  }
+  createFusion() {}
 
   createKeyboardControls() {
     this.keysDown = new Phaser.Structs.List();
@@ -393,10 +362,7 @@ class Game extends Phaser.Scene {
     direction.normalize();
 
     if (this.keysDown.length > 0) {
-      this.player.applyForceFrom(
-        new Phaser.Math.Vector2(0, 0),
-        direction.scale(speed)
-      );
+      this.player.applyForce(direction.scale(speed));
     }
 
     if (this.devText) this.updateDevText();
