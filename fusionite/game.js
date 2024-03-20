@@ -102,6 +102,12 @@ class Game extends Phaser.Scene {
     this.createPlayer();
     this.createFusion(700, 400, 3);
 
+    this.createFusion(1100, 600, 6);
+
+    this.createFusion(300, 800, 8);
+
+    this.createFusion(1400, 300, 12);
+
     this.createKeyboardControls();
 
     WebFont.load({
@@ -213,34 +219,55 @@ class Game extends Phaser.Scene {
       });
     }
 
-    const offset = new Phaser.Math.Vector2(
-      r * Math.cos(Math.PI / 3),
-      r * Math.sin(Math.PI / 3)
-    );
-
     const hexagons = [
-      this.add.polygon(0, 0, points, 0xffff00, 0.2).setStrokeStyle(8, 0xffffff),
+      this.add.polygon(0, 0, points, 0x8093f1, 0.5).setStrokeStyle(8, 0xffffff),
     ];
     const bodies = [
-      this.matter.bodies.polygon(0, 0, 6, 30, {
+      this.matter.bodies.polygon(0, 0, 6, r, {
         angle: Math.PI / 2,
       }),
     ];
+
     for (let i = 1; i < numHex; i++) {
-      const direction = Phaser.Math.Between(1, 6) + 0.5;
-      const x = (2 * r - 8) * Math.cos((direction * Math.PI) / 3);
-      const y = (2 * r - 8) * Math.sin((direction * Math.PI) / 3);
+      let direction = Phaser.Math.Between(1, 6) + 0.5;
+      let x = (2 * r - 8) * Math.cos((direction * Math.PI) / 3);
+      let y = (2 * r - 8) * Math.sin((direction * Math.PI) / 3);
+
+      let iterations = 100;
+      while (iterations > 0 && this.matter.containsPoint(bodies, x, y)) {
+        iterations -= 1;
+
+        direction = Phaser.Math.Between(1, 6) + 0.5;
+        x += (2 * r - 8) * Math.cos((direction * Math.PI) / 3);
+        y += (2 * r - 8) * Math.sin((direction * Math.PI) / 3);
+      }
 
       const hex = this.add
-        .polygon(x, y, points, 0xffffff, 0.2)
+        .polygon(x, y, points, 0xffffff, 0.5)
         .setStrokeStyle(8, 0xffffff);
-      const body = this.matter.bodies.polygon(x, y, 6, 30, {
+      const body = this.matter.bodies.polygon(x, y, 6, r, {
         angle: Math.PI / 2,
       });
 
       hexagons.push(hex);
       bodies.push(body);
     }
+
+    // because of how matter bodies work,
+    // the "center" of the compound body is its center of mass,
+    // which is hard to account for.
+    // I finally, FINALLY figured out that setting the display origin
+    // of each of the hexes to be the "average" position of all the hexes
+    // got them to align correctly with the physics bodies. incredible!
+    const avg = new Phaser.Math.Vector2(0, 0);
+    hexagons.forEach((hex) => {
+      avg.x += hex.x;
+      avg.y += hex.y;
+    });
+
+    avg.scale(1 / numHex);
+
+    hexagons.forEach((hex) => hex.setDisplayOrigin(avg.x, avg.y));
 
     const fusion = this.add.container(x, y, hexagons);
 
@@ -249,22 +276,9 @@ class Game extends Phaser.Scene {
     this.matter.add.gameObject(fusion);
     fusion.setExistingBody(compoundBody);
 
-    console.log(this.matter.bodyBounds.getCenter(fusion.body));
-
-    const c = this.matter.bodyBounds.getCenter(fusion.body)
-
-    console.log(fusion.body.centerOffset)
-
-    console.log(fusion.body)
-
-console.log(this.matter.bodyBounds.getCenter(fusion.body)
-)
-
-fusion.setPolygon(40, 6);
-
     fusion.setMass(5 + numHex * 5);
     fusion.body.inertia = Math.round(10 ** 7.4);
-    fusion.setFriction(0, 0.02, 1);
+    fusion.setFriction(0, 0.07, 1);
 
     fusion.x = x;
     fusion.y = y;
