@@ -300,88 +300,40 @@ class Game extends Phaser.Scene {
     }
 
     const hexagons = [
-      this.add.polygon(r, r, points, 0x8093f1, 0.5).setStrokeStyle(8, 0xffffff),
+      this.add.polygon(0, 0, points, 0x8093f1, 0.5).setStrokeStyle(8, 0xffffff),
+    ];
+    const bodies = [
+      this.matter.bodies.polygon(0, 0, 6, r, {
+        angle: Math.PI / 2,
+      }),
     ];
 
-    for (let i = 0; i < 6; i++) {
-      let direction = i + 0.5;
+    for (let i = 1; i < 100; i++) {
+      let direction = Phaser.Math.Between(1, 6) + 0.5;
       let x = (2 * r - 8) * Math.cos((direction * Math.PI) / 3);
       let y = (2 * r - 8) * Math.sin((direction * Math.PI) / 3);
 
-      const hex = this.add
-        .polygon(x + r, y + r, points, 0xffffff, 0.2)
-        .setStrokeStyle(8, 0xffffff);
+      let iterations = 100;
+      while (iterations > 0 && this.matter.containsPoint(bodies, x, y)) {
+        iterations -= 1;
 
-      hexagons.push(hex);
-    }
-
-    for (let i = 0; i < 12; i++) {
-      let direction = i + 0;
-      let x = 2 * (2 * r - 8) * Math.cos((direction * Math.PI) / 6);
-      let y = 2 * (2 * r - 8) * Math.sin((direction * Math.PI) / 6);
-
-      const hex = this.add
-        .polygon(x + r, y + r, points, 0xffffff, 0.2)
-        .setStrokeStyle(8, 0xffffff);
-
-      hexagons.push(hex);
-    }
-    /*
-    hexagons.forEach((hexagon) => {
-      for (let i = 0; i < 6; i++) {
-        let direction = i + 0.5;
-        let x = (2 * r - 8) * Math.cos((direction * Math.PI) / 3);
-        let y = (2 * r - 8) * Math.sin((direction * Math.PI) / 3);
-
-        x += hexagon.x;
-        //y += hexagon.y;
-
-        const hex = this.add
-          .polygon(x + r, y + r, points, 0xffffff, 0.2)
-          .setStrokeStyle(8, 0xffffff);
-
-        hexagons.push(hex);
+        direction = Phaser.Math.Between(1, 6) + 0.5;
+        x += (2 * r - 8) * Math.cos((direction * Math.PI) / 3);
+        y += (2 * r - 8) * Math.sin((direction * Math.PI) / 3);
       }
-    });*/
 
-    const grid = this.add.container(gameW * 0.5, gameH * 0.5, hexagons);
-
-    hexagons.forEach((hex) => {});
-    /*
-    const r = 45;
-
-    const gridX = 6;
-    const gridY = 18;
-
-    const x = gameW * 0.752 - (gridX - 1) * r * 3;
-    const y = gameH * 0.95 - (gridY - 1) * (r * 0.9 - 1);
-
-    this.add.rectangle(gameW * 0.5, gameH * 0.5, 10, 1000, 0x0000ff, 1);
-    this.add.rectangle(gameW * 0.5, gameH * 0.5, 1000, 10, 0x00ff00, 1);
-
-    const points = [];
-    for (let index = 1; index < 7; index++) {
-      points.push({
-        x: r * Math.cos((index * Math.PI) / 3),
-        y: r * Math.sin((index * Math.PI) / 3),
+      const hex = this.add
+        .polygon(x, y, points, 0xffffff, 0.5)
+        .setStrokeStyle(8, 0xffffff);
+      const body = this.matter.bodies.polygon(x, y, 6, r, {
+        angle: Math.PI / 2,
       });
+
+      hexagons.push(hex);
+      bodies.push(body);
     }
 
-    const grid = [];
-    for (let i = 0; i < gridX; i++) {
-      const column = [];
-      for (let j = 0; j < gridY; j++) {
-        let offsetX = 0;
-        if (j % 2 == 0) offsetX = r * 1.5;
-
-        const tile = this.add
-          .polygon(i * r * 3 + offsetX + x, j * (r * 0.9 - 1) + y, points)
-          .setStrokeStyle(3, 0xffffff, 1);
-
-        column.push(tile);
-      }
-      grid.push(column);
-    }*/
+    const grid = this.add.container(gameW * 0.5 + r, gameH * 0.5 + r, hexagons);
   }
 
   createKeyboardControls() {
