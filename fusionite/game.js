@@ -99,14 +99,16 @@ class Game extends Phaser.Scene {
 
     this.createLayout();
     this.createPhysics();
-    this.createPlayer();
-    this.createFusion(700, 400, 3);
+    this.createFactory();
+    //this.createPlayer();
+
+    /*this.createFusion(700, 400, 3);
 
     this.createFusion(1100, 600, 6);
 
     this.createFusion(300, 800, 8);
 
-    this.createFusion(1400, 300, 12);
+    this.createFusion(1400, 300, 12);*/
 
     this.createKeyboardControls();
 
@@ -284,6 +286,104 @@ class Game extends Phaser.Scene {
     fusion.y = y;
   }
 
+  createFactory() {
+    this.add.rectangle(gameW * 0.5, gameH * 0.5, 5, 500, 0x0000ff, 1);
+    this.add.rectangle(gameW * 0.5, gameH * 0.5, 500, 5, 0x00ff00, 1);
+
+    const r = 30;
+    const points = [];
+    for (let index = 1; index < 7; index++) {
+      points.push({
+        x: r * Math.cos((index * Math.PI) / 3),
+        y: r * Math.sin((index * Math.PI) / 3),
+      });
+    }
+
+    const hexagons = [
+      this.add.polygon(r, r, points, 0x8093f1, 0.5).setStrokeStyle(8, 0xffffff),
+    ];
+
+    for (let i = 0; i < 6; i++) {
+      let direction = i + 0.5;
+      let x = (2 * r - 8) * Math.cos((direction * Math.PI) / 3);
+      let y = (2 * r - 8) * Math.sin((direction * Math.PI) / 3);
+
+      const hex = this.add
+        .polygon(x + r, y + r, points, 0xffffff, 0.2)
+        .setStrokeStyle(8, 0xffffff);
+
+      hexagons.push(hex);
+    }
+
+    for (let i = 0; i < 12; i++) {
+      let direction = i + 0;
+      let x = 2 * (2 * r - 8) * Math.cos((direction * Math.PI) / 6);
+      let y = 2 * (2 * r - 8) * Math.sin((direction * Math.PI) / 6);
+
+      const hex = this.add
+        .polygon(x + r, y + r, points, 0xffffff, 0.2)
+        .setStrokeStyle(8, 0xffffff);
+
+      hexagons.push(hex);
+    }
+    /*
+    hexagons.forEach((hexagon) => {
+      for (let i = 0; i < 6; i++) {
+        let direction = i + 0.5;
+        let x = (2 * r - 8) * Math.cos((direction * Math.PI) / 3);
+        let y = (2 * r - 8) * Math.sin((direction * Math.PI) / 3);
+
+        x += hexagon.x;
+        //y += hexagon.y;
+
+        const hex = this.add
+          .polygon(x + r, y + r, points, 0xffffff, 0.2)
+          .setStrokeStyle(8, 0xffffff);
+
+        hexagons.push(hex);
+      }
+    });*/
+
+    const grid = this.add.container(gameW * 0.5, gameH * 0.5, hexagons);
+
+    hexagons.forEach((hex) => {});
+    /*
+    const r = 45;
+
+    const gridX = 6;
+    const gridY = 18;
+
+    const x = gameW * 0.752 - (gridX - 1) * r * 3;
+    const y = gameH * 0.95 - (gridY - 1) * (r * 0.9 - 1);
+
+    this.add.rectangle(gameW * 0.5, gameH * 0.5, 10, 1000, 0x0000ff, 1);
+    this.add.rectangle(gameW * 0.5, gameH * 0.5, 1000, 10, 0x00ff00, 1);
+
+    const points = [];
+    for (let index = 1; index < 7; index++) {
+      points.push({
+        x: r * Math.cos((index * Math.PI) / 3),
+        y: r * Math.sin((index * Math.PI) / 3),
+      });
+    }
+
+    const grid = [];
+    for (let i = 0; i < gridX; i++) {
+      const column = [];
+      for (let j = 0; j < gridY; j++) {
+        let offsetX = 0;
+        if (j % 2 == 0) offsetX = r * 1.5;
+
+        const tile = this.add
+          .polygon(i * r * 3 + offsetX + x, j * (r * 0.9 - 1) + y, points)
+          .setStrokeStyle(3, 0xffffff, 1);
+
+        column.push(tile);
+      }
+      grid.push(column);
+    }*/
+  }
+
   createKeyboardControls() {
     this.keysDown = new Phaser.Structs.List();
 
@@ -443,7 +543,7 @@ class Game extends Phaser.Scene {
 
     direction.normalize();
 
-    if (this.keysDown.length > 0) {
+    if (this.player && this.keysDown.length > 0) {
       this.player.applyForce(direction.scale(speed));
     }
 
@@ -451,6 +551,7 @@ class Game extends Phaser.Scene {
   }
 
   updateDevText() {
+    if (!this.player || !this.player.body) return;
     const b = this.player.body;
     const x = Phaser.Math.RoundTo(b.velocity.x, 0);
     const y = Phaser.Math.RoundTo(b.velocity.y, 0);
