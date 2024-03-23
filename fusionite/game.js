@@ -99,7 +99,7 @@ class Game extends Phaser.Scene {
 
     this.createLayout();
     this.createPhysics();
-    this.createFactory();
+    this.createFactoryGrid();
     //this.createPlayer();
 
     /*this.createFusion(700, 400, 3);
@@ -286,7 +286,7 @@ class Game extends Phaser.Scene {
     fusion.y = y;
   }
 
-  createFactory() {
+  createFactoryGrid() {
     this.add.rectangle(gameW * 0.5, gameH * 0.5, 5, 500, 0x0000ff, 1);
     this.add.rectangle(gameW * 0.5, gameH * 0.5, 500, 5, 0x00ff00, 1);
 
@@ -299,41 +299,43 @@ class Game extends Phaser.Scene {
       });
     }
 
-    const hexagons = [
-      this.add.polygon(0, 0, points, 0x8093f1, 0.5).setStrokeStyle(8, 0xffffff),
-    ];
-    const bodies = [
-      this.matter.bodies.polygon(0, 0, 6, r, {
-        angle: Math.PI / 2,
-      }),
-    ];
+    const hexagons1 = [];
+    const hexagons2 = [];
 
-    for (let i = 1; i < 100; i++) {
-      let direction = Phaser.Math.Between(1, 6) + 0.5;
-      let x = (2 * r - 8) * Math.cos((direction * Math.PI) / 3);
-      let y = (2 * r - 8) * Math.sin((direction * Math.PI) / 3);
-
-      let iterations = 100;
-      while (iterations > 0 && this.matter.containsPoint(bodies, x, y)) {
-        iterations -= 1;
-
-        direction = Phaser.Math.Between(1, 6) + 0.5;
-        x += (2 * r - 8) * Math.cos((direction * Math.PI) / 3);
-        y += (2 * r - 8) * Math.sin((direction * Math.PI) / 3);
-      }
-
-      const hex = this.add
-        .polygon(x, y, points, 0xffffff, 0.5)
-        .setStrokeStyle(8, 0xffffff);
-      const body = this.matter.bodies.polygon(x, y, 6, r, {
-        angle: Math.PI / 2,
-      });
-
-      hexagons.push(hex);
-      bodies.push(body);
+    for (let i = 0; i < 30; i++) {
+      hexagons1.push(
+        this.add
+          .polygon(0, 0, points, 0xffffff, 0.2)
+          .setStrokeStyle(2, 0xffffff)
+      );
+      hexagons2.push(
+        this.add
+          .polygon(0, 0, points, 0xffffff, 0.2)
+          .setStrokeStyle(2, 0xffffff)
+      );
     }
 
-    const grid = this.add.container(gameW * 0.5 + r, gameH * 0.5 + r, hexagons);
+    // I don't know why these numbers work but they do
+    Phaser.Actions.GridAlign(hexagons1, {
+      width: 10,
+      cellWidth: r * 3,
+      cellHeight: r * 2 - 8,
+    });
+
+    Phaser.Actions.GridAlign(hexagons2, {
+      width: 10,
+      cellWidth: r * 3,
+      cellHeight: r * 2 - 8,
+      x: r * 1.5,
+      y: r - 4,
+    });
+
+    const grid = this.add.container(
+      gameW * 0.5 + r,
+      gameH * 0.5 + r,
+      hexagons1
+    );
+    grid.add(hexagons2);
   }
 
   createKeyboardControls() {
