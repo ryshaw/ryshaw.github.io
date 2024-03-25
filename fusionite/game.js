@@ -287,8 +287,8 @@ class Game extends Phaser.Scene {
   }
 
   createFactoryGrid() {
-    this.add.rectangle(gameW * 0.5, gameH * 0.5, 5, 500, 0x0000ff, 1);
-    this.add.rectangle(gameW * 0.5, gameH * 0.5, 500, 5, 0x00ff00, 1);
+    this.add.rectangle(gameW * 0.5, gameH * 0.5, 5, 181.96, 0x0000ff, 1);
+    this.add.rectangle(gameW * 0.5, gameH * 0.5, 915, 5, 0x00ff00, 1);
 
     const r = 30;
     const points = [];
@@ -302,7 +302,11 @@ class Game extends Phaser.Scene {
     const hexagons1 = [];
     const hexagons2 = [];
 
-    for (let i = 0; i < 30; i++) {
+    const gridX = 16; // must be even
+    const gridY = 12;
+    const size = gridX * gridY;
+
+    for (let i = 0; i < size / 2; i++) {
       hexagons1.push(
         this.add
           .polygon(0, 0, points, 0xffffff, 0.2)
@@ -317,25 +321,29 @@ class Game extends Phaser.Scene {
 
     // I don't know why these numbers work but they do
     Phaser.Actions.GridAlign(hexagons1, {
-      width: 10,
+      width: gridX / 2,
       cellWidth: r * 3,
-      cellHeight: r * 2 - 8,
+      cellHeight: r * 2 - r / 4,
     });
 
     Phaser.Actions.GridAlign(hexagons2, {
-      width: 10,
+      width: gridX / 2,
       cellWidth: r * 3,
-      cellHeight: r * 2 - 8,
+      cellHeight: r * 2 - r / 4,
       x: r * 1.5,
-      y: r - 4,
+      y: r - r / 4,
     });
 
-    const grid = this.add.container(
-      gameW * 0.5 + r,
-      gameH * 0.5 + r,
-      hexagons1
+    const grid = this.add.container();
+    grid.add(hexagons1).add(hexagons2);
+
+    const bounds = grid.getBounds();
+    grid.setPosition(
+      gameW / 2 - bounds.width / 2 + r,
+      gameH * 0.5 - bounds.height / 2 + r - r / 4
     );
-    grid.add(hexagons2);
+
+    console.log(grid.getBounds());
   }
 
   createKeyboardControls() {
