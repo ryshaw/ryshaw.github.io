@@ -142,7 +142,7 @@ class Game extends Phaser.Scene {
       .setStrokeStyle(4, 0xffffff, 0.4);
 
     this.add
-      .rectangle(gameW * 0.5, gameH * 0.2, gameW + 64, 64)
+      .rectangle(gameW * 0.5, gameH * 0.15, gameW + 64, 64)
       .setStrokeStyle(4, 0xffffff, 1);
 
     const r = 96;
@@ -154,21 +154,56 @@ class Game extends Phaser.Scene {
       });
     }
 
-    const hex = this.add
+    const bigHex = this.add
       .polygon(gameW * 0.5, gameH * 0.75, points, 0xffffff, 0.1)
       .setStrokeStyle(8, 0xffffff)
       .setDisplayOrigin();
 
     this.add.tween({
-      targets: hex,
+      targets: bigHex,
       angle: "+=360",
       duration: 12000,
       loop: -1,
     });
+
+    const smallHex = this.add
+      .polygon(gameW * 0.5, gameH * 0.56, points, 0xffffff, 0.1)
+      .setStrokeStyle(16, 0xffffff)
+      .setDisplayOrigin()
+      .setScale(0.2);
+
+    this.add.tween({
+      targets: smallHex,
+      angle: "+=360",
+      duration: 4000,
+      loop: -1,
+    });
+
+    this.add
+      .line(gameW * 0.5, gameH * 0.5 - 32, -100, 0, 100, 0, 0xffffff, 1)
+      .setLineWidth(4, 4)
+      .setOrigin(0.5, 0.5)
+      .setDisplayOrigin();
+
+    this.add
+      .line(gameW * 0.5, gameH * 0.5 + 32, -100, 0, 100, 0, 0xffffff, 1)
+      .setLineWidth(4, 4)
+      .setOrigin(0.5, 0.5)
+      .setDisplayOrigin();
+
+    const shipGraphics = this.make.graphics(); // disposable graphics obj
+    const shipW = 64;
+    const shipH = 36;
+    shipGraphics.lineStyle(4, 0xfffbfc, 1);
+    shipGraphics.fillStyle(0xffffff, 0.1);
+    shipGraphics.strokeTriangle(0, 0, 0, shipH, shipW, shipH / 2);
+    shipGraphics.fillTriangle(0, 0, 0, shipH, shipW, shipH / 2);
+    shipGraphics.generateTexture("triangle", shipW, shipH);
+    shipGraphics.destroy();
   }
 
   createPhysics() {
-    this.physics.world.setBounds(-256, -256, gameW + 512, gameH + 512);
+    this.physics.world.setBounds(-128, -128, gameW + 256, gameH + 256);
 
     this.traffic = this.physics.add.group();
 
@@ -199,19 +234,40 @@ class Game extends Phaser.Scene {
   }
 
   createShip() {
+    const path = this.add
+      .path(-64, gameH * 0.15)
+      .lineTo(gameW + 64, gameH * 0.15);
+
+    const rightCorner = new Phaser.Math.Vector2(gameW * 0.25, gameH * 0.15);
+    const leftCorner = new Phaser.Math.Vector2(gameW * 0.05, gameH * 0.5);
+    const endPoint = new Phaser.Math.Vector2(gameW * 0.5, gameH * 0.5);
+
+    const rightCorner2 = new Phaser.Math.Vector2(gameW * 0.8, gameH * 0.5);
+    const leftCorner2 = new Phaser.Math.Vector2(gameW * 0.8, gameH * 0.15);
+    const endPoint2 = new Phaser.Math.Vector2(gameW * 0.95, gameH * 0.15);
+
+    const path2 = this.add
+      .path(-64, gameH * 0.15)
+      .lineTo(gameW * 0.05, gameH * 0.15)
+      .cubicBezierTo(rightCorner, leftCorner, endPoint)
+      .cubicBezierTo(rightCorner2, leftCorner2, endPoint2)
+      .lineTo(gameW + 64, gameH * 0.15);
     const color = Phaser.Utils.Array.GetRandom(this.shipColors);
 
     const ship = this.add
-      .triangle(-128, gameH * 0.2, 0, 0, 0, 48, 64, 24)
-      .setFillStyle(color, 0.1)
-      .setStrokeStyle(4, color, 1)
-      .setName("ship");
+      .follower(path2, path.startPoint.x, path.startPoint.y, "triangle")
+      .setName("ship")
+      .setTintFill(color)
+      .startFollow({
+        duration: 5000,
+        onComplete: () => this.traffic.remove(ship, true, true),
+      })
+      .setRotateToPath(true);
 
     this.traffic.add(ship);
-
-    ship.body.setVelocity(800, 0);
     ship.body.collideWorldBounds = true;
     ship.body.onWorldBounds = true;
+    //console.log(this.children.list.length);
   }
 
   createKeyboardControls() {
