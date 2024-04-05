@@ -76,6 +76,8 @@ class Game extends Phaser.Scene {
   devText; // corner text displaying game data so we don't spam the console
   traffic; // physics group containing spaceships moving down road
   shipColors; // variety of colors for our ships
+  station; // refuel station container
+  pathToStation; //
 
   constructor() {
     super("Game");
@@ -142,8 +144,8 @@ class Game extends Phaser.Scene {
       .setStrokeStyle(4, 0xffffff, 0.4);
 
     this.add
-      .rectangle(gameW * 0.5, gameH * 0.15, gameW + 64, 64)
-      .setStrokeStyle(4, 0xffffff, 1);
+      .rectangle(gameW * 0.5, gameH * 0.15, gameW + 4, 32)
+      .setStrokeStyle(2, 0xffffff, 1);
 
     const r = 96;
     const points = [];
@@ -167,7 +169,7 @@ class Game extends Phaser.Scene {
     });
 
     const smallHex = this.add
-      .polygon(gameW * 0.5, gameH * 0.56, points, 0xffffff, 0.1)
+      .polygon(gameW * 0.5, gameH * 0.5 + 48, points, 0xffffff, 0.1)
       .setStrokeStyle(16, 0xffffff)
       .setDisplayOrigin()
       .setScale(0.2);
@@ -180,20 +182,20 @@ class Game extends Phaser.Scene {
     });
 
     this.add
-      .line(gameW * 0.5, gameH * 0.5 - 32, -100, 0, 100, 0, 0xffffff, 1)
+      .line(gameW * 0.5, gameH * 0.5 - 16, -60, 0, 60, 0, 0xffffff, 1)
       .setLineWidth(4, 4)
       .setOrigin(0.5, 0.5)
       .setDisplayOrigin();
 
     this.add
-      .line(gameW * 0.5, gameH * 0.5 + 32, -100, 0, 100, 0, 0xffffff, 1)
+      .line(gameW * 0.5, gameH * 0.5 + 16, -60, 0, 60, 0, 0xffffff, 1)
       .setLineWidth(4, 4)
       .setOrigin(0.5, 0.5)
       .setDisplayOrigin();
 
     const shipGraphics = this.make.graphics(); // disposable graphics obj
-    const shipW = 64;
-    const shipH = 36;
+    const shipW = 40;
+    const shipH = 24;
     shipGraphics.lineStyle(4, 0xfffbfc, 1);
     shipGraphics.fillStyle(0xffffff, 0.1);
     shipGraphics.strokeTriangle(0, 0, 0, shipH, shipW, shipH / 2);
