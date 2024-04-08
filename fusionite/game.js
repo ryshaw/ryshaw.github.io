@@ -51,7 +51,8 @@ class Background extends Phaser.Scene {
     this.graphics.fillRect(0, 0, w, h);
 
     //this.scene.launch("MainUI"); // start menu, tutorial, and game launcher
-    this.scene.launch("Game");
+    //this.scene.launch("Game");
+    this.scene.launch("Factory");
 
     this.scale.on("resize", this.resize, this);
   }
@@ -67,6 +68,507 @@ class Background extends Phaser.Scene {
     );
     this.graphics.fillRect(0, 0, gameSize.width, gameSize.height);
   }
+}
+
+class Factory extends Phaser.Scene {
+  player;
+  keysDown;
+  bounds; // 1920x1080 rectangle showcasing the game resolution
+  graphics;
+  holding; // object the mouse is currently holding and dragging
+  mouseOverGrid; // if mouse is over factory grid, snap holding into grid position
+  grid; // array of hexagons
+  buildText; // displays if build is valid or not
+  validBuild; // if false, cannot proceed to next level
+
+  constructor() {
+    super("Factory");
+  }
+
+  preload() {
+    // load google's library for the various fonts we want to use
+    this.load.script(
+      "webfont",
+      "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
+    );
+  }
+
+  create(data) {
+    this.createResolution();
+
+    this.createLayout();
+    this.createPhysics();
+    this.createInput();
+    //this.loadPlayer(data);
+    this.createGrid();
+    this.createMenu();
+
+    this.createKeyboardControls();
+
+    WebFont.load({
+      google: {
+        families: FONTS,
+      },
+      active: () => {
+        this.loadGameText();
+      },
+    });
+
+    this.graphics = this.add.graphics().fillStyle(0xff0000, 0.2);
+
+    this.children.list.forEach((obj) => {
+      if (obj.input) {
+        const pointsCopy = [];
+        obj.input.hitArea.points.forEach((p) => {
+          pointsCopy.push({
+            x: p.x + obj.x,
+            y: p.y + obj.y,
+          });
+        });
+        //  this.graphics.fillPoints(pointsCopy);
+      }
+    });
+  }
+
+  createResolution() {
+    // I don't know how this code works but it's magic. I also stole it from here:
+    // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
+    const width = this.scale.gameSize.width;
+    const height = this.scale.gameSize.height;
+
+    this.parent = new Phaser.Structs.Size(width, height);
+
+    this.sizer = new Phaser.Structs.Size(
+      gameW,
+      gameH,
+      Phaser.Structs.Size.FIT,
+      this.parent
+    );
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+
+    this.scale.on("resize", this.resize, this);
+  }
+
+  createLayout() {
+    // show bounds while in development
+    this.bounds = this.add
+      .rectangle(gameW * 0.5, gameH * 0.5, gameW, gameH)
+      .setStrokeStyle(8, 0xffffff, 0.8);
+
+    this.add.rectangle(gameW * 0.5, gameH * 0.5, 5, 100, 0x0000ff, 1);
+    this.add.rectangle(gameW * 0.5, gameH * 0.5, 100, 5, 0x00ff00, 1);
+  }
+
+  createPhysics() {
+    this.matter.world.setBounds(0, 0, gameW, gameH);
+  }
+
+  createGrid(data) {
+    // start with current player setup
+    if (!data || !data.player) this.createPlayer();
+
+    this.validBuild = true;
+
+    // build hexagon points
+    const r = 30;
+    const points = [];
+    for (let index = 1; index < 7; index++) {
+      points.push({
+        x: r * Math.cos((index * Math.PI) / 3),
+        y: r * Math.sin((index * Math.PI) / 3),
+      });
+    }
+
+    // build grid from the inside out
+    this.grid = [this.player]; // full grid will be in here
+    this.outerHexes = [this.player]; // get all outmost hex positions so we can build from the inside out
+
+    for (let iteration = 0; iteration < 2; iteration++) {
+      const nextOuterHexes = []; // will replace outerHexes at the end of this loop
+
+      this.outerHexes.forEach((outerHex) => {
+        for (let i = 0; i < 6; i++) {
+          // the math is mathing
+          let x = (2 * r - r / 4) * Math.cos(((i + 0.5) * Math.PI) / 3);
+          let y = (2 * r - r / 4) * Math.sin(((i + 0.5) * Math.PI) / 3);
+
+          // does this grid space already have a hex on it?
+          let spaceContainsHex = false;
+
+          this.grid.forEach((h) => {
+            // need to use an approximate equals
+            if (
+              Math.abs(h.x - (outerHex.x + x)) < 1 &&
+              Math.abs(h.y - (outerHex.y + y)) < 1
+            ) {
+              spaceContainsHex = true;
+            }
+          });
+
+          if (!spaceContainsHex) {
+            const hex = this.add
+              .polygon(x + outerHex.x, y + outerHex.y, points)
+              .setStrokeStyle(2, 0xffffff)
+              .setDisplayOrigin()
+              .setInteractive(
+                new Phaser.Geom.Polygon(points),
+                Phaser.Geom.Polygon.Contains
+              )
+
+              .on("pointermove", () => {
+                if (this.holding && !hex.holding) {
+                  this.mouseOverGrid = true;
+                  this.holding.x = hex.x;
+                  this.holding.y = hex.y;
+                }
+              })
+              .on("pointerout", () => {
+                this.mouseOverGrid = false;
+              })
+              .on("pointerup", () => {
+                if (this.holding && !hex.holding) {
+                  this.holding.x = hex.x;
+                  this.holding.y = hex.y;
+                  hex.holding = this.holding;
+                  this.holding = null;
+
+                  // need body to check for valid player build
+                  hex.body = this.matter.bodies.polygon(hex.x, hex.y, 6, 30, {
+                    angle: Math.PI / 2,
+                  });
+                  this.matter.world.add(hex.body);
+                  hex.setDisplayOrigin();
+
+                  this.checkValidPlayerBuild();
+                }
+              })
+              .on("pointerdown", () => {
+                if (hex.holding && !this.holding) {
+                  this.mouseOverGrid = true;
+                  this.holding = hex.holding;
+                  hex.holding = null;
+
+                  this.matter.world.remove(hex.body);
+                  hex.body = null;
+
+                  this.checkValidPlayerBuild();
+                }
+              });
+
+            this.grid.push(hex);
+            nextOuterHexes.push(hex);
+          }
+        }
+      });
+
+      this.outerHexes = nextOuterHexes;
+    }
+  }
+
+  checkValidPlayerBuild() {
+    const r = 30;
+
+    this.validBuild = false;
+
+    this.grid.forEach((hex) => {
+      if (hex.holding) {
+        for (let i = 0; i < 6; i++) {
+          // the math is mathing
+          let x = (2 * r - r / 4) * Math.cos(((i + 0.5) * Math.PI) / 3);
+          let y = (2 * r - r / 4) * Math.sin(((i + 0.5) * Math.PI) / 3);
+
+          if (
+            this.matter.containsPoint(
+              this.matter.world.getAllBodies(),
+              hex.x + x,
+              hex.y + y
+            )
+          ) {
+            this.validBuild = true;
+          }
+        }
+      }
+    });
+
+    if (this.validBuild) {
+      this.buildText.text = "build is valid";
+    } else {
+      this.buildText.text = "build is not valid";
+    }
+  }
+
+  createPlayer() {
+    // build hexagon with some trigonometry. taken from bouncy balls!
+
+    const r = 30;
+    const points = [];
+    for (let index = 1; index < 7; index++) {
+      points.push({
+        x: r * Math.cos((index * Math.PI) / 3),
+        y: r * Math.sin((index * Math.PI) / 3),
+      });
+    }
+
+    const offset = new Phaser.Math.Vector2(
+      r * Math.cos(Math.PI / 3),
+      r * Math.sin(Math.PI / 3)
+    );
+
+    const hex = this.add
+      .polygon(0, 0, points, 0x8093f1, 0.5)
+      .setStrokeStyle(8, 0xffffff)
+      .setDisplayOrigin();
+    //.setDisplayOrigin(offset.x * 1.5, offset.y * 0.5);
+
+    /*const hexB = this.add
+      .polygon(offset.x * 3, offset.y, points, 0xffffff, 0.5)
+      .setStrokeStyle(8, 0xffffff)
+      .setDisplayOrigin(offset.x * 1.5, offset.y * 0.5);*/
+
+    this.player = this.add.container(0, 0, [hex]);
+
+    const body = this.matter.bodies.polygon(0, 0, 6, 30, {
+      angle: Math.PI / 2,
+    });
+
+    /*
+    const bodyB = this.matter.bodies.polygon(
+      200 + offset.x * 3,
+      200 + offset.y,
+      6,
+      30,
+      {
+        angle: Math.PI / 2,
+      }
+    );*/
+
+    const compoundBody = this.matter.body.create({ parts: [body] });
+
+    this.matter.add.gameObject(this.player);
+    this.player.setExistingBody(compoundBody);
+
+    this.player.setMass(10);
+    this.player.body.inertia = Math.round(10 ** 7.4);
+    this.player.setFriction(0, 0.02, 1);
+    this.player.setPosition(gameW * 0.5, gameH * 0.5);
+  }
+
+  createInput() {
+    this.mouseOverGrid = false;
+    this.input.topOnly = false;
+
+    this.input.on("pointermove", (pointer) => {
+      if (this.holding && !this.mouseOverGrid) {
+        this.holding.x = pointer.worldX;
+        this.holding.y = pointer.worldY;
+      }
+    });
+
+    this.input.on("pointerup", (pointer) => {
+      if (this.holding) {
+        this.holding.destroy();
+        this.holding = null;
+      }
+    });
+  }
+
+  createMenu() {
+    const r = 30;
+    const points = [];
+    for (let index = 1; index < 7; index++) {
+      points.push({
+        x: r * Math.cos((index * Math.PI) / 3),
+        y: r * Math.sin((index * Math.PI) / 3),
+      });
+    }
+
+    const outerR = 42;
+    const outerPoints = [];
+    for (let index = 1; index < 7; index++) {
+      outerPoints.push({
+        x: outerR * Math.cos((index * Math.PI) / 3),
+        y: outerR * Math.sin((index * Math.PI) / 3),
+      });
+    }
+
+    const hexButton = this.add
+      .polygon(100, 200, points, 0xffffff, 0.5)
+      .setStrokeStyle(8, 0xffffff)
+      .setDisplayOrigin()
+      .setInteractive(
+        new Phaser.Geom.Polygon(outerPoints),
+        Phaser.Geom.Polygon.Contains
+      )
+      .on("pointerdown", (pointer) => {
+        this.holding = this.add
+          .polygon(pointer.worldX, pointer.worldY, points, 0xffffff, 0.5)
+          .setStrokeStyle(8, 0xffffff)
+          .setDisplayOrigin()
+          .setInteractive({
+            hitArea: new Phaser.Geom.Circle(0, 0, r * 1.2),
+            hitAreaCallback: Phaser.Geom.Circle.Contains,
+            draggable: true,
+          });
+      });
+  }
+
+  createKeyboardControls() {
+    this.keysDown = new Phaser.Structs.List();
+
+    this.input.keyboard.on("keydown-W", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.UP);
+    });
+
+    this.input.keyboard.on("keyup-W", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.UP);
+    });
+
+    this.input.keyboard.on("keydown-UP", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.UP);
+    });
+
+    this.input.keyboard.on("keyup-UP", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.UP);
+    });
+
+    this.input.keyboard.on("keydown-S", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.DOWN);
+    });
+
+    this.input.keyboard.on("keyup-S", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.DOWN);
+    });
+
+    this.input.keyboard.on("keydown-DOWN", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.DOWN);
+    });
+
+    this.input.keyboard.on("keyup-DOWN", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.DOWN);
+    });
+
+    this.input.keyboard.on("keydown-A", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.LEFT);
+    });
+
+    this.input.keyboard.on("keyup-A", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.LEFT);
+    });
+
+    this.input.keyboard.on("keydown-LEFT", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.LEFT);
+    });
+
+    this.input.keyboard.on("keyup-LEFT", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.LEFT);
+    });
+
+    this.input.keyboard.on("keydown-D", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.RIGHT);
+    });
+
+    this.input.keyboard.on("keyup-D", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.RIGHT);
+    });
+
+    this.input.keyboard.on("keydown-RIGHT", (event) => {
+      this.keysDown.add(Phaser.Math.Vector2.RIGHT);
+    });
+
+    this.input.keyboard.on("keyup-RIGHT", (event) => {
+      this.keysDown.remove(Phaser.Math.Vector2.RIGHT);
+    });
+
+    /*
+    this.input.keyboard.on("keydown-M", () => {
+      const track1 = this.sound.get("track1");
+      track1.isPlaying ? track1.pause() : track1.resume();
+    });
+  
+    this.input.keyboard.on("keydown-N", () => {
+      this.soundVolume > 0 ? (this.soundVolume = 0) : (this.soundVolume = 0.8);
+      Object.values(this.soundEffects).forEach((sound) => sound.stop());
+    });*/
+  }
+
+  loadGameText() {
+    new GameText(this, gameW * 0.5, 5, "fusionite factory", "l").setOrigin(
+      0.5,
+      0
+    );
+
+    this.buildText = new GameText(
+      this,
+      gameW * 0.5,
+      gameH - 5,
+      "",
+      "s"
+    ).setOrigin(0.5, 1);
+
+    const fpsText = new GameText(
+      this,
+      0,
+      0,
+      `${Math.round(this.sys.game.loop.actualFps)}`
+    )
+      .setOrigin(0, 0)
+      .setVisible(DEV_MODE);
+
+    this.time.addEvent({
+      delay: 500,
+      loop: DEV_MODE,
+      callbackScope: this,
+      callback: () => {
+        fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`);
+      },
+    });
+  }
+
+  resize(gameSize) {
+    // don't resize if scene stopped. this fixes a bug
+    if (!this.scene.isActive("Factory") && !this.scene.isPaused("Factory"))
+      return;
+
+    const width = gameSize.width;
+    const height = gameSize.height;
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+  }
+
+  updateCamera() {
+    const camera = this.cameras.main;
+
+    const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
+    const y = 0;
+    const scaleX = this.sizer.width / gameW;
+    const scaleY = this.sizer.height / gameH;
+
+    // this offset was meant to move the game screen a little up
+    // because it was being centered a little down when playing it on
+    // my phone (iPhone 12). I'm going to remove it now because
+    // I'm prioritizing a multi-platform game and the offset looks
+    // weird on other platforms.
+
+    // offset is comparing the game's height to the window's height,
+    // and centering the game in (kind of) the middle of the window.
+    // old line:
+    //const offset = (1 + this.parent.height / this.sizer.height) / 2;
+    // new line:
+    const offset = this.parent.height / this.sizer.height;
+
+    camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
+    camera.setZoom(Math.max(scaleX, scaleY));
+    camera.centerOn(gameW / 2, gameH / 2);
+  }
+
+  update() {}
 }
 
 class Game extends Phaser.Scene {
@@ -85,11 +587,6 @@ class Game extends Phaser.Scene {
       "webfont",
       "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
     );
-
-    this.load.setPath("assets");
-    this.load.image("rewind", "rewind.png");
-    this.load.image("fastForward", "fastForward.png");
-    this.load.image("target", "target.png");
   }
 
   create(data) {
@@ -99,16 +596,15 @@ class Game extends Phaser.Scene {
 
     this.createLayout();
     this.createPhysics();
-    this.createFactoryGrid();
-    //this.createPlayer();
+    this.createPlayer();
 
-    /*this.createFusion(700, 400, 3);
+    this.createFusion(700, 400, 3);
 
     this.createFusion(1100, 600, 6);
 
     this.createFusion(300, 800, 8);
 
-    this.createFusion(1400, 300, 12);*/
+    this.createFusion(1400, 300, 12);
 
     this.createKeyboardControls();
 
@@ -174,7 +670,7 @@ class Game extends Phaser.Scene {
     );
 
     const hexA = this.add
-      .polygon(0, 0, points, 0xffffff, 0.5)
+      .polygon(0, 0, points, 0x8093f1, 0.5)
       .setStrokeStyle(8, 0xffffff)
       .setDisplayOrigin(offset.x * 1.5, offset.y * 0.5);
 
@@ -284,66 +780,6 @@ class Game extends Phaser.Scene {
 
     fusion.x = x;
     fusion.y = y;
-  }
-
-  createFactoryGrid() {
-    this.add.rectangle(gameW * 0.5, gameH * 0.5, 5, 181.96, 0x0000ff, 1);
-    this.add.rectangle(gameW * 0.5, gameH * 0.5, 915, 5, 0x00ff00, 1);
-
-    const r = 30;
-    const points = [];
-    for (let index = 1; index < 7; index++) {
-      points.push({
-        x: r * Math.cos((index * Math.PI) / 3),
-        y: r * Math.sin((index * Math.PI) / 3),
-      });
-    }
-
-    const hexagons1 = [];
-    const hexagons2 = [];
-
-    const gridX = 16; // must be even
-    const gridY = 12;
-    const size = gridX * gridY;
-
-    for (let i = 0; i < size / 2; i++) {
-      hexagons1.push(
-        this.add
-          .polygon(0, 0, points, 0xffffff, 0.2)
-          .setStrokeStyle(2, 0xffffff)
-      );
-      hexagons2.push(
-        this.add
-          .polygon(0, 0, points, 0xffffff, 0.2)
-          .setStrokeStyle(2, 0xffffff)
-      );
-    }
-
-    // I don't know why these numbers work but they do
-    Phaser.Actions.GridAlign(hexagons1, {
-      width: gridX / 2,
-      cellWidth: r * 3,
-      cellHeight: r * 2 - r / 4,
-    });
-
-    Phaser.Actions.GridAlign(hexagons2, {
-      width: gridX / 2,
-      cellWidth: r * 3,
-      cellHeight: r * 2 - r / 4,
-      x: r * 1.5,
-      y: r - r / 4,
-    });
-
-    const grid = this.add.container();
-    grid.add(hexagons1).add(hexagons2);
-
-    const bounds = grid.getBounds();
-    grid.setPosition(
-      gameW / 2 - bounds.width / 2 + r,
-      gameH * 0.5 - bounds.height / 2 + r - r / 4
-    );
-
-    console.log(grid.getBounds());
   }
 
   createKeyboardControls() {
@@ -1843,7 +2279,7 @@ const config = {
     width: gameW,
     height: gameH,
   },
-  scene: [Background, MainUI, Game],
+  scene: [Background, MainUI, Game, Factory],
   physics: {
     default: "matter",
     matter: {
