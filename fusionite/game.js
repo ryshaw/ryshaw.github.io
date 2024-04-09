@@ -117,7 +117,7 @@ class Factory extends Phaser.Scene {
     this.graphics = this.add.graphics().fillStyle(0xff0000, 0.2);
 
     this.children.list.forEach((obj) => {
-      if (obj.input) {
+      if (obj.input && obj.input.hitArea.points) {
         const pointsCopy = [];
         obj.input.hitArea.points.forEach((p) => {
           pointsCopy.push({
@@ -171,8 +171,6 @@ class Factory extends Phaser.Scene {
     // start with current player setup
     if (!data || !data.player) this.createPlayer();
 
-    this.validBuild = true;
-
     // build hexagon points
     const r = 30;
     const points = [];
@@ -187,7 +185,7 @@ class Factory extends Phaser.Scene {
     this.grid = [this.player]; // full grid will be in here
     this.outerHexes = [this.player]; // get all outmost hex positions so we can build from the inside out
 
-    for (let iteration = 0; iteration < 2; iteration++) {
+    for (let iteration = 0; iteration < 7; iteration++) {
       const nextOuterHexes = []; // will replace outerHexes at the end of this loop
 
       this.outerHexes.forEach((outerHex) => {
@@ -275,16 +273,18 @@ class Factory extends Phaser.Scene {
 
     this.validBuild = true;
 
+    this.grid.forEach((hex) => (hex.connected = false));
+
     // start from the inside and go outward to check what hexes are connected to player
     const toProcess = [this.player];
 
     let iterations = 500;
     while (toProcess.length > 0 && iterations > 0) {
       iterations -= 1;
+
       const hex = toProcess.pop();
-      hex.fillColor = 0xff0000;
       hex.connected = true;
-      //hex.setAlpha(0.6);
+
       for (let i = 0; i < 6; i++) {
         // the math is mathing
         let x = (2 * r - r / 4) * Math.cos(((i + 0.5) * Math.PI) / 3);
@@ -298,17 +298,11 @@ class Factory extends Phaser.Scene {
     }
 
     this.grid.forEach((hex) => {
-      if (hex.holding && !hex.connected) {
-        console.log("holding but not connected");
-        this.validBuild = false;
-      }
+      if (hex.holding && !hex.connected) this.validBuild = false;
     });
 
-    if (this.validBuild) {
-      this.buildText.text = "build is valid";
-    } else {
-      this.buildText.text = "build is not valid";
-    }
+    if (this.validBuild) this.buildText.text = "build is valid";
+    else this.buildText.text = "build is not valid";
   }
 
   createPlayer() {
@@ -518,6 +512,17 @@ class Factory extends Phaser.Scene {
       "",
       "s"
     ).setOrigin(0.5, 1);
+
+    const startButton = new GameText(
+      this,
+      gameW - 5,
+      gameH - 5,
+      "start",
+      "m",
+      () => {
+        console.log("hi");
+      }
+    ).setOrigin(1, 1);
 
     const fpsText = new GameText(
       this,
@@ -2350,34 +2355,19 @@ class GameText extends Phaser.GameObjects.Text {
           this.emit("pointerover", pointer);
         })
         .on("pointerover", function (pointer) {
-          if (this.scale == 1) {
-            scene.scene.get("MainUI").playSound("pointerover");
-          }
-
-          if (pointer) scene.activeOption = scene.activeOptions.indexOf(this);
-
           this.setTint(COLORS.tintColor).setScale(1.02);
-          scene.activeOptions.forEach((option) => {
-            if (option != this) option.emit("pointerout");
-          });
         })
         .on("pointerout", function (pointer) {
-          if (pointer) scene.activeOption = -1; // if mouse used, reset arrow key selection
           this.setTint(COLORS.white).setScale(1);
           this.off("pointerup", callback, scene);
         })
         .on("pointerdown", function () {
-          // don't do anything if tweens are running between menus
-          if (scene.transition) return;
-
           this.setTint(COLORS.clickColor);
           if (this.listenerCount("pointerup") < 2) {
             this.on("pointerup", callback, scene);
           }
         })
         .on("pointerup", function () {
-          scene.scene.get("MainUI").playSound("pointerup");
-
           this.setTint(COLORS.tintColor);
         });
     }
