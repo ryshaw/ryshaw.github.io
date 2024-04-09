@@ -241,6 +241,7 @@ class Factory extends Phaser.Scene {
                     angle: Math.PI / 2,
                   });
                   this.matter.world.add(hex.body);
+                  hex.body.gameObject = hex;
                   hex.setDisplayOrigin();
 
                   this.checkValidPlayerBuild();
@@ -272,25 +273,34 @@ class Factory extends Phaser.Scene {
   checkValidPlayerBuild() {
     const r = 30;
 
-    this.validBuild = false;
+    this.validBuild = true;
+
+    // start from the inside and go outward to check what hexes are connected to player
+    const toProcess = [this.player];
+
+    let iterations = 500;
+    while (toProcess.length > 0 && iterations > 0) {
+      iterations -= 1;
+      const hex = toProcess.pop();
+      hex.fillColor = 0xff0000;
+      hex.connected = true;
+      //hex.setAlpha(0.6);
+      for (let i = 0; i < 6; i++) {
+        // the math is mathing
+        let x = (2 * r - r / 4) * Math.cos(((i + 0.5) * Math.PI) / 3);
+        let y = (2 * r - r / 4) * Math.sin(((i + 0.5) * Math.PI) / 3);
+
+        const adjacentHex = this.matter.intersectPoint(hex.x + x, hex.y + y);
+        if (adjacentHex.length > 0 && !adjacentHex[0].gameObject.connected) {
+          toProcess.push(adjacentHex[0].gameObject);
+        }
+      }
+    }
 
     this.grid.forEach((hex) => {
-      if (hex.holding) {
-        for (let i = 0; i < 6; i++) {
-          // the math is mathing
-          let x = (2 * r - r / 4) * Math.cos(((i + 0.5) * Math.PI) / 3);
-          let y = (2 * r - r / 4) * Math.sin(((i + 0.5) * Math.PI) / 3);
-
-          if (
-            this.matter.containsPoint(
-              this.matter.world.getAllBodies(),
-              hex.x + x,
-              hex.y + y
-            )
-          ) {
-            this.validBuild = true;
-          }
-        }
+      if (hex.holding && !hex.connected) {
+        console.log("holding but not connected");
+        this.validBuild = false;
       }
     });
 
