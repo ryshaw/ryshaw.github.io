@@ -79,7 +79,6 @@ class Factory extends Phaser.Scene {
   mouseOverGrid; // if mouse is over factory grid, snap holding into grid position
   grid; // array of hexagons
   buildText; // displays if build is valid or not
-  validBuild; // if false, cannot proceed to next level
 
   constructor() {
     super("Factory");
@@ -111,6 +110,7 @@ class Factory extends Phaser.Scene {
       },
       active: () => {
         this.loadGameText();
+        this.checkValidPlayerBuild();
       },
     });
 
@@ -159,8 +159,8 @@ class Factory extends Phaser.Scene {
       .rectangle(gameW * 0.5, gameH * 0.5, gameW, gameH)
       .setStrokeStyle(8, 0xffffff, 0.8);
 
-    this.add.rectangle(gameW * 0.5, gameH * 0.5, 5, 100, 0x0000ff, 1);
-    this.add.rectangle(gameW * 0.5, gameH * 0.5, 100, 5, 0x00ff00, 1);
+    //this.add.rectangle(gameW * 0.5, gameH * 0.5, 5, 100, 0x0000ff, 1);
+    //this.add.rectangle(gameW * 0.5, gameH * 0.5, 100, 5, 0x00ff00, 1);
   }
 
   createPhysics() {
@@ -271,38 +271,42 @@ class Factory extends Phaser.Scene {
   checkValidPlayerBuild() {
     const r = 30;
 
-    this.validBuild = true;
+    let validBuild = true;
 
     this.grid.forEach((hex) => (hex.connected = false));
 
     // start from the inside and go outward to check what hexes are connected to player
     const toProcess = [this.player];
 
-    let iterations = 500;
+    let iterations = 9999;
     while (toProcess.length > 0 && iterations > 0) {
       iterations -= 1;
 
       const hex = toProcess.pop();
-      hex.connected = true;
+      if (!hex.connected) {
+        hex.connected = true;
 
-      for (let i = 0; i < 6; i++) {
-        // the math is mathing
-        let x = (2 * r - r / 4) * Math.cos(((i + 0.5) * Math.PI) / 3);
-        let y = (2 * r - r / 4) * Math.sin(((i + 0.5) * Math.PI) / 3);
+        for (let i = 0; i < 6; i++) {
+          // the math is mathing
+          let x = (2 * r - r / 4) * Math.cos(((i + 0.5) * Math.PI) / 3);
+          let y = (2 * r - r / 4) * Math.sin(((i + 0.5) * Math.PI) / 3);
 
-        const adjacentHex = this.matter.intersectPoint(hex.x + x, hex.y + y);
-        if (adjacentHex.length > 0 && !adjacentHex[0].gameObject.connected) {
-          toProcess.push(adjacentHex[0].gameObject);
+          const adjacentHex = this.matter.intersectPoint(hex.x + x, hex.y + y);
+          if (adjacentHex.length > 0 && !adjacentHex[0].gameObject.connected) {
+            toProcess.push(adjacentHex[0].gameObject);
+          }
         }
       }
     }
 
     this.grid.forEach((hex) => {
-      if (hex.holding && !hex.connected) this.validBuild = false;
+      if (hex.holding && !hex.connected) validBuild = false;
     });
 
-    if (this.validBuild) this.buildText.text = "build is valid";
+    if (validBuild) this.buildText.text = "build is valid";
     else this.buildText.text = "build is not valid";
+
+    return validBuild;
   }
 
   createPlayer() {
@@ -333,7 +337,7 @@ class Factory extends Phaser.Scene {
       .setStrokeStyle(8, 0xffffff)
       .setDisplayOrigin(offset.x * 1.5, offset.y * 0.5);*/
 
-    this.player = this.add.container(0, 0, [hex]);
+    this.player = this.add.container(0, 0, [hex]).setName("player");
 
     const body = this.matter.bodies.polygon(0, 0, 6, 30, {
       angle: Math.PI / 2,
@@ -519,9 +523,7 @@ class Factory extends Phaser.Scene {
       gameH - 5,
       "start",
       "m",
-      () => {
-        console.log("hi");
-      }
+      this.startGame
     ).setOrigin(1, 1);
 
     const fpsText = new GameText(
@@ -541,6 +543,68 @@ class Factory extends Phaser.Scene {
         fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`);
       },
     });
+  }
+
+  startGame() {
+    const validBuild = this.checkValidPlayerBuild();
+
+    if (!validBuild) {
+      this.buildText.text = "build must be valid before starting";
+
+      // this tween does nothing, it's just a timer
+      // phaser time events don't have a "killTweensOf"-type method,
+      // so I decided to use a tween instead
+      // hopefully we never rotate this text... rotated text just looks silly, right?
+
+      this.tweens.killTweensOf(this.buildText); // do this to avoid duplicates
+      this.add.tween({
+        targets: this.buildText,
+        angle: 0,
+        duration: 4000,
+        onComplete: () => this.checkValidPlayerBuild(),
+      });
+
+      return;
+    }
+
+    const r = 30;
+
+    this.grid.forEach((hex) => (hex.connected = false));
+
+    const positions = [];
+
+    // start from the inside and go outward to check what hexes are connected to player
+    const toProcess = [this.player];
+
+    let iterations = 9999;
+    while (toProcess.length > 0 && iterations > 0) {
+      iterations -= 1;
+
+      const hex = toProcess.pop();
+      if (!hex.connected) {
+        hex.connected = true;
+
+        if (hex.name != "player" && hex.body) {
+          this.matter.world.remove(hex.body);
+          hex.body = null;
+        }
+
+        positions.push({ x: hex.x, y: hex.y });
+
+        for (let i = 0; i < 6; i++) {
+          // the math is mathing
+          let x = (2 * r - r / 4) * Math.cos(((i + 0.5) * Math.PI) / 3);
+          let y = (2 * r - r / 4) * Math.sin(((i + 0.5) * Math.PI) / 3);
+
+          const adjacentHex = this.matter.intersectPoint(hex.x + x, hex.y + y);
+          if (adjacentHex.length > 0 && !adjacentHex[0].gameObject.connected) {
+            toProcess.push(adjacentHex[0].gameObject);
+          }
+        }
+      }
+    }
+
+    this.scene.start("Game", { playerPositions: positions });
   }
 
   resize(gameSize) {
@@ -611,11 +675,12 @@ class Game extends Phaser.Scene {
 
     this.createLayout();
     this.createPhysics();
-    this.createPlayer();
+
+    this.createPlayer(data.playerPositions);
 
     this.createFusion(700, 400, 3);
 
-    this.createFusion(1100, 600, 6);
+    this.createFusion(1500, 700, 6);
 
     this.createFusion(300, 800, 8);
 
@@ -667,8 +732,12 @@ class Game extends Phaser.Scene {
     this.matter.world.setBounds(0, 0, gameW, gameH);
   }
 
-  createPlayer() {
+  createPlayer(positions) {
     // build hexagon with some trigonometry. taken from bouncy balls!
+
+    const x = gameW / 2;
+    const y = gameH / 2;
+    const numHex = positions.length;
 
     const r = 30;
     const points = [];
@@ -679,47 +748,57 @@ class Game extends Phaser.Scene {
       });
     }
 
-    const offset = new Phaser.Math.Vector2(
-      r * Math.cos(Math.PI / 3),
-      r * Math.sin(Math.PI / 3)
-    );
+    const hexagons = [];
+    const bodies = [];
 
-    const hexA = this.add
-      .polygon(0, 0, points, 0x8093f1, 0.5)
-      .setStrokeStyle(8, 0xffffff)
-      .setDisplayOrigin(offset.x * 1.5, offset.y * 0.5);
+    for (let i = 0; i < positions.length; i++) {
+      const pos = positions[i];
 
-    const hexC = Phaser.Utils.Objects.Clone(hexA);
-    hexC.setPosition(300, 300);
+      let hexColor = 0xffffff;
+      if (i == 0) hexColor = 0x8093f1;
 
-    const hexB = this.add
-      .polygon(offset.x * 3, offset.y, points, 0xffffff, 0.5)
-      .setStrokeStyle(8, 0xffffff)
-      .setDisplayOrigin(offset.x * 1.5, offset.y * 0.5);
+      const hex = this.add
+        .polygon(pos.x, pos.y, points, hexColor, 0.5)
+        .setStrokeStyle(8, 0xffffff);
 
-    this.player = this.add.container(0, 0, [hexA, hexB]);
+      hexagons.push(hex);
 
-    const bodyA = this.matter.bodies.polygon(200, 200, 6, 30, {
-      angle: Math.PI / 2,
-    });
-    const bodyB = this.matter.bodies.polygon(
-      200 + offset.x * 3,
-      200 + offset.y,
-      6,
-      30,
-      {
+      const body = this.matter.bodies.polygon(pos.x, pos.y, 6, r, {
         angle: Math.PI / 2,
-      }
-    );
+      });
 
-    const compoundBody = this.matter.body.create({ parts: [bodyA, bodyB] });
+      bodies.push(body);
+    }
+
+    // because of how matter bodies work,
+    // the "center" of the compound body is its center of mass,
+    // which is hard to account for.
+    // I finally, FINALLY figured out that setting the display origin
+    // of each of the hexes to be the "average" position of all the hexes
+    // got them to align correctly with the physics bodies. incredible!
+    const avg = new Phaser.Math.Vector2(0, 0);
+    hexagons.forEach((hex) => {
+      avg.x += hex.x;
+      avg.y += hex.y;
+    });
+
+    avg.scale(1 / numHex);
+
+    hexagons.forEach((hex) => hex.setDisplayOrigin(avg.x, avg.y));
+
+    this.player = this.add.container(x, y, hexagons);
+
+    const compoundBody = this.matter.body.create({ parts: bodies });
 
     this.matter.add.gameObject(this.player);
     this.player.setExistingBody(compoundBody);
 
-    this.player.setMass(15);
+    this.player.setMass(5 + numHex * 5);
     this.player.body.inertia = Math.round(10 ** 7.4);
     this.player.setFriction(0, 0.02, 1);
+
+    this.player.x = x;
+    this.player.y = y;
   }
 
   createFusion(x, y, numHex) {
