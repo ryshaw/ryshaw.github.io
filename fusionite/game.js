@@ -26,6 +26,8 @@ const COLORS = {
   buttonColor: 0xe0fbfc, // for coloring buttons and the title
   white: 0xffffff,
   black: 0x000000,
+  playerColor: 0xa2d2ff,
+  enemyColor: 0xffafcc,
 };
 
 class Background extends Phaser.Scene {
@@ -71,7 +73,7 @@ class Background extends Phaser.Scene {
 }
 
 class Factory extends Phaser.Scene {
-  player;
+  centerHex; // center of player's build
   keysDown;
   bounds; // 1920x1080 rectangle showcasing the game resolution
   graphics;
@@ -98,8 +100,7 @@ class Factory extends Phaser.Scene {
     this.createLayout();
     this.createPhysics();
     this.createInput();
-    //this.loadPlayer(data);
-    this.createGrid();
+    this.createGrid(data.hexagons); // loads player hexagons
     this.createMenu();
 
     this.createKeyboardControls();
@@ -167,9 +168,8 @@ class Factory extends Phaser.Scene {
     this.matter.world.setBounds(0, 0, gameW, gameH);
   }
 
-  createGrid(data) {
+  createGrid(positions) {
     // start with current player setup
-    if (!data || !data.player) this.createPlayer();
 
     // build hexagon points
     const r = 30;
@@ -181,11 +181,32 @@ class Factory extends Phaser.Scene {
       });
     }
 
-    // build grid from the inside out
-    this.grid = [this.player]; // full grid will be in here
-    this.outerHexes = [this.player]; // get all outmost hex positions so we can build from the inside out
+    if (!positions) positions = [{ x: gameW / 2, y: gameH / 2 }];
 
-    for (let iteration = 0; iteration < 7; iteration++) {
+    // create central player hexagon
+    this.centerHex = this.add
+      .polygon(gameW / 2, gameH / 2, points, COLORS.playerColor, 0.8)
+      .setStrokeStyle(8, 0xffffff)
+      .setDisplayOrigin();
+
+    this.centerHex.body = this.matter.bodies.polygon(
+      gameW / 2,
+      gameH / 2,
+      6,
+      30,
+      {
+        angle: Math.PI / 2,
+      }
+    );
+
+    this.matter.world.add(this.centerHex.body);
+    this.centerHex.body.gameObject = this.centerHex;
+
+    // build grid from the inside out
+    this.grid = [this.centerHex]; // full grid will be in here
+    this.outerHexes = [this.centerHex]; // get all outmost hex positions so we can build from the inside out
+
+    for (let iteration = 0; iteration < 6; iteration++) {
       const nextOuterHexes = []; // will replace outerHexes at the end of this loop
 
       this.outerHexes.forEach((outerHex) => {
@@ -258,6 +279,29 @@ class Factory extends Phaser.Scene {
                 }
               });
 
+            // check if this grid hex should have a player hex already attached
+            positions.forEach((pos) => {
+              if (Math.abs(pos.x - hex.x) < 1 && Math.abs(pos.y - hex.y) < 1) {
+                hex.holding = this.add
+                  .polygon(hex.x, hex.y, points, 0xffffff, 0.5)
+                  .setStrokeStyle(8, 0xffffff)
+                  .setDisplayOrigin()
+                  .setInteractive({
+                    hitArea: new Phaser.Geom.Circle(0, 0, r * 1.2),
+                    hitAreaCallback: Phaser.Geom.Circle.Contains,
+                    draggable: true,
+                  });
+
+                // need body to check for valid player build
+                hex.body = this.matter.bodies.polygon(hex.x, hex.y, 6, 30, {
+                  angle: Math.PI / 2,
+                });
+                this.matter.world.add(hex.body);
+                hex.body.gameObject = hex;
+                hex.setDisplayOrigin();
+              }
+            });
+
             this.grid.push(hex);
             nextOuterHexes.push(hex);
           }
@@ -276,7 +320,7 @@ class Factory extends Phaser.Scene {
     this.grid.forEach((hex) => (hex.connected = false));
 
     // start from the inside and go outward to check what hexes are connected to player
-    const toProcess = [this.player];
+    const toProcess = [this.centerHex];
 
     let iterations = 9999;
     while (toProcess.length > 0 && iterations > 0) {
@@ -307,62 +351,6 @@ class Factory extends Phaser.Scene {
     else this.buildText.text = "build is not valid";
 
     return validBuild;
-  }
-
-  createPlayer() {
-    // build hexagon with some trigonometry. taken from bouncy balls!
-
-    const r = 30;
-    const points = [];
-    for (let index = 1; index < 7; index++) {
-      points.push({
-        x: r * Math.cos((index * Math.PI) / 3),
-        y: r * Math.sin((index * Math.PI) / 3),
-      });
-    }
-
-    const offset = new Phaser.Math.Vector2(
-      r * Math.cos(Math.PI / 3),
-      r * Math.sin(Math.PI / 3)
-    );
-
-    const hex = this.add
-      .polygon(0, 0, points, 0x8093f1, 0.5)
-      .setStrokeStyle(8, 0xffffff)
-      .setDisplayOrigin();
-    //.setDisplayOrigin(offset.x * 1.5, offset.y * 0.5);
-
-    /*const hexB = this.add
-      .polygon(offset.x * 3, offset.y, points, 0xffffff, 0.5)
-      .setStrokeStyle(8, 0xffffff)
-      .setDisplayOrigin(offset.x * 1.5, offset.y * 0.5);*/
-
-    this.player = this.add.container(0, 0, [hex]).setName("player");
-
-    const body = this.matter.bodies.polygon(0, 0, 6, 30, {
-      angle: Math.PI / 2,
-    });
-
-    /*
-    const bodyB = this.matter.bodies.polygon(
-      200 + offset.x * 3,
-      200 + offset.y,
-      6,
-      30,
-      {
-        angle: Math.PI / 2,
-      }
-    );*/
-
-    const compoundBody = this.matter.body.create({ parts: [body] });
-
-    this.matter.add.gameObject(this.player);
-    this.player.setExistingBody(compoundBody);
-
-    this.player.setMass(10);
-    this.player.body.inertia = Math.round(10 ** 7.4);
-    this.player.setFriction(0, 0.02, 1);
-    this.player.setPosition(gameW * 0.5, gameH * 0.5);
   }
 
   createInput() {
@@ -526,6 +514,15 @@ class Factory extends Phaser.Scene {
       this.startGame
     ).setOrigin(1, 1);
 
+    const clearButton = new GameText(
+      this,
+      gameW - 5,
+      5,
+      "clear",
+      "m",
+      this.clearGrid
+    ).setOrigin(1, 0);
+
     const fpsText = new GameText(
       this,
       0,
@@ -574,7 +571,7 @@ class Factory extends Phaser.Scene {
     const positions = [];
 
     // start from the inside and go outward to check what hexes are connected to player
-    const toProcess = [this.player];
+    const toProcess = [this.centerHex];
 
     let iterations = 9999;
     while (toProcess.length > 0 && iterations > 0) {
@@ -604,7 +601,20 @@ class Factory extends Phaser.Scene {
       }
     }
 
-    this.scene.start("Game", { playerPositions: positions });
+    this.scene.start("Game", { hexagons: positions });
+  }
+
+  clearGrid() {
+    this.grid.forEach((hex) => {
+      if (hex.holding) {
+        hex.holding.destroy();
+        hex.holding = null;
+        this.matter.world.remove(hex.body);
+        hex.body = null;
+      }
+    });
+
+    this.checkValidPlayerBuild();
   }
 
   resize(gameSize) {
@@ -676,7 +686,7 @@ class Game extends Phaser.Scene {
     this.createLayout();
     this.createPhysics();
 
-    this.createPlayer(data.playerPositions);
+    this.loadPlayer(data.hexagons);
 
     this.createFusion(700, 400, 3);
 
@@ -732,7 +742,7 @@ class Game extends Phaser.Scene {
     this.matter.world.setBounds(0, 0, gameW, gameH);
   }
 
-  createPlayer(positions) {
+  loadPlayer(positions) {
     // build hexagon with some trigonometry. taken from bouncy balls!
 
     const x = gameW / 2;
@@ -750,24 +760,34 @@ class Game extends Phaser.Scene {
 
     const hexagons = [];
     const bodies = [];
+    const guns = [];
+
+    if (!positions) positions = [{ x: gameW / 2, y: gameH / 2 }];
 
     for (let i = 0; i < positions.length; i++) {
       const pos = positions[i];
 
       let hexColor = 0xffffff;
-      if (i == 0) hexColor = 0x8093f1;
+      if (i == 0) hexColor = COLORS.playerColor;
 
-      const hex = this.add
-        .polygon(pos.x, pos.y, points, hexColor, 0.5)
-        .setStrokeStyle(8, 0xffffff);
+      hexagons.push(
+        this.add
+          .polygon(pos.x, pos.y, points, hexColor, 0.6)
+          .setStrokeStyle(8, 0xffffff)
+      );
 
-      hexagons.push(hex);
+      bodies.push(
+        this.matter.bodies.polygon(pos.x, pos.y, 6, r, {
+          angle: Math.PI / 2,
+        })
+      );
 
-      const body = this.matter.bodies.polygon(pos.x, pos.y, 6, r, {
-        angle: Math.PI / 2,
-      });
-
-      bodies.push(body);
+      if (i == 0) {
+        const gun = this.add
+          .rectangle(0, 0, 48, 16, 0xffffff, 1)
+          .setName("gun");
+        guns.push(gun);
+      }
     }
 
     // because of how matter bodies work,
@@ -787,13 +807,14 @@ class Game extends Phaser.Scene {
     hexagons.forEach((hex) => hex.setDisplayOrigin(avg.x, avg.y));
 
     this.player = this.add.container(x, y, hexagons);
+    this.player.add(guns);
 
     const compoundBody = this.matter.body.create({ parts: bodies });
 
     this.matter.add.gameObject(this.player);
     this.player.setExistingBody(compoundBody);
 
-    this.player.setMass(5 + numHex * 5);
+    this.player.setMass(4 + numHex * 4);
     this.player.body.inertia = Math.round(10 ** 7.4);
     this.player.setFriction(0, 0.02, 1);
 
@@ -812,7 +833,9 @@ class Game extends Phaser.Scene {
     }
 
     const hexagons = [
-      this.add.polygon(0, 0, points, 0x8093f1, 0.5).setStrokeStyle(8, 0xffffff),
+      this.add
+        .polygon(0, 0, points, COLORS.enemyColor, 0.6)
+        .setStrokeStyle(8, 0xffffff),
     ];
     const bodies = [
       this.matter.bodies.polygon(0, 0, 6, r, {
@@ -835,7 +858,7 @@ class Game extends Phaser.Scene {
       }
 
       const hex = this.add
-        .polygon(x, y, points, 0xffffff, 0.5)
+        .polygon(x, y, points, 0xffffff, 0.6)
         .setStrokeStyle(8, 0xffffff);
       const body = this.matter.bodies.polygon(x, y, 6, r, {
         angle: Math.PI / 2,
@@ -868,7 +891,7 @@ class Game extends Phaser.Scene {
     this.matter.add.gameObject(fusion);
     fusion.setExistingBody(compoundBody);
 
-    fusion.setMass(5 + numHex * 5);
+    fusion.setMass(4 + numHex * 4);
     fusion.body.inertia = Math.round(10 ** 7.4);
     fusion.setFriction(0, 0.07, 1);
 
@@ -985,6 +1008,24 @@ class Game extends Phaser.Scene {
       .setPadding(10)
       .setOrigin(1, 1)
       .setVisible(DEV_MODE);
+
+    const factoryButton = new GameText(
+      this,
+      5,
+      gameH - 5,
+      "factory",
+      "m",
+      this.startFactory
+    ).setOrigin(0, 1);
+  }
+
+  startFactory() {
+    const positions = [];
+    this.player.getAll().forEach((hex) => {
+      positions.push({ x: hex.x, y: hex.y });
+    });
+
+    this.scene.start("Factory", { hexagons: positions });
   }
 
   resize(gameSize) {
@@ -1040,16 +1081,36 @@ class Game extends Phaser.Scene {
     }
 
     if (this.devText) this.updateDevText();
+
+    if (this.player) {
+      const guns = this.player.getAll("name", "gun");
+
+      guns.forEach((gun) => {
+        // update mouse position according to the camera
+        const p = this.input.activePointer.updateWorldPoint(this.cameras.main);
+
+        const angle = Phaser.Math.Angle.Between(
+          p.worldX,
+          p.worldY,
+          gun.x + gun.parentContainer.x,
+          gun.y + gun.parentContainer.y
+        );
+
+        gun.setRotation(angle);
+      });
+    }
   }
 
   updateDevText() {
-    if (!this.player || !this.player.body) return;
+    if (!this.player || !this.player.body || !this.devText) return;
     const b = this.player.body;
     const x = Phaser.Math.RoundTo(b.velocity.x, 0);
     const y = Phaser.Math.RoundTo(b.velocity.y, 0);
     const velocityText = `velocity: (${x}, ${y})`;
     const speedText = `speed: ${Phaser.Math.RoundTo(b.speed, 0)}`;
     const bodyText = `mass: ${b.mass}\nfriction: ${b.friction}\nair: ${b.frictionAir}\nstatic: ${b.frictionStatic}`;
+
+    if (!this.devText.scene) return; // fixes a bug. idk
     this.devText.text = `${velocityText}\n${speedText}\n${bodyText}`;
   }
 
