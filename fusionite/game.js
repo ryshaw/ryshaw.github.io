@@ -804,7 +804,9 @@ class Game extends Phaser.Scene {
 
     avg.scale(1 / numHex);
 
+    console.log(avg);
     hexagons.forEach((hex) => hex.setDisplayOrigin(avg.x, avg.y));
+    guns.forEach((gun) => gun.setDisplayOrigin(avg.x, avg.y));
 
     this.player = this.add.container(x, y, hexagons);
     this.player.add(guns);
@@ -1096,7 +1098,7 @@ class Game extends Phaser.Scene {
           gun.y + gun.parentContainer.y
         );
 
-        gun.setRotation(angle);
+        gun.setRotation(angle - gun.parentContainer.rotation);
       });
     }
   }
