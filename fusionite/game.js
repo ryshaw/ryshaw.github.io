@@ -1,6 +1,6 @@
 const VERSION = "Fusionite v0.1";
 
-const DEV_MODE = true; // turns on physics debug mode, devtext, fps
+const DEV_MODE = false; // turns on physics debug mode, devtext, fps
 
 const gameW = 1920;
 const gameH = 1080;
@@ -665,6 +665,7 @@ class Game extends Phaser.Scene {
   keysDown;
   bounds; // 1920x1080 rectangle showcasing the game resolution
   devText; // corner text displaying game data so we don't spam the console
+  canShoot; // timer variable that controls how fast player can shoot
 
   constructor() {
     super("Game");
@@ -696,7 +697,8 @@ class Game extends Phaser.Scene {
 
     this.createFusion(1400, 300, 12);
 
-    this.createKeyboardControls();
+    this.createKeyboardInput();
+    this.createMouseInput();
 
     WebFont.load({
       google: {
@@ -783,9 +785,21 @@ class Game extends Phaser.Scene {
       );
 
       if (i == 0) {
+        const gunHexPart = this.add
+          .polygon(0, 0, points, hexColor, 0)
+          .setStrokeStyle(8, 0xffffff)
+          .setAngle(90)
+          .setScale(0.5)
+          .setDisplayOrigin();
+
+        const gunRectPart = this.add
+          .rectangle(-35, 0, 44, 14, COLORS.playerColor, 0.8)
+          .setStrokeStyle(4, 0xffffff)
+          .setName("gunRect");
         const gun = this.add
-          .rectangle(0, 0, 48, 16, 0xffffff, 1)
+          .container(0, 0, [gunHexPart, gunRectPart])
           .setName("gun");
+
         guns.push(gun);
       }
     }
@@ -804,11 +818,13 @@ class Game extends Phaser.Scene {
 
     avg.scale(1 / numHex);
 
-    console.log(avg);
     hexagons.forEach((hex) => hex.setDisplayOrigin(avg.x, avg.y));
-    guns.forEach((gun) => gun.setDisplayOrigin(avg.x, avg.y));
+    // will need to update this later once we have more gun hexes
+    guns.forEach((gun) =>
+      gun.setPosition(positions[0].x - avg.x, positions[0].y - avg.y)
+    );
 
-    this.player = this.add.container(x, y, hexagons);
+    this.player = this.add.container(x, y, hexagons).setDepth(1);
     this.player.add(guns);
 
     const compoundBody = this.matter.body.create({ parts: bodies });
@@ -901,7 +917,7 @@ class Game extends Phaser.Scene {
     fusion.y = y;
   }
 
-  createKeyboardControls() {
+  createKeyboardInput() {
     this.keysDown = new Phaser.Structs.List();
 
     this.input.keyboard.on("keydown-W", (event) => {
@@ -978,6 +994,14 @@ class Game extends Phaser.Scene {
       this.soundVolume > 0 ? (this.soundVolume = 0) : (this.soundVolume = 0.8);
       Object.values(this.soundEffects).forEach((sound) => sound.stop());
     });*/
+  }
+
+  createMouseInput() {
+    // gun rotation is handled in update()
+    // because I want the guns to be rotated correctly every frame,
+    // not just on pointermove events
+
+    this.canShoot = true;
   }
 
   loadGameText() {
@@ -1085,21 +1109,35 @@ class Game extends Phaser.Scene {
     if (this.devText) this.updateDevText();
 
     if (this.player) {
+      const pointer = this.input.activePointer.updateWorldPoint(
+        this.cameras.main
+      );
+
       const guns = this.player.getAll("name", "gun");
 
       guns.forEach((gun) => {
         // update mouse position according to the camera
-        const p = this.input.activePointer.updateWorldPoint(this.cameras.main);
 
         const angle = Phaser.Math.Angle.Between(
-          p.worldX,
-          p.worldY,
+          pointer.worldX,
+          pointer.worldY,
           gun.x + gun.parentContainer.x,
           gun.y + gun.parentContainer.y
         );
 
         gun.setRotation(angle - gun.parentContainer.rotation);
       });
+
+      if (pointer.leftButtonDown() && this.canShoot) {
+        guns.forEach((gun) => {
+          const pos = gun.getByName("gunRect").getLeftCenter(undefined, true);
+          //console.log(pos);
+          this.add.rectangle(pos.x, pos.y, 8, 8, COLORS.white, 1);
+        });
+
+        this.canShoot = false;
+        this.time.delayedCall(200, () => (this.canShoot = true));
+      }
     }
   }
 
@@ -2557,3 +2595,12 @@ class GameButton extends Phaser.GameObjects.Image {
 }
 
 const game = new Phaser.Game(config);
+
+// disable right click menu so we can use it in our game
+document.addEventListener(
+  "contextmenu",
+  function (e) {
+    e.preventDefault();
+  },
+  false
+);
