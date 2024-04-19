@@ -1,6 +1,6 @@
 const VERSION = "Fusionite v0.1";
 
-const DEV_MODE = false; // turns on physics debug mode, devtext, fps
+const DEV_MODE = true; // turns on physics debug mode, devtext, fps
 
 const gameW = 1920;
 const gameH = 1080;
@@ -54,7 +54,7 @@ class Background extends Phaser.Scene {
 
     //this.scene.launch("MainUI"); // start menu, tutorial, and game launcher
     //this.scene.launch("Game");
-    this.scene.launch("Factory");
+    this.scene.launch("Game");
 
     this.scale.on("resize", this.resize, this);
   }
@@ -745,26 +745,44 @@ class Game extends Phaser.Scene {
   }
 
   loadPlayer(positions) {
-    // build hexagon with some trigonometry. taken from bouncy balls!
-
     const x = gameW / 2;
     const y = gameH / 2;
+
+    if (!positions) positions = [{ x: gameW / 2, y: gameH / 2 }];
+
     const numHex = positions.length;
 
     const r = 30;
     const points = [];
-    for (let index = 1; index < 7; index++) {
+    for (let index = -1; index < 5; index++) {
       points.push({
         x: r * Math.cos((index * Math.PI) / 3),
         y: r * Math.sin((index * Math.PI) / 3),
       });
     }
+    /*
+    const gPoints = [];
+    points.forEach((p) => {
+      gPoints.push({ x: p.x + r + 4, y: p.y + r * 3 + 16 });
+    });
+
+    gPoints.push({ x: 19, y: 4 }, { x: 49, y: 4 }, { x: 49, y: 82 });
+
+    console.log(gPoints);
+
+    this.add
+      .graphics()
+      .lineStyle(8, COLORS.white, 1)
+      .fillStyle(COLORS.playerColor, 0.5)
+      .fillPoints(gPoints)
+      .strokePoints(gPoints)
+      .generateTexture("gun", 68, 160);
+
+    this.add.image(200, 220, "gun");*/
 
     const hexagons = [];
     const bodies = [];
     const guns = [];
-
-    if (!positions) positions = [{ x: gameW / 2, y: gameH / 2 }];
 
     for (let i = 0; i < positions.length; i++) {
       const pos = positions[i];
@@ -796,6 +814,7 @@ class Game extends Phaser.Scene {
           .rectangle(-35, 0, 44, 14, COLORS.playerColor, 0.8)
           .setStrokeStyle(4, 0xffffff)
           .setName("gunRect");
+
         const gun = this.add
           .container(0, 0, [gunHexPart, gunRectPart])
           .setName("gun");
@@ -1130,9 +1149,50 @@ class Game extends Phaser.Scene {
 
       if (pointer.leftButtonDown() && this.canShoot) {
         guns.forEach((gun) => {
-          const pos = gun.getByName("gunRect").getLeftCenter(undefined, true);
-          //console.log(pos);
-          this.add.rectangle(pos.x, pos.y, 8, 8, COLORS.white, 1);
+          // ok, so for this calculation, we start at the container's
+          // position and then offset by first the gun hex relative
+          // to the container, then again offset by the gun relative
+          // to the gun hexagon.
+
+          const pos = new Phaser.Math.Vector2(
+            gun.parentContainer.x,
+            gun.parentContainer.y
+          );
+
+          const gunHexPos = new Phaser.Math.Vector2(gun.x, gun.y);
+          const hexOffset = new Phaser.Math.Vector2(
+            Math.cos(this.player.rotation + gunHexPos.angle()),
+            Math.sin(this.player.rotation + gunHexPos.angle())
+          ).scale(gunHexPos.length());
+
+          const r = 57;
+          const angle = this.player.rotation + gun.rotation + Math.PI;
+          const gunOffset = new Phaser.Math.Vector2(
+            Math.cos(angle),
+            Math.sin(angle)
+          ).scale(r);
+
+          pos.add(hexOffset).add(gunOffset); // we did it
+
+          const rect = this.add.rectangle(
+            pos.x,
+            pos.y,
+            16,
+            16,
+            COLORS.white,
+            1
+          );
+
+          const speed = new Phaser.Math.Vector2(
+            Math.cos(angle),
+            Math.sin(angle)
+          ).scale(0.01);
+
+          this.matter.add.gameObject(rect, {
+            isSensor: true,
+            force: speed,
+            frictionAir: 0,
+          });
         });
 
         this.canShoot = false;
@@ -2596,6 +2656,7 @@ class GameButton extends Phaser.GameObjects.Image {
 
 const game = new Phaser.Game(config);
 
+/*
 // disable right click menu so we can use it in our game
 document.addEventListener(
   "contextmenu",
@@ -2603,4 +2664,4 @@ document.addEventListener(
     e.preventDefault();
   },
   false
-);
+);*/
