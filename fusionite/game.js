@@ -760,25 +760,6 @@ class Game extends Phaser.Scene {
         y: r * Math.sin((index * Math.PI) / 3),
       });
     }
-    /*
-    const gPoints = [];
-    points.forEach((p) => {
-      gPoints.push({ x: p.x + r + 4, y: p.y + r * 3 + 16 });
-    });
-
-    gPoints.push({ x: 19, y: 4 }, { x: 49, y: 4 }, { x: 49, y: 82 });
-
-    console.log(gPoints);
-
-    this.add
-      .graphics()
-      .lineStyle(8, COLORS.white, 1)
-      .fillStyle(COLORS.playerColor, 0.5)
-      .fillPoints(gPoints)
-      .strokePoints(gPoints)
-      .generateTexture("gun", 68, 160);
-
-    this.add.image(200, 220, "gun");*/
 
     const hexagons = [];
     const bodies = [];
@@ -1134,36 +1115,42 @@ class Game extends Phaser.Scene {
 
       const guns = this.player.getAll("name", "gun");
 
-      guns.forEach((gun) => {
-        // update mouse position according to the camera
+      /* since multiple guns may fire, each one will turn
+      didShoot to true. at the end of the update loop,
+      check if didShoot is true, and if so, turn off
+      canShoot for a short time */
+      let didShoot = false;
 
+      guns.forEach((gun) => {
+        // ok, so for this calculation, we start at the container's
+        // position and then offset by first the gun hex relative
+        // to the container, then again offset by the gun relative
+        // to the gun hexagon.
+        const pos = new Phaser.Math.Vector2(
+          gun.parentContainer.x,
+          gun.parentContainer.y
+        );
+
+        const gunHexPos = new Phaser.Math.Vector2(gun.x, gun.y);
+        const hexOffset = new Phaser.Math.Vector2(
+          Math.cos(this.player.rotation + gunHexPos.angle()),
+          Math.sin(this.player.rotation + gunHexPos.angle())
+        ).scale(gunHexPos.length());
+
+        pos.add(hexOffset);
+
+        // update mouse position according to the camera
+        
         const angle = Phaser.Math.Angle.Between(
           pointer.worldX,
           pointer.worldY,
-          gun.x + gun.parentContainer.x,
-          gun.y + gun.parentContainer.y
+          pos.x, pos.y
         );
 
         gun.setRotation(angle - gun.parentContainer.rotation);
-      });
 
-      if (pointer.leftButtonDown() && this.canShoot) {
-        guns.forEach((gun) => {
-          // ok, so for this calculation, we start at the container's
-          // position and then offset by first the gun hex relative
-          // to the container, then again offset by the gun relative
-          // to the gun hexagon.
-
-          const pos = new Phaser.Math.Vector2(
-            gun.parentContainer.x,
-            gun.parentContainer.y
-          );
-
-          const gunHexPos = new Phaser.Math.Vector2(gun.x, gun.y);
-          const hexOffset = new Phaser.Math.Vector2(
-            Math.cos(this.player.rotation + gunHexPos.angle()),
-            Math.sin(this.player.rotation + gunHexPos.angle())
-          ).scale(gunHexPos.length());
+        if (pointer.leftButtonDown() && this.canShoot) {
+          didShoot = true;
 
           const r = 57;
           const angle = this.player.rotation + gun.rotation + Math.PI;
@@ -1172,7 +1159,7 @@ class Game extends Phaser.Scene {
             Math.sin(angle)
           ).scale(r);
 
-          pos.add(hexOffset).add(gunOffset); // we did it
+          pos.add(gunOffset); // we did it
 
           const rect = this.add.rectangle(
             pos.x,
@@ -1193,8 +1180,10 @@ class Game extends Phaser.Scene {
             force: speed,
             frictionAir: 0,
           });
-        });
+        }
+      });
 
+      if (didShoot) {
         this.canShoot = false;
         this.time.delayedCall(200, () => (this.canShoot = true));
       }
