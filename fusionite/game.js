@@ -1094,6 +1094,16 @@ class Game extends Phaser.Scene {
   }
 
   update() {
+    if (this.devText) this.updateDevText();
+
+    if (!this.player) return;
+
+    this.updatePlayerMovement();
+
+    this.pointAndShoot();
+  }
+
+  updatePlayerMovement() {
     const speed = 0.01; // how much force is applied to player
     // calculate intended direction from the keys currently down
     let direction = new Phaser.Math.Vector2(0, 0);
@@ -1102,91 +1112,105 @@ class Game extends Phaser.Scene {
 
     direction.normalize();
 
-    if (this.player && this.keysDown.length > 0) {
-      this.player.applyForce(direction.scale(speed));
-    }
+    this.player.applyForce(direction.scale(speed));
+  }
 
-    if (this.devText) this.updateDevText();
+  pointAndShoot() {
+    const pointer = this.input.activePointer.updateWorldPoint(
+      this.cameras.main
+    );
 
-    if (this.player) {
-      const pointer = this.input.activePointer.updateWorldPoint(
-        this.cameras.main
-      );
+    const guns = this.player.getAll("name", "gun");
 
-      const guns = this.player.getAll("name", "gun");
-
-      /* since multiple guns may fire, each one will turn
+    /* since multiple guns may fire, each one will turn
       didShoot to true. at the end of the update loop,
       check if didShoot is true, and if so, turn off
       canShoot for a short time */
-      let didShoot = false;
+    let didShoot = false;
 
-      guns.forEach((gun) => {
-        // ok, so for this calculation, we start at the container's
-        // position and then offset by first the gun hex relative
-        // to the container, then again offset by the gun relative
-        // to the gun hexagon.
-        const pos = new Phaser.Math.Vector2(
-          gun.parentContainer.x,
-          gun.parentContainer.y
-        );
+    guns.forEach((gun) => {
+      // ok, so for this calculation, we start at the container's center
+      // position and then offset by first the gun hex relative
+      // to the container, then again offset by the gun relative
+      // to the gun hexagon.
+      const pos = new Phaser.Math.Vector2(
+        gun.parentContainer.x,
+        gun.parentContainer.y
+      );
 
-        const gunHexPos = new Phaser.Math.Vector2(gun.x, gun.y);
-        const hexOffset = new Phaser.Math.Vector2(
-          Math.cos(this.player.rotation + gunHexPos.angle()),
-          Math.sin(this.player.rotation + gunHexPos.angle())
-        ).scale(gunHexPos.length());
+      const gunHexPos = new Phaser.Math.Vector2(gun.x, gun.y);
+      const hexOffset = new Phaser.Math.Vector2(
+        Math.cos(gun.parentContainer.rotation + gunHexPos.angle()),
+        Math.sin(gun.parentContainer.rotation + gunHexPos.angle())
+      ).scale(gunHexPos.length());
 
-        pos.add(hexOffset);
+      pos.add(hexOffset); // this is where the gun hex currently is
 
-        // update mouse position according to the camera
-        
-        const angle = Phaser.Math.Angle.Between(
-          pointer.worldX,
-          pointer.worldY,
-          pos.x, pos.y
-        );
+      // update mouse position according to the camera
+      const pointerAngle = Phaser.Math.Angle.Between(
+        pointer.worldX,
+        pointer.worldY,
+        pos.x,
+        pos.y
+      );
 
-        gun.setRotation(angle - gun.parentContainer.rotation);
+      gun.setRotation(pointerAngle - gun.parentContainer.rotation);
 
-        if (pointer.leftButtonDown() && this.canShoot) {
-          didShoot = true;
+      if (pointer.leftButtonDown() && this.canShoot) {
+        didShoot = true;
 
-          const r = 57;
-          const angle = this.player.rotation + gun.rotation + Math.PI;
-          const gunOffset = new Phaser.Math.Vector2(
-            Math.cos(angle),
-            Math.sin(angle)
-          ).scale(r);
+        const gunRadius = 57;
+        const angle = gun.parentContainer.rotation + gun.rotation + Math.PI;
+        const gunOffset = new Phaser.Math.Vector2(
+          Math.cos(angle),
+          Math.sin(angle)
+        ).scale(gunRadius);
 
-          pos.add(gunOffset); // we did it
+        pos.add(gunOffset); // this is the very edge of the gun turret itself
 
-          const rect = this.add.rectangle(
-            pos.x,
-            pos.y,
-            16,
-            16,
-            COLORS.white,
-            1
-          );
-
-          const speed = new Phaser.Math.Vector2(
-            Math.cos(angle),
-            Math.sin(angle)
-          ).scale(0.01);
-
-          this.matter.add.gameObject(rect, {
-            isSensor: true,
-            force: speed,
-            frictionAir: 0,
+        const r = 16;
+        const points = [];
+        for (let index = -1; index < 5; index++) {
+          points.push({
+            x: r * Math.cos((index * Math.PI) / 3),
+            y: r * Math.sin((index * Math.PI) / 3),
           });
         }
-      });
 
-      if (didShoot) {
-        this.canShoot = false;
-        this.time.delayedCall(200, () => (this.canShoot = true));
+        const bullet = this.add
+          .polygon(0, 0, points, COLORS.white, 0.8)
+          .setStrokeStyle(2, COLORS.white);
+
+        const speed = new Phaser.Math.Vector2(
+          Math.cos(angle),
+          Math.sin(angle)
+        ).scale(0.015);
+
+        const body = this.matter.bodies.polygon(pos.x, pos.y, 6, r, {
+          isSensor: true,
+        });
+
+        this.matter.add.gameObject(bullet, {
+          angle: Math.PI / 2,
+          force: speed,
+          frictionAir: 0,
+          parts: [body],
+        });
+
+        bullet.setDisplayOrigin();
+
+        this.tweens.add({
+          targets: bullet,
+          angle: 360,
+          duration: 2000,
+          loop: -1,
+        });
       }
+    });
+
+    if (didShoot) {
+      this.canShoot = false;
+      this.time.delayedCall(200, () => (this.canShoot = true));
     }
   }
 
