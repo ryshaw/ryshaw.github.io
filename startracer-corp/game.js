@@ -1,6 +1,6 @@
 const VERSION = "Startracer Corp v0.1";
 
-const DEV_MODE = true; // turns on physics debug mode, devtext, fps
+const DEV_MODE = false; // turns on physics debug mode, devtext, fps
 
 const gameW = 1920;
 const gameH = 1080;
@@ -96,6 +96,7 @@ class Game extends Phaser.Scene {
     this.createLayout();
     this.createPlayer();
     this.createPhysics();
+    this.createStars();
     this.createRoadblocks();
 
     this.createKeyboardControls();
@@ -184,18 +185,51 @@ class Game extends Phaser.Scene {
       .setStrokeStyle(4, 0xffffff, 0.4);
   }
 
+  createStars() {
+    this.stars.createMultiple({ quantity: 500, key: "square" });
+
+    Phaser.Actions.RandomRectangle(
+      this.stars.getChildren(),
+      this.physics.world.bounds
+    );
+
+    Phaser.Actions.Call(this.stars.getChildren(), (star) => {
+      star.setScale(Phaser.Math.FloatBetween(0.05, 0.6));
+      star.setAlpha(0.8);
+      star.setMaxVelocity(star.scale * 200);
+      star.setAcceleration(-50, 0);
+      star.body.onWorldBounds = true;
+      star.setCollideWorldBounds(true);
+
+      this.tweens.add({
+        targets: star,
+        alpha: 0,
+        duration: 200,
+        delay: Phaser.Math.Between(200, 5000),
+        loop: -1,
+        yoyo: true,
+      });
+    });
+  }
+
   createPhysics() {
     this.roadblocks = this.physics.add.group();
+    this.stars = this.physics.add.group();
 
     this.physics.world.setBounds(
-      -gameW * 0.5,
-      -gameH * 0.5,
-      gameW * 2,
-      gameH * 2
+      -gameW * 0.2,
+      -gameH * 0.2,
+      gameW * 1.4,
+      gameH * 1.4
     );
+
     this.physics.world.on("worldbounds", (body) => {
       if (this.roadblocks.contains(body.gameObject)) {
         this.roadblocks.remove(body.gameObject, true, true);
+      } else if (this.stars.contains(body.gameObject)) {
+        const newX = gameW * 0.5 - body.gameObject.x;
+        body.reset(newX + gameW * 0.5, body.gameObject.y);
+        body.setAcceleration(-50, 0);
       }
     });
 
@@ -219,7 +253,7 @@ class Game extends Phaser.Scene {
       .setVisible(false);
 
     // move to, then stop, at middle to indicate player speeding up
-    this.physics.accelerateToObject(this.player, midpoint, 500, 1000, 1000);
+    this.physics.accelerateToObject(this.player, midpoint, 100, 300, 300);
     this.physics.add.overlap(this.player, midpoint, () => {
       this.player.body.reset(this.player.x, this.player.y);
     });
@@ -243,8 +277,8 @@ class Game extends Phaser.Scene {
       .setStrokeStyle(4, 0xffffff, 1);
 
     // give player some motion in the y direction
-    const yMove = 4;
-    const duration = 800;
+    const yMove = 3;
+    const duration = 1600;
     const ease = "sine.in";
     this.tweens.chain({
       targets: this.player,
@@ -281,7 +315,7 @@ class Game extends Phaser.Scene {
 
   createRoadblock() {
     const hex = this.physics.add
-      .image(gameW, this.player.y - 100, "hexagon")
+      .image(gameW * 1.1, this.player.y - 100, "hexagon")
       .setName("hex");
 
     hex.activated = false;
