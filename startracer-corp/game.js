@@ -76,6 +76,7 @@ class Game extends Phaser.Scene {
   bounds; // 1920x1080 rectangle showcasing the game resolution
   devText; // corner text displaying game data so we don't spam the console
   roadblocks; // physics group containing obstacles on road we collide with
+  roadY = gameH * 0.9; // for placing everything down consistently
 
   constructor() {
     super("Game");
@@ -93,11 +94,12 @@ class Game extends Phaser.Scene {
     this.createResolution();
 
     this.createTextures();
-    this.createLayout();
     this.createPlayer();
     this.createPhysics();
+    this.createLayout();
     this.createStars();
-    this.createRoadblocks();
+
+    // this.createRoadblocks();
 
     this.createKeyboardControls();
 
@@ -109,6 +111,9 @@ class Game extends Phaser.Scene {
         this.loadGameText();
       },
     });
+
+    //////
+    //this.cameras.main.setZoom(0.5);
   }
 
   createResolution() {
@@ -140,19 +145,28 @@ class Game extends Phaser.Scene {
     const shipH = 36;
 
     // triangle ship
+    const c = Phaser.Utils.Array.GetRandom(COLORS.shipColors);
+    let color = Phaser.Display.Color.ValueToColor(c);
+
     graphics
-      .lineStyle(4, 0xfffbfc, 1)
-      .fillStyle(0xffffff, 0.1)
-      .strokeTriangle(0, 0, 0, shipH, shipW, shipH / 2)
+      .lineStyle(5, color.color, 1)
+      .fillStyle(color.darken(80).color, 1)
       .fillTriangle(0, 0, 0, shipH, shipW, shipH / 2)
+      .strokeTriangle(0, 0, 0, shipH, shipW, shipH / 2)
       .generateTexture("ship1", shipW, shipH)
       .clear();
 
     // hexagon for outpost
-    graphics.lineStyle(8, 0xfffbfc, 1).fillStyle(0xffffff, 0.1).beginPath();
+
+    color = Phaser.Display.Color.ValueToColor(0xffffff);
+
+    graphics
+      .lineStyle(12, color.color, 1)
+      .fillStyle(color.darken(80).color, 1)
+      .beginPath();
 
     let r = 50;
-    let w = r + 4; // extended by stroke / 2, so stroke edges aren't cut off
+    let w = r + 6; // extended by stroke / 2, so stroke edges aren't cut off
     for (let index = 1; index < 7; index++) {
       graphics.lineTo(
         r * Math.cos((index * Math.PI) / 3) + w,
@@ -183,6 +197,20 @@ class Game extends Phaser.Scene {
     this.bounds = this.add
       .rectangle(gameW * 0.5, gameH * 0.5, gameW, gameH)
       .setStrokeStyle(4, 0xffffff, 0.4);
+
+    // road
+    this.add
+      .rectangle(gameW * 0.5, this.roadY, gameW, 60)
+      .setStrokeStyle(4, 0xffffff, 1);
+
+    const hex = this.physics.add
+      .image(gameW * 0.5 - 200, this.roadY, "hexagon")
+      .setName("hex")
+      .setDepth(1);
+
+    hex.body.onWorldBounds = true;
+    hex.setCollideWorldBounds(true);
+    hex.setAccelerationX(-500);
   }
 
   createStars() {
@@ -205,7 +233,7 @@ class Game extends Phaser.Scene {
         targets: star,
         alpha: 0,
         duration: 200,
-        delay: Phaser.Math.Between(200, 5000),
+        delay: Phaser.Math.Between(500, 5000),
         loop: -1,
         yoyo: true,
       });
@@ -230,6 +258,8 @@ class Game extends Phaser.Scene {
         const newX = gameW * 0.5 - body.gameObject.x;
         body.reset(newX + gameW * 0.5, body.gameObject.y);
         body.setAcceleration(-50, 0);
+      } else {
+        body.gameObject.destroy();
       }
     });
 
@@ -242,11 +272,15 @@ class Game extends Phaser.Scene {
   }
 
   createPlayer() {
-    this.player = this.physics.add
-      .image(30, gameH * 0.9, "ship1")
-      .setTintFill(Phaser.Utils.Array.GetRandom(COLORS.shipColors))
-      .setName("player");
+    const c = Phaser.Utils.Array.GetRandom(COLORS.shipColors);
+    const color = Phaser.Display.Color.ValueToColor(c);
 
+    this.player = this.physics.add
+      .image(gameW * 0.5, this.roadY, "ship1")
+      .setName("player")
+      .setDepth(1)
+      .setScale(1);
+    /*
     // midpoint body so player stops moving at midpoint
     const midpoint = this.physics.add
       .image(gameW * 0.5 + this.player.width, this.player.y, "square")
@@ -269,16 +303,12 @@ class Game extends Phaser.Scene {
         2000,
         2000
       );
-    });
-
-    // road
-    this.add
-      .rectangle(gameW * 0.5, this.player.y, gameW, this.player.height * 1.5)
-      .setStrokeStyle(4, 0xffffff, 1);
+    });*/
 
     // give player some motion in the y direction
-    const yMove = 3;
-    const duration = 1600;
+    const yMove = 4;
+    const duration = 600;
+    const delay = 400;
     const ease = "sine.in";
     this.tweens.chain({
       targets: this.player,
@@ -287,16 +317,19 @@ class Game extends Phaser.Scene {
           y: `+=${yMove}`,
           duration: duration,
           ease: ease,
+          delay: delay,
         },
         {
           y: `-=${yMove * 2}`,
           duration: duration * 2,
           ease: ease,
+          delay: delay,
         },
         {
           y: `+=${yMove}`,
           duration: duration,
           ease: ease,
+          delay: delay,
         },
       ],
       loop: -1,
@@ -315,7 +348,7 @@ class Game extends Phaser.Scene {
 
   createRoadblock() {
     const hex = this.physics.add
-      .image(gameW * 1.1, this.player.y - 100, "hexagon")
+      .image(gameW * 1.1, this.roadY - 100, "hexagon")
       .setName("hex");
 
     hex.activated = false;
