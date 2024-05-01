@@ -204,13 +204,15 @@ class Game extends Phaser.Scene {
       .setStrokeStyle(4, 0xffffff, 1);
 
     const hex = this.physics.add
-      .image(gameW * 0.5 - 200, this.roadY, "hexagon")
+      .image(gameW * 0.5 - 100, this.roadY, "hexagon")
       .setName("hex")
       .setDepth(1);
 
     hex.body.onWorldBounds = true;
     hex.setCollideWorldBounds(true);
-    hex.setAccelerationX(-500);
+    this.time.delayedCall(1000, () => {
+      hex.setAccelerationX(-200);
+    });
   }
 
   createStars() {
@@ -224,8 +226,10 @@ class Game extends Phaser.Scene {
     Phaser.Actions.Call(this.stars.getChildren(), (star) => {
       star.setScale(Phaser.Math.FloatBetween(0.05, 0.6));
       star.setAlpha(0.8);
-      star.setMaxVelocity(star.scale * 200);
-      star.setAcceleration(-50, 0);
+      star.setMaxVelocity(star.scale * 800);
+      this.time.delayedCall(1000, () => {
+        star.setAcceleration(-50, 0);
+      });
       star.body.onWorldBounds = true;
       star.setCollideWorldBounds(true);
 
@@ -276,7 +280,7 @@ class Game extends Phaser.Scene {
     const color = Phaser.Display.Color.ValueToColor(c);
 
     this.player = this.physics.add
-      .image(gameW * 0.5, this.roadY, "ship1")
+      .image(gameW * 0.5 - 80, this.roadY, "ship1")
       .setName("player")
       .setDepth(1)
       .setScale(1);
@@ -305,34 +309,55 @@ class Game extends Phaser.Scene {
       );
     });*/
 
-    // give player some motion in the y direction
-    const yMove = 4;
-    const duration = 600;
-    const delay = 400;
-    const ease = "sine.in";
-    this.tweens.chain({
-      targets: this.player,
-      tweens: [
-        {
-          y: `+=${yMove}`,
-          duration: duration,
-          ease: ease,
-          delay: delay,
+    const leftPos = this.player.getTopLeft();
+    const h = this.player.height;
+    const num = 5;
+    const offset = (h - 8) / (num - 1);
+
+    for (let i = 0; i < num; i++) {
+      const rect = this.add
+        .rectangle(
+          leftPos.x - 4,
+          4 + leftPos.y + i * offset,
+          0,
+          2,
+          COLORS.white,
+          1
+        )
+        .setOrigin(1, 0.5);
+
+      const distFromMid = 2 - Math.abs(Math.floor(num / 2) - i);
+      this.tweens.add({
+        targets: rect,
+        duration: 2000,
+        width: this.player.width * 0.15 + distFromMid * 20,
+        x: `-=${this.player.width * 0.1 + distFromMid * 20 + 4}`,
+        delay: 1500,
+        onComplete: () => {
+          this.time.delayedCall(1500, () => {
+            this.tweens.add({
+              targets: rect,
+              duration: 2500,
+              width: `+=${20}`,
+              x: `+=60`,
+              loop: -1,
+              yoyo: true,
+              ease: "sine.inout",
+            });
+          });
         },
-        {
-          y: `-=${yMove * 2}`,
-          duration: duration * 2,
-          ease: ease,
-          delay: delay,
-        },
-        {
-          y: `+=${yMove}`,
-          duration: duration,
-          ease: ease,
-          delay: delay,
-        },
-      ],
-      loop: -1,
+      });
+    }
+
+    this.time.delayedCall(5000, () => {
+      this.tweens.add({
+        targets: this.player,
+        duration: 2500,
+        x: `+=80`,
+        loop: -1,
+        yoyo: true,
+        ease: "sine.inout",
+      });
     });
   }
 
