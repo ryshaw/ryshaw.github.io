@@ -1,6 +1,6 @@
 const VERSION = "Startracer Corp v0.1";
 
-const DEV_MODE = true; // turns on physics debug mode, devtext, fps
+const DEV_MODE = false; // turns on physics debug mode, devtext, fps
 
 const gameW = 1920;
 const gameH = 1080;
@@ -109,7 +109,6 @@ class Game extends Phaser.Scene {
       },
       active: () => {
         this.loadGameText();
-        this.startGame();
       },
     });
 
@@ -204,7 +203,6 @@ class Game extends Phaser.Scene {
       .rectangle(gameW * 0.5, this.roadY, gameW, 60)
       .setStrokeStyle(4, 0xffffff, 1);
 
-    // leaving station
     const hex = this.physics.add
       .image(gameW * 0.5 - 100, this.roadY, "hexagon")
       .setName("hex")
@@ -213,28 +211,27 @@ class Game extends Phaser.Scene {
     hex.body.onWorldBounds = true;
     hex.setCollideWorldBounds(true);
     this.time.delayedCall(1000, () => {
-      //hex.setAccelerationX(-200);
+      hex.setAccelerationX(-200);
     });
   }
 
   createStars() {
-    this.stars.createMultiple({ quantity: 1000, key: "square" });
+    this.stars.createMultiple({ quantity: 500, key: "square" });
 
     Phaser.Actions.RandomRectangle(
       this.stars.getChildren(),
-      new Phaser.Geom.Rectangle(0, 0, gameW * 10, gameH)
-      //this.physics.world.bounds
+      this.physics.world.bounds
     );
 
     Phaser.Actions.Call(this.stars.getChildren(), (star) => {
       star.setScale(Phaser.Math.FloatBetween(0.05, 0.6));
       star.setAlpha(0.8);
-      // star.setMaxVelocity(star.scale * 800);
+      star.setMaxVelocity(star.scale * 800);
       this.time.delayedCall(1000, () => {
-        // star.setAcceleration(-50, 0);
+        star.setAcceleration(-50, 0);
       });
-      //star.body.onWorldBounds = true;
-      //star.setCollideWorldBounds(true);
+      star.body.onWorldBounds = true;
+      star.setCollideWorldBounds(true);
 
       this.tweens.add({
         targets: star,
@@ -283,30 +280,83 @@ class Game extends Phaser.Scene {
     const color = Phaser.Display.Color.ValueToColor(c);
 
     this.player = this.physics.add
-      .image(gameW * 0.5, this.roadY, "ship1")
+      .image(gameW * 0.5 - 80, this.roadY, "ship1")
       .setName("player")
       .setDepth(1)
-      .setScale(1)
-      .setMaxVelocity(300, 0);
-  }
+      .setScale(1);
+    /*
+    // midpoint body so player stops moving at midpoint
+    const midpoint = this.physics.add
+      .image(gameW * 0.5 + this.player.width, this.player.y, "square")
+      .setVisible(false);
 
-  startGame() {
-    this.cameras.main.startFollow(
-      this.player,
-      false,
-      0,
-      0,
-      0,
-      this.roadY - gameH * 0.5
-    );
-    this.time.delayedCall(500, () => {
-      this.player.setAccelerationX(50);
+    // move to, then stop, at middle to indicate player speeding up
+    this.physics.accelerateToObject(this.player, midpoint, 100, 300, 300);
+    this.physics.add.overlap(this.player, midpoint, () => {
+      this.player.body.reset(this.player.x, this.player.y);
+    });
+
+    // test "level win" animation
+    this.input.keyboard.on("keydown-SPACE", () => {
+      midpoint.disableBody();
+      this.physics.accelerateTo(
+        this.player,
+        gameW,
+        this.player.y,
+        1000,
+        2000,
+        2000
+      );
+    });*/
+
+    const leftPos = this.player.getTopLeft();
+    const h = this.player.height;
+    const num = 5;
+    const offset = (h - 8) / (num - 1);
+
+    for (let i = 0; i < num; i++) {
+      const rect = this.add
+        .rectangle(
+          leftPos.x - 4,
+          4 + leftPos.y + i * offset,
+          0,
+          2,
+          COLORS.white,
+          1
+        )
+        .setOrigin(1, 0.5);
+
+      const distFromMid = 2 - Math.abs(Math.floor(num / 2) - i);
       this.tweens.add({
-        targets: this.cameras.main.lerp,
-        x: 1,
-        duration: 10000,
-        delay: 2000,
-        ease: "sine.in",
+        targets: rect,
+        duration: 2000,
+        width: this.player.width * 0.15 + distFromMid * 20,
+        x: `-=${this.player.width * 0.1 + distFromMid * 20 + 4}`,
+        delay: 1500,
+        onComplete: () => {
+          this.time.delayedCall(1500, () => {
+            this.tweens.add({
+              targets: rect,
+              duration: 2500,
+              width: `+=${20}`,
+              x: `+=60`,
+              loop: -1,
+              yoyo: true,
+              ease: "sine.inout",
+            });
+          });
+        },
+      });
+    }
+
+    this.time.delayedCall(5000, () => {
+      this.tweens.add({
+        targets: this.player,
+        duration: 2500,
+        x: `+=80`,
+        loop: -1,
+        yoyo: true,
+        ease: "sine.inout",
       });
     });
   }
@@ -494,7 +544,6 @@ class Game extends Phaser.Scene {
 
   update() {
     if (this.devText) this.updateDevText();
-    console.log(this.player.body.velocity.x);
   }
 
   updateDevText() {
