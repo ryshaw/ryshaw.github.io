@@ -53,6 +53,7 @@ class Background extends Phaser.Scene {
 
     //this.scene.launch("MainUI"); // start menu, tutorial, and game launcher
     this.scene.launch("Game");
+    this.scene.launch("GameUI");
 
     this.scale.on("resize", this.resize, this);
   }
@@ -82,13 +83,7 @@ class Game extends Phaser.Scene {
     super("Game");
   }
 
-  preload() {
-    // load google's library for the various fonts we want to use
-    this.load.script(
-      "webfont",
-      "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
-    );
-  }
+  preload() {}
 
   create(data) {
     this.createResolution();
@@ -103,15 +98,7 @@ class Game extends Phaser.Scene {
 
     this.createKeyboardControls();
 
-    WebFont.load({
-      google: {
-        families: FONTS,
-      },
-      active: () => {
-        this.loadGameText();
-        this.startGame();
-      },
-    });
+    this.startGame();
 
     //////
     //this.cameras.main.setZoom(0.5);
@@ -218,7 +205,7 @@ class Game extends Phaser.Scene {
   }
 
   createStars() {
-    this.stars.createMultiple({ quantity: 1000, key: "square" });
+    this.stars.createMultiple({ quantity: 400, key: "square" });
 
     Phaser.Actions.RandomRectangle(
       this.stars.getChildren(),
@@ -502,6 +489,128 @@ class Game extends Phaser.Scene {
   }
 
   restartGame() {}
+}
+
+class GameUI extends Phaser.Scene {
+  devText; // corner text displaying game data so we don't spam the console
+
+  constructor() {
+    super("GameUI");
+  }
+
+  preload() {
+    // load google's library for the various fonts we want to use
+    this.load.script(
+      "webfont",
+      "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
+    );
+  }
+
+  create(data) {
+    this.createResolution();
+
+    WebFont.load({
+      google: {
+        families: FONTS,
+      },
+      active: () => {
+        this.createText();
+      },
+    });
+  }
+
+  createResolution() {
+    // I don't know how this code works but it's magic. I also stole it from here:
+    // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
+    const width = this.scale.gameSize.width;
+    const height = this.scale.gameSize.height;
+
+    this.parent = new Phaser.Structs.Size(width, height);
+
+    this.sizer = new Phaser.Structs.Size(
+      gameW,
+      gameH,
+      Phaser.Structs.Size.FIT,
+      this.parent
+    );
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+
+    this.scale.on("resize", this.resize, this);
+  }
+
+  createText() {
+    new GameText(this, gameW * 0.5, 5, VERSION, "s").setOrigin(0.5, 0);
+
+    const fpsText = new GameText(
+      this,
+      0,
+      0,
+      `${Math.round(this.sys.game.loop.actualFps)}`
+    )
+      .setOrigin(0, 0)
+      .setVisible(DEV_MODE);
+
+    this.time.addEvent({
+      delay: 500,
+      loop: DEV_MODE,
+      callbackScope: this,
+      callback: () => {
+        fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`);
+      },
+    });
+
+    // records player direction, player velocity, etc
+    this.devText = new GameText(this, gameW, gameH, "", "s")
+      .setAlign("right")
+      .setPadding(10)
+      .setOrigin(1, 1)
+      .setVisible(DEV_MODE);
+  }
+
+  resize(gameSize) {
+    // don't resize if scene stopped. this fixes a bug
+    if (!this.scene.isActive("Game") && !this.scene.isPaused("Game")) return;
+
+    const width = gameSize.width;
+    const height = gameSize.height;
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+  }
+
+  updateCamera() {
+    const camera = this.cameras.main;
+
+    const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
+    const y = 0;
+    const scaleX = this.sizer.width / gameW;
+    const scaleY = this.sizer.height / gameH;
+
+    // this offset was meant to move the game screen a little up
+    // because it was being centered a little down when playing it on
+    // my phone (iPhone 12). I'm going to remove it now because
+    // I'm prioritizing a multi-platform game and the offset looks
+    // weird on other platforms.
+
+    // offset is comparing the game's height to the window's height,
+    // and centering the game in (kind of) the middle of the window.
+    // old line:
+    //const offset = (1 + this.parent.height / this.sizer.height) / 2;
+    // new line:
+    const offset = this.parent.height / this.sizer.height;
+
+    camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
+    camera.setZoom(Math.max(scaleX, scaleY));
+    camera.centerOn(gameW / 2, gameH / 2);
+  }
+
+  update() {}
 }
 
 class MainUI extends Phaser.Scene {
@@ -1822,7 +1931,7 @@ const config = {
     height: gameH,
   },
   // pixelArt: true,
-  scene: [Background, MainUI, Game],
+  scene: [Background, MainUI, Game, GameUI],
   physics: {
     default: "arcade",
     arcade: {
@@ -1831,7 +1940,7 @@ const config = {
         y: 0,
       },
       debug: DEV_MODE,
-      fps: 300,
+      //fps: 300,
     },
   },
   title: VERSION,
