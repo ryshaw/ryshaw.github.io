@@ -27,6 +27,7 @@ const COLORS = {
   white: 0xffffff,
   black: 0x000000,
   shipColors: [0xcdb4db, 0xffc8dd, 0xffafcc, 0xbde0fe, 0xa2d2ff, 0x8affc1],
+  stationColor: 0x98f5e1,
 };
 
 class Background extends Phaser.Scene {
@@ -93,9 +94,9 @@ class Game extends Phaser.Scene {
     this.createResolution();
 
     this.createTextures();
+    this.createStars();
     this.createPlayer();
     this.createLayout();
-    this.createStars();
     this.createPhysics();
 
     // this.createRoadblocks();
@@ -130,16 +131,17 @@ class Game extends Phaser.Scene {
 
   createTextures() {
     const graphics = this.make.graphics(); // disposable graphics obj
+
+    const lineColor = Phaser.Display.Color.ValueToColor(0xffffff);
+    const fillColor = lineColor.clone().darken(80);
+
+    // triangle ship
     const shipW = 60;
     const shipH = 36;
 
-    // triangle ship
-    const c = Phaser.Utils.Array.GetRandom(COLORS.shipColors);
-    let color = Phaser.Display.Color.ValueToColor(c);
-
     graphics
-      .lineStyle(5, color.color, 1)
-      .fillStyle(color.darken(80).color, 1)
+      .lineStyle(5, lineColor.color, 1)
+      .fillStyle(fillColor.color, 1)
       .fillTriangle(0, 0, 0, shipH, shipW, shipH / 2)
       .strokeTriangle(0, 0, 0, shipH, shipW, shipH / 2)
       .generateTexture("ship1", shipW, shipH)
@@ -147,11 +149,9 @@ class Game extends Phaser.Scene {
 
     // hexagon for outpost
 
-    color = Phaser.Display.Color.ValueToColor(0xffffff);
-
     graphics
-      .lineStyle(12, color.color, 1)
-      .fillStyle(color.darken(80).color, 1)
+      .lineStyle(12, lineColor.color, 1)
+      .fillStyle(fillColor.color, 1)
       .beginPath();
 
     let r = 50;
@@ -173,7 +173,7 @@ class Game extends Phaser.Scene {
     // small square for star
     w = 16;
     graphics
-      .fillStyle(0xffffff, 1)
+      .fillStyle(lineColor.color, 1)
       .fillRect(0, 0, w, w)
       .generateTexture("square", w, w)
       .clear();
@@ -200,17 +200,20 @@ class Game extends Phaser.Scene {
         gameW * (this.gameLength + 1),
         60
       )
-      .setStrokeStyle(4, 0xffffff, 1);
+      .setStrokeStyle(4, 0xffffff, 1)
+      .setFillStyle(0x000000, 1);
 
-    // leaving station
-    const hex = this.add
+    // departing station
+    this.add
       .image(gameW * 0.5, this.roadY, "hexagon")
+      .setTint(COLORS.stationColor)
       .setName("hex")
       .setDepth(1);
 
     // arriving station
     this.endStation = this.physics.add
       .staticImage(gameW * this.gameLength, this.roadY, "hexagon")
+      .setTint(COLORS.stationColor)
       .setName("hex")
       .setDepth(1);
   }
@@ -271,7 +274,7 @@ class Game extends Phaser.Scene {
       this.tweens.add({
         targets: this.player,
         alpha: 0,
-        duration: 200,
+        duration: 300,
       });
 
       this.time.delayedCall(2500, () => this.cameras.main.fade());
@@ -279,17 +282,12 @@ class Game extends Phaser.Scene {
   }
 
   createPlayer() {
-    const c = Phaser.Utils.Array.GetRandom(COLORS.shipColors);
-    const color = Phaser.Display.Color.ValueToColor(c);
-
     this.player = this.physics.add
       .image(gameW * 0.5, this.roadY, "ship1")
+      .setTint(Phaser.Utils.Array.GetRandom(COLORS.shipColors))
       .setName("player")
       .setDepth(1)
-      .setScale(1)
-      .setMaxVelocity(400, 0)
-      .setDamping(true)
-      .setDrag(0.01);
+      .setMaxVelocity(400, 0);
   }
 
   startGame() {
