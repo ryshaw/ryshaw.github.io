@@ -1,6 +1,6 @@
 const VERSION = "Startracer Corp v0.1";
 
-const DEV_MODE = true; // turns on physics debug mode, devtext, fps
+const DEV_MODE = false; // turns on physics debug mode, devtext, fps
 
 const gameW = 1920;
 const gameH = 1080;
@@ -78,6 +78,8 @@ class Game extends Phaser.Scene {
   devText; // corner text displaying game data so we don't spam the console
   roadblocks; // physics group containing obstacles on road we collide with
   roadY = gameH * 0.9; // for placing everything down consistently
+  gameLength; // integer. measured in gameW, so total is gameW * gameLength
+  endStation; // ending station of level
 
   constructor() {
     super("Game");
@@ -86,22 +88,21 @@ class Game extends Phaser.Scene {
   preload() {}
 
   create(data) {
+    this.gameLength = 3;
+
     this.createResolution();
 
     this.createTextures();
     this.createPlayer();
-    this.createPhysics();
     this.createLayout();
     this.createStars();
+    this.createPhysics();
 
     // this.createRoadblocks();
 
     this.createKeyboardControls();
 
     this.startGame();
-
-    //////
-    //this.cameras.main.setZoom(0.5);
   }
 
   createResolution() {
@@ -183,51 +184,64 @@ class Game extends Phaser.Scene {
   createLayout() {
     // show bounds while in development
     this.bounds = this.add
-      .rectangle(gameW * 0.5, gameH * 0.5, gameW, gameH)
+      .rectangle(
+        gameW * this.gameLength * 0.5,
+        gameH * 0.5,
+        gameW * this.gameLength,
+        gameH
+      )
       .setStrokeStyle(4, 0xffffff, 0.4);
 
     // road
     this.add
-      .rectangle(gameW * 0.5, this.roadY, gameW, 60)
+      .rectangle(
+        gameW * this.gameLength * 0.5,
+        this.roadY,
+        gameW * (this.gameLength + 1),
+        60
+      )
       .setStrokeStyle(4, 0xffffff, 1);
 
     // leaving station
-    const hex = this.physics.add
-      .image(gameW * 0.5 - 100, this.roadY, "hexagon")
+    const hex = this.add
+      .image(gameW * 0.5, this.roadY, "hexagon")
       .setName("hex")
       .setDepth(1);
 
-    hex.body.onWorldBounds = true;
-    hex.setCollideWorldBounds(true);
-    this.time.delayedCall(1000, () => {
-      //hex.setAccelerationX(-200);
-    });
+    // arriving station
+    this.endStation = this.physics.add
+      .staticImage(gameW * this.gameLength, this.roadY, "hexagon")
+      .setName("hex")
+      .setDepth(1);
   }
 
   createStars() {
-    this.stars.createMultiple({ quantity: 400, key: "square" });
+    this.stars = this.add.group({
+      key: "square",
+      quantity: this.gameLength * 300,
+      setAlpha: { value: 0.8 },
+    });
 
     Phaser.Actions.RandomRectangle(
       this.stars.getChildren(),
-      new Phaser.Geom.Rectangle(0, 0, gameW * 10, gameH)
-      //this.physics.world.bounds
+      new Phaser.Geom.Rectangle(
+        -gameW,
+        -gameH / 2,
+        gameW * this.gameLength,
+        gameH * 2
+      )
     );
 
     Phaser.Actions.Call(this.stars.getChildren(), (star) => {
       star.setScale(Phaser.Math.FloatBetween(0.05, 0.6));
-      star.setAlpha(0.8);
-      // star.setMaxVelocity(star.scale * 800);
-      this.time.delayedCall(1000, () => {
-        // star.setAcceleration(-50, 0);
-      });
-      //star.body.onWorldBounds = true;
-      //star.setCollideWorldBounds(true);
+
+      star.setScrollFactor(star.scale);
 
       this.tweens.add({
         targets: star,
         alpha: 0,
         duration: 200,
-        delay: Phaser.Math.Between(500, 5000),
+        delay: Phaser.Math.Between(500, 6000),
         loop: -1,
         yoyo: true,
       });
@@ -236,32 +250,31 @@ class Game extends Phaser.Scene {
 
   createPhysics() {
     this.roadblocks = this.physics.add.group();
-    this.stars = this.physics.add.group();
-
-    this.physics.world.setBounds(
-      -gameW * 0.2,
-      -gameH * 0.2,
-      gameW * 1.4,
-      gameH * 1.4
-    );
-
-    this.physics.world.on("worldbounds", (body) => {
-      if (this.roadblocks.contains(body.gameObject)) {
-        this.roadblocks.remove(body.gameObject, true, true);
-      } else if (this.stars.contains(body.gameObject)) {
-        const newX = gameW * 0.5 - body.gameObject.x;
-        body.reset(newX + gameW * 0.5, body.gameObject.y);
-        body.setAcceleration(-50, 0);
-      } else {
-        body.gameObject.destroy();
-      }
-    });
 
     this.physics.add.overlap(this.player, this.roadblocks, (p, r) => {
       if (r.activated) return;
 
       r.activated = true;
       console.log("activated");
+    });
+
+    this.physics.add.overlap(this.player, this.endStation, () => {
+      this.endStation.disableBody(); // so it only runs once
+      this.cameras.main.pan(
+        this.endStation.x,
+        this.endStation.y,
+        1500,
+        Phaser.Math.Easing.Sine.InOut
+      );
+      this.cameras.main.stopFollow();
+      this.player.setAccelerationX(0);
+      this.tweens.add({
+        targets: this.player,
+        alpha: 0,
+        duration: 200,
+      });
+
+      this.time.delayedCall(2500, () => this.cameras.main.fade());
     });
   }
 
@@ -274,23 +287,22 @@ class Game extends Phaser.Scene {
       .setName("player")
       .setDepth(1)
       .setScale(1)
-      .setMaxVelocity(300, 0);
+      .setMaxVelocity(400, 0)
+      .setDamping(true)
+      .setDrag(0.01);
   }
 
   startGame() {
-    this.cameras.main.startFollow(
-      this.player,
-      false,
-      0,
-      0,
-      0,
-      this.roadY - gameH * 0.5
-    );
+    this.cameras.main
+      .startFollow(this.player, false, 0.01, 1)
+      .setFollowOffset(0, this.roadY - gameH * 0.5);
+
     this.time.delayedCall(500, () => {
-      this.player.setAccelerationX(50);
+      this.player.setAccelerationX(100);
+
       this.tweens.add({
         targets: this.cameras.main.lerp,
-        x: 1,
+        x: 0.6,
         duration: 10000,
         delay: 2000,
         ease: "sine.in",
@@ -411,35 +423,6 @@ class Game extends Phaser.Scene {
     });*/
   }
 
-  loadGameText() {
-    new GameText(this, gameW * 0.5, 5, VERSION, "s").setOrigin(0.5, 0);
-
-    const fpsText = new GameText(
-      this,
-      0,
-      0,
-      `${Math.round(this.sys.game.loop.actualFps)}`
-    )
-      .setOrigin(0, 0)
-      .setVisible(DEV_MODE);
-
-    this.time.addEvent({
-      delay: 500,
-      loop: DEV_MODE,
-      callbackScope: this,
-      callback: () => {
-        fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`);
-      },
-    });
-
-    // records player direction, player velocity, etc
-    this.devText = new GameText(this, gameW, gameH, "", "s")
-      .setAlign("right")
-      .setPadding(10)
-      .setOrigin(1, 1)
-      .setVisible(DEV_MODE);
-  }
-
   resize(gameSize) {
     // don't resize if scene stopped. this fixes a bug
     if (!this.scene.isActive("Game") && !this.scene.isPaused("Game")) return;
@@ -479,20 +462,14 @@ class Game extends Phaser.Scene {
     camera.centerOn(gameW / 2, gameH / 2);
   }
 
-  update() {
-    if (this.devText) this.updateDevText();
-    console.log(this.player.body.velocity.x);
-  }
-
-  updateDevText() {
-    this.devText.text = `text dev`;
-  }
+  update() {}
 
   restartGame() {}
 }
 
 class GameUI extends Phaser.Scene {
   devText; // corner text displaying game data so we don't spam the console
+  gameScene; // reference to game scene
 
   constructor() {
     super("GameUI");
@@ -507,6 +484,8 @@ class GameUI extends Phaser.Scene {
   }
 
   create(data) {
+    this.gameScene = this.scene.get("Game");
+
     this.createResolution();
 
     WebFont.load({
@@ -565,7 +544,7 @@ class GameUI extends Phaser.Scene {
 
     // records player direction, player velocity, etc
     this.devText = new GameText(this, gameW, gameH, "", "s")
-      .setAlign("right")
+      .setAlign("left")
       .setPadding(10)
       .setOrigin(1, 1)
       .setVisible(DEV_MODE);
@@ -610,7 +589,16 @@ class GameUI extends Phaser.Scene {
     camera.centerOn(gameW / 2, gameH / 2);
   }
 
-  update() {}
+  update() {
+    if (this.devText) this.updateDevText();
+  }
+
+  updateDevText() {
+    this.devText.text = `${Phaser.Math.RoundTo(
+      this.gameScene.player.body.velocity.x,
+      1
+    )}`;
+  }
 }
 
 class MainUI extends Phaser.Scene {
@@ -1940,7 +1928,7 @@ const config = {
         y: 0,
       },
       debug: DEV_MODE,
-      //fps: 300,
+      fps: 300,
     },
   },
   title: VERSION,
