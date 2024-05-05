@@ -53,8 +53,8 @@ class Background extends Phaser.Scene {
     this.graphics.fillRect(0, 0, w, h);
 
     //this.scene.launch("MainUI"); // start menu, tutorial, and game launcher
-    this.scene.launch("Game");
-    this.scene.launch("GameUI");
+    this.scene.launch("Station");
+    this.scene.launch("StationUI");
 
     this.scale.on("resize", this.resize, this);
   }
@@ -434,9 +434,6 @@ class Game extends Phaser.Scene {
   }
 
   resize(gameSize) {
-    // don't resize if scene stopped. this fixes a bug
-    if (!this.scene.isActive("Game") && !this.scene.isPaused("Game")) return;
-
     const width = gameSize.width;
     const height = gameSize.height;
 
@@ -561,9 +558,6 @@ class GameUI extends Phaser.Scene {
   }
 
   resize(gameSize) {
-    // don't resize if scene stopped. this fixes a bug
-    if (!this.scene.isActive("Game") && !this.scene.isPaused("Game")) return;
-
     const width = gameSize.width;
     const height = gameSize.height;
 
@@ -626,6 +620,8 @@ class Station extends Phaser.Scene {
     this.createTextures();
     this.createStars();
     this.createLayout();
+
+    this.startScene();
   }
 
   createResolution() {
@@ -669,15 +665,16 @@ class Station extends Phaser.Scene {
       .generateTexture("ship1", shipW, shipH)
       .clear();
 
-    // hexagon for outpost
+    // big hexagon
 
+    const stroke = 108;
     graphics
-      .lineStyle(12, lineColor.color, 1)
+      .lineStyle(stroke, lineColor.color, 1)
       .fillStyle(fillColor.color, 1)
       .beginPath();
 
-    let r = 50;
-    let w = r + 6; // extended by stroke / 2, so stroke edges aren't cut off
+    let r = 450;
+    let w = r + stroke; // extended by stroke / 2, so stroke edges aren't cut off
     for (let index = 1; index < 7; index++) {
       graphics.lineTo(
         r * Math.cos((index * Math.PI) / 3) + w,
@@ -706,33 +703,21 @@ class Station extends Phaser.Scene {
   createLayout() {
     // show bounds while in development
     this.bounds = this.add
-      .rectangle(
-        gameW * this.gameLength * 0.5,
-        gameH * 0.5,
-        gameW * this.gameLength,
-        gameH
-      )
+      .rectangle(gameW * 0.5, gameH * 0.5, gameW, gameH)
       .setStrokeStyle(4, 0xffffff, 0.4);
 
-    // road
-    this.add
-      .rectangle(
-        gameW * this.gameLength * 0.5,
-        this.roadY,
-        gameW * (this.gameLength + 1),
-        60
-      )
-      .setStrokeStyle(4, 0xffffff, 1)
-      .setFillStyle(0x000000, 1);
-
-    // departing station
     const hex = this.add
-      .image(gameW * 0.9, gameH * 0.5, "hexagon")
+      .image(gameW, gameH * 0.5, "hexagon")
       .setTint(COLORS.stationColor)
       .setName("hex")
-      .setDepth(1);
+      .setAngle(Phaser.Math.Between(0, 59));
 
-    this.add.tween({ targets: hex, angle: "+=360", duration: 2000, loop: -1 });
+    this.add.tween({
+      targets: hex,
+      angle: "+=360",
+      duration: 90 * 1000,
+      loop: -1,
+    });
   }
 
   createStars() {
@@ -763,10 +748,11 @@ class Station extends Phaser.Scene {
     });
   }
 
-  resize(gameSize) {
-    // don't resize if scene stopped. this fixes a bug
-    if (!this.scene.isActive("Game") && !this.scene.isPaused("Game")) return;
+  startScene() {
+    this.cameras.main.fadeIn();
+  }
 
+  resize(gameSize) {
     const width = gameSize.width;
     const height = gameSize.height;
 
@@ -804,7 +790,7 @@ class Station extends Phaser.Scene {
 }
 
 class StationUI extends Phaser.Scene {
-  shopScene; // reference to game scene
+  stationScene; // reference to game scene
 
   constructor() {
     super("StationUI");
@@ -822,13 +808,20 @@ class StationUI extends Phaser.Scene {
     this.stationScene = this.scene.get("Station");
 
     this.createResolution();
+    this.createTextures();
 
     WebFont.load({
       google: {
         families: FONTS,
       },
       active: () => {
-        this.createText();
+        new GameText(this, gameW * 0.5, 5, "Hex Station", "s").setOrigin(
+          0.5,
+          0
+        );
+
+        this.createMenus();
+        this.startScene();
       },
     });
   }
@@ -856,32 +849,68 @@ class StationUI extends Phaser.Scene {
     this.scale.on("resize", this.resize, this);
   }
 
-  createText() {
-    new GameText(this, gameW * 0.5, 5, "Hex Station", "s").setOrigin(0.5, 0);
+  createTextures() {
+    const graphics = this.make.graphics(); // disposable graphics obj
 
-    const fpsText = new GameText(
-      this,
-      0,
-      0,
-      `${Math.round(this.sys.game.loop.actualFps)}`
-    )
-      .setOrigin(0, 0)
-      .setVisible(DEV_MODE);
+    const lineColor = Phaser.Display.Color.ValueToColor(0xffffff);
+    const fillColor = lineColor.clone().darken(80);
 
-    this.time.addEvent({
-      delay: 500,
-      loop: DEV_MODE,
-      callbackScope: this,
-      callback: () => {
-        fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`);
-      },
-    });
+    // big menu rectangle
+    let size = gameW;
+
+    graphics
+      .lineStyle(size * 0.04, lineColor.color, 1)
+      .fillStyle(fillColor.color, 1)
+      .fillRect(0, 0, size, size)
+      .strokeRect(0, 0, size, size)
+      .generateTexture("menuBig", size, size)
+      .clear();
+
+    // small menu rectangle
+    size = gameW * 0.2;
+
+    graphics
+      .lineStyle(size * 0.1, lineColor.color, 1)
+      .fillStyle(fillColor.color, 1)
+      .fillRect(0, 0, size, size)
+      .strokeRect(0, 0, size, size)
+      .generateTexture("menuSmall", size, size)
+      .clear();
+
+    graphics.destroy();
+  }
+
+  createMenus() {
+    this.add
+      .image(gameW * 0.17, gameH * 0.35, "menuBig")
+      .setDisplaySize(gameW * 0.28, gameH * 0.5)
+      .setTint(COLORS.stationColor)
+      .setAlpha(0.8);
+
+    this.add
+      .image(gameW * 0.47, gameH * 0.35, "menuBig")
+      .setDisplaySize(gameW * 0.28, gameH * 0.5)
+      .setTint(COLORS.stationColor)
+      .setAlpha(0.8);
+
+    this.add
+      .image(gameW * 0.32, gameH * 0.8, "menuBig")
+      .setDisplaySize(gameW * 0.6, gameH * 0.3)
+      .setTint(COLORS.stationColor)
+      .setAlpha(0.8);
+
+    this.add
+      .image(gameW * 0.7, gameH * 0.9, "menuSmall")
+      .setDisplaySize(gameW * 0.12, gameH * 0.1)
+      .setTint(COLORS.stationColor)
+      .setAlpha(0.8);
+  }
+
+  startScene() {
+    this.cameras.main.fadeIn();
   }
 
   resize(gameSize) {
-    // don't resize if scene stopped. this fixes a bug
-    if (!this.scene.isActive("Game") && !this.scene.isPaused("Game")) return;
-
     const width = gameSize.width;
     const height = gameSize.height;
 
