@@ -878,25 +878,38 @@ class StationUI extends Phaser.Scene {
   }
 
   createMenus() {
-    let bg;
+    const menu1 = this.add.container(gameW * 0.17, gameH * 0.35).add([
+      this.add
+        .image(0, 0, "menuBig")
+        .setDisplaySize(gameW * 0.28, gameH * 0.5)
+        .setTint(COLORS.stationColor)
+        .setAlpha(0.8),
+      new GameText(this, -240, -240, "shop", 3).setOrigin(0),
+    ]);
 
-    this.add
-      .image(gameW * 0.17, gameH * 0.35, "menuBig")
-      .setDisplaySize(gameW * 0.28, gameH * 0.5)
-      .setTint(COLORS.stationColor)
-      .setAlpha(0.8);
+    const menu2 = this.add.container(gameW * 0.47, gameH * 0.35).add([
+      this.add
+        .image(0, 0, "menuBig")
+        .setDisplaySize(gameW * 0.28, gameH * 0.5)
+        .setTint(COLORS.stationColor)
+        .setAlpha(0.8),
+      new GameText(this, -240, -240, "inventory", 3).setOrigin(0),
+    ]);
 
-    this.add
-      .image(gameW * 0.47, gameH * 0.35, "menuBig")
-      .setDisplaySize(gameW * 0.28, gameH * 0.5)
-      .setTint(COLORS.stationColor)
-      .setAlpha(0.8);
-
-    this.add
-      .image(gameW * 0.32, gameH * 0.8, "menuBig")
-      .setDisplaySize(gameW * 0.6, gameH * 0.3)
-      .setTint(COLORS.stationColor)
-      .setAlpha(0.8);
+    const menu3 = this.add.container(gameW * 0.32, gameH * 0.8).add([
+      this.add
+        .image(0, 0, "menuBig")
+        .setDisplaySize(gameW * 0.6, gameH * 0.3)
+        .setTint(COLORS.stationColor)
+        .setAlpha(0.8),
+      new GameText(
+        this,
+        -520,
+        -120,
+        "hover over an item to display info",
+        2
+      ).setOrigin(0),
+    ]);
 
     const menu4 = this.add.container(gameW * 0.7, gameH * 0.9).add([
       this.add
@@ -904,8 +917,9 @@ class StationUI extends Phaser.Scene {
         .setDisplaySize(gameW * 0.12, gameH * 0.1)
         .setTint(COLORS.stationColor)
         .setAlpha(0.8),
-      new GameText(this, 0, 0, "next", 2, () => {
-        console.log("Hwllo");
+      new GameText(this, 0, 0, "next", 4, () => {
+        this.cameras.main.pan(gameW * 1.5, gameH * 0.5);
+        this.scene.get("Station");
       }),
     ]);
   }
@@ -2301,29 +2315,25 @@ class GameText extends Phaser.GameObjects.Text {
     // isn't this just creating two text objects...?
     const cT = scene.add
       .text(x, y, text, {
-        font: `${size * 12 + 48}px`,
+        font: `${size * 12 + 24}px`,
         fill: "#fff",
         align: "center",
       })
       .setFontFamily("PT Sans")
       .setOrigin(0.5, 0.5)
-      .setStroke("#9381ff", 2);
-    // .setShadow(0, 0, "#a5ffd6", 10, true, true);
+      .setShadow(0, 1, "#00a8e8", 3, false, true);
 
     // if callback is given, assume it's a button and add callback.
     // fine-tuned this code so button only clicks if player
     // emits both pointerdown and pointerup events on it
-    // update 2: now much more complex w/ arrow key integration
     if (callback) {
       cT.setInteractive({ useHandCursor: true })
         .on("pointerover", function (pointer) {
-          this.setShadow(0, 0, "#faedcb", 3, false, true);
-
-          //this.setTint(COLORS.highlightColor);
+          this.setTint(COLORS.highlightColor);
         })
         .on("pointerout", function (pointer) {
-          // this.setTint(COLORS.white);
-          this.setShadow(0, 0, "#99c1de", 0, true, true);
+          this.setTint(COLORS.white);
+          //this.setShadow(0, 0, "#99c1de", 0, true, true);
 
           this.off("pointerup", callback, scene);
         })
@@ -2334,8 +2344,8 @@ class GameText extends Phaser.GameObjects.Text {
           }
         })
         .on("pointerup", function () {
-          this.setTint(COLORS.white);
-          this.setShadow(0, 0, "#fcf5c7", 4, false, true);
+          this.setTint(COLORS.highlightColor);
+          // this.setShadow(0, 0, "#fcf5c7", 4, false, true);
         });
     }
 
