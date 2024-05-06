@@ -1,21 +1,11 @@
 const VERSION = "Startracer Corp v0.1";
 
-const DEV_MODE = false; // turns on physics debug mode, devtext, fps
+const DEV_MODE = false; // turns on physics debug mode, fps
 
 const gameW = 1920;
 const gameH = 1080;
 
-const FONTS = [
-  "Roboto Mono",
-  "IBM Plex Mono",
-  "Finger Paint",
-  "Anonymous Pro",
-  "Roboto Mono",
-  "PT Sans",
-  "Quicksand",
-  "IBM Plex Sans",
-  "Titillium Web",
-];
+const FONTS = ["PT Sans"];
 
 const COLORS = {
   topGradient: 0x0c1821, // for background
@@ -54,7 +44,6 @@ class Background extends Phaser.Scene {
 
     //this.scene.launch("MainUI"); // start menu, tutorial, and game launcher
     this.scene.launch("Station");
-    this.scene.launch("StationUI");
 
     this.scale.on("resize", this.resize, this);
   }
@@ -76,7 +65,6 @@ class Game extends Phaser.Scene {
   player;
   keysDown;
   bounds; // 1920x1080 rectangle showcasing the game resolution
-  devText; // corner text displaying game data so we don't spam the console
   roadblocks; // physics group containing obstacles on road we collide with
   roadY = gameH * 0.9; // for placing everything down consistently
   gameLength; // integer. measured in gameW, so total is gameW * gameLength
@@ -277,11 +265,13 @@ class Game extends Phaser.Scene {
   }
 
   startGame() {
+    this.cameras.main.fadeIn();
+
     this.cameras.main
       .startFollow(this.player, false, 0.01, 1)
       .setFollowOffset(0, this.roadY - gameH * 0.5);
 
-    this.time.delayedCall(500, () => {
+    this.time.delayedCall(1500, () => {
       this.player.setAccelerationX(100);
 
       this.tweens.add({
@@ -315,7 +305,6 @@ class Game extends Phaser.Scene {
       this.time.delayedCall(1000, () => {
         this.scene.stop("GameUI");
         this.scene.start("Station");
-        this.scene.start("StationUI");
       });
     });
   }
@@ -475,7 +464,6 @@ class Game extends Phaser.Scene {
 }
 
 class GameUI extends Phaser.Scene {
-  devText; // corner text displaying game data so we don't spam the console
   gameScene; // reference to game scene
 
   constructor() {
@@ -501,6 +489,7 @@ class GameUI extends Phaser.Scene {
       },
       active: () => {
         this.createText();
+        this.cameras.main.fadeIn();
       },
     });
   }
@@ -529,7 +518,7 @@ class GameUI extends Phaser.Scene {
   }
 
   createText() {
-    new GameText(this, gameW * 0.5, 5, VERSION, "s").setOrigin(0.5, 0);
+    new GameText(this, gameW * 0.5, 5, VERSION, 5).setOrigin(0.5, 0);
 
     const fpsText = new GameText(
       this,
@@ -548,13 +537,6 @@ class GameUI extends Phaser.Scene {
         fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`);
       },
     });
-
-    // records player direction, player velocity, etc
-    this.devText = new GameText(this, gameW, gameH, "", "s")
-      .setAlign("left")
-      .setPadding(10)
-      .setOrigin(1, 1)
-      .setVisible(DEV_MODE);
   }
 
   resize(gameSize) {
@@ -593,16 +575,7 @@ class GameUI extends Phaser.Scene {
     camera.centerOn(gameW / 2, gameH / 2);
   }
 
-  update() {
-    if (this.devText) this.updateDevText();
-  }
-
-  updateDevText() {
-    this.devText.text = `${Phaser.Math.RoundTo(
-      this.gameScene.player.body.velocity.x,
-      1
-    )}`;
-  }
+  update() {}
 }
 
 class Station extends Phaser.Scene {
@@ -612,7 +585,13 @@ class Station extends Phaser.Scene {
     super("Station");
   }
 
-  preload() {}
+  preload() {
+    // load google's library for the various fonts we want to use
+    this.load.script(
+      "webfont",
+      "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
+    );
+  }
 
   create(data) {
     this.createResolution();
@@ -622,6 +601,15 @@ class Station extends Phaser.Scene {
     this.createLayout();
 
     this.startScene();
+
+    WebFont.load({
+      google: {
+        families: FONTS,
+      },
+      active: () => {
+        this.createMenus();
+      },
+    });
   }
 
   createResolution() {
@@ -686,7 +674,7 @@ class Station extends Phaser.Scene {
       .closePath()
       .strokePath()
       .fillPath()
-      .generateTexture("hexagon", w * 2, w * 2)
+      .generateTexture("bigHexagon", w * 2, w * 2)
       .clear();
 
     // small square for star
@@ -696,161 +684,6 @@ class Station extends Phaser.Scene {
       .fillRect(0, 0, w, w)
       .generateTexture("square", w, w)
       .clear();
-
-    graphics.destroy();
-  }
-
-  createLayout() {
-    // show bounds while in development
-    this.bounds = this.add
-      .rectangle(gameW * 0.5, gameH * 0.5, gameW, gameH)
-      .setStrokeStyle(4, 0xffffff, 0.4);
-
-    const hex = this.add
-      .image(gameW, gameH * 0.5, "hexagon")
-      .setTint(COLORS.stationColor)
-      .setName("hex")
-      .setAngle(Phaser.Math.Between(0, 59));
-
-    this.add.tween({
-      targets: hex,
-      angle: "+=360",
-      duration: 90 * 1000,
-      loop: -1,
-    });
-  }
-
-  createStars() {
-    this.stars = this.add.group({
-      key: "square",
-      quantity: 300,
-      setAlpha: { value: 0.8 },
-    });
-
-    Phaser.Actions.RandomRectangle(
-      this.stars.getChildren(),
-      new Phaser.Geom.Rectangle(-gameW, -gameH / 2, gameW * 2, gameH * 2)
-    );
-
-    Phaser.Actions.Call(this.stars.getChildren(), (star) => {
-      star.setScale(Phaser.Math.FloatBetween(0.05, 0.6));
-
-      star.setScrollFactor(star.scale);
-
-      this.tweens.add({
-        targets: star,
-        alpha: 0,
-        duration: 200,
-        delay: Phaser.Math.Between(500, 6000),
-        loop: -1,
-        yoyo: true,
-      });
-    });
-  }
-
-  startScene() {
-    // this.cameras.main.fadeIn();
-  }
-
-  resize(gameSize) {
-    const width = gameSize.width;
-    const height = gameSize.height;
-
-    this.parent.setSize(width, height);
-    this.sizer.setSize(width, height);
-
-    this.updateCamera();
-  }
-
-  updateCamera() {
-    const camera = this.cameras.main;
-
-    const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
-    const y = 0;
-    const scaleX = this.sizer.width / gameW;
-    const scaleY = this.sizer.height / gameH;
-
-    // this offset was meant to move the game screen a little up
-    // because it was being centered a little down when playing it on
-    // my phone (iPhone 12). I'm going to remove it now because
-    // I'm prioritizing a multi-platform game and the offset looks
-    // weird on other platforms.
-
-    // offset is comparing the game's height to the window's height,
-    // and centering the game in (kind of) the middle of the window.
-    // old line:
-    //const offset = (1 + this.parent.height / this.sizer.height) / 2;
-    // new line:
-    const offset = this.parent.height / this.sizer.height;
-
-    camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
-    camera.setZoom(Math.max(scaleX, scaleY));
-    camera.centerOn(gameW / 2, gameH / 2);
-  }
-}
-
-class StationUI extends Phaser.Scene {
-  stationScene; // reference to game scene
-
-  constructor() {
-    super("StationUI");
-  }
-
-  preload() {
-    // load google's library for the various fonts we want to use
-    this.load.script(
-      "webfont",
-      "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
-    );
-  }
-
-  create(data) {
-    this.stationScene = this.scene.get("Station");
-
-    this.createResolution();
-    this.createTextures();
-
-    WebFont.load({
-      google: {
-        families: FONTS,
-      },
-      active: () => {
-        new GameText(this, gameW * 0.5, 5, "Hex Station", 2).setOrigin(0.5, 0);
-
-        this.createMenus();
-        this.startScene();
-      },
-    });
-  }
-
-  createResolution() {
-    // I don't know how this code works but it's magic. I also stole it from here:
-    // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
-    const width = this.scale.gameSize.width;
-    const height = this.scale.gameSize.height;
-
-    this.parent = new Phaser.Structs.Size(width, height);
-
-    this.sizer = new Phaser.Structs.Size(
-      gameW,
-      gameH,
-      Phaser.Structs.Size.FIT,
-      this.parent
-    );
-
-    this.parent.setSize(width, height);
-    this.sizer.setSize(width, height);
-
-    this.updateCamera();
-
-    this.scale.on("resize", this.resize, this);
-  }
-
-  createTextures() {
-    const graphics = this.make.graphics(); // disposable graphics obj
-
-    const lineColor = Phaser.Display.Color.ValueToColor(0xffffff);
-    const fillColor = lineColor.clone().darken(80);
 
     // big menu rectangle
     let size = gameW;
@@ -875,6 +708,54 @@ class StationUI extends Phaser.Scene {
       .clear();
 
     graphics.destroy();
+  }
+
+  createLayout() {
+    // show bounds while in development
+    this.bounds = this.add
+      .rectangle(gameW, gameH * 0.5, gameW * 2, gameH)
+      .setStrokeStyle(4, 0xffffff, 0.4);
+
+    const hex = this.add
+      .image(gameW, gameH * 0.5, "bigHexagon")
+      .setTint(COLORS.stationColor)
+      .setName("hex")
+      .setAngle(Phaser.Math.Between(0, 59));
+
+    this.add.tween({
+      targets: hex,
+      angle: "+=360",
+      duration: 80 * 1000,
+      loop: -1,
+    });
+  }
+
+  createStars() {
+    this.stars = this.add.group({
+      key: "square",
+      quantity: 600,
+      setAlpha: { value: 0.8 },
+    });
+
+    Phaser.Actions.RandomRectangle(
+      this.stars.getChildren(),
+      new Phaser.Geom.Rectangle(-gameW / 2, -gameH / 2, gameW * 3, gameH * 2)
+    );
+
+    Phaser.Actions.Call(this.stars.getChildren(), (star) => {
+      star.setScale(Phaser.Math.FloatBetween(0.05, 0.6));
+
+      star.setScrollFactor(star.scale);
+
+      this.tweens.add({
+        targets: star,
+        alpha: 0,
+        duration: 200,
+        delay: Phaser.Math.Between(500, 6000),
+        loop: -1,
+        yoyo: true,
+      });
+    });
   }
 
   createMenus() {
@@ -918,14 +799,72 @@ class StationUI extends Phaser.Scene {
         .setTint(COLORS.stationColor)
         .setAlpha(0.8),
       new GameText(this, 0, 0, "next", 4, () => {
-        this.cameras.main.pan(gameW * 1.5, gameH * 0.5);
-        this.scene.get("Station");
+        this.cameras.main.pan(
+          gameW * 1.5,
+          gameH * 0.5,
+          800,
+          Phaser.Math.Easing.Sine.InOut
+        );
+      }),
+    ]);
+
+    const menu5 = this.add.container(gameW * 1.68, gameH * 0.35).add([
+      this.add
+        .image(0, 0, "menuBig")
+        .setDisplaySize(gameW * 0.56, gameH * 0.5)
+        .setTint(COLORS.stationColor)
+        .setAlpha(0.8),
+      new GameText(this, -480, -240, "map", 3).setOrigin(0),
+    ]);
+
+    const menu6 = this.add.container(gameW * 1.57, gameH * 0.8).add([
+      this.add
+        .image(0, 0, "menuBig")
+        .setDisplaySize(gameW * 0.34, gameH * 0.3)
+        .setTint(COLORS.stationColor)
+        .setAlpha(0.8),
+      new GameText(this, -280, -120, "hover over a station\nto display info", 2)
+        .setOrigin(0)
+        .setAlign("left"),
+    ]);
+
+    const menu7 = this.add.container(gameW * 1.86, gameH * 0.8).add([
+      this.add
+        .image(0, 0, "menuSmall")
+        .setDisplaySize(gameW * 0.18, gameH * 0.18)
+        .setTint(COLORS.stationColor)
+        .setAlpha(0.8),
+      new GameText(this, 0, 0, "DEPART", 4, this.endScene),
+    ]);
+
+    const menu8 = this.add.container(gameW * 1.3, gameH * 0.9).add([
+      this.add
+        .image(0, 0, "menuSmall")
+        .setDisplaySize(gameW * 0.12, gameH * 0.1)
+        .setTint(COLORS.stationColor)
+        .setAlpha(0.8),
+      new GameText(this, 0, 0, "back", 4, () => {
+        this.cameras.main.pan(
+          gameW * 0.5,
+          gameH * 0.5,
+          800,
+          Phaser.Math.Easing.Sine.InOut
+        );
       }),
     ]);
   }
 
   startScene() {
-    //this.cameras.main.fadeIn();
+    this.cameras.main.fadeIn();
+  }
+
+  endScene() {
+    this.cameras.main.fade();
+    this.time.delayedCall(1000, () => {
+      this.scene.stop("Station");
+      this.scene.start("Game");
+      this.scene.start("GameUI");
+    });
   }
 
   resize(gameSize) {
@@ -2285,7 +2224,7 @@ const config = {
     height: gameH,
   },
   // pixelArt: true,
-  scene: [Background, MainUI, Game, GameUI, Station, StationUI],
+  scene: [Background, MainUI, Game, GameUI, Station],
   physics: {
     default: "arcade",
     arcade: {
@@ -2321,7 +2260,8 @@ class GameText extends Phaser.GameObjects.Text {
       })
       .setFontFamily("PT Sans")
       .setOrigin(0.5, 0.5)
-      .setShadow(0, 1, "#00a8e8", 3, false, true);
+      .setShadow(0, 1, "#00a8e8", 3, false, true)
+      .setLineSpacing(8);
 
     // if callback is given, assume it's a button and add callback.
     // fine-tuned this code so button only clicks if player
