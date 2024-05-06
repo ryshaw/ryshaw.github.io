@@ -18,11 +18,11 @@ const FONTS = [
 ];
 
 const COLORS = {
-  topGradient: 0x11001c, // for background
-  bottomGradient: 0x000000, //001845, // for background
-  fillColor: 0x070600, // colors UI #and drawings
-  tintColor: 0xfbf8cc, // for highlighting text
-  clickColor: 0xdddddd, // when text is clicked
+  topGradient: 0x0c1821, // for background
+  bottomGradient: 0x000000, // for background
+  fillColor: 0xedf2fb, // colors UI
+  highlightColor: 0xfbf8cc, // for highlighting text
+  clickColor: 0xbfbdc1, // when text is clicked
   buttonColor: 0xe0fbfc, // for coloring buttons and the title
   white: 0xffffff,
   black: 0x000000,
@@ -749,7 +749,7 @@ class Station extends Phaser.Scene {
   }
 
   startScene() {
-    this.cameras.main.fadeIn();
+    // this.cameras.main.fadeIn();
   }
 
   resize(gameSize) {
@@ -815,10 +815,7 @@ class StationUI extends Phaser.Scene {
         families: FONTS,
       },
       active: () => {
-        new GameText(this, gameW * 0.5, 5, "Hex Station", "s").setOrigin(
-          0.5,
-          0
-        );
+        new GameText(this, gameW * 0.5, 5, "Hex Station", 2).setOrigin(0.5, 0);
 
         this.createMenus();
         this.startScene();
@@ -881,6 +878,8 @@ class StationUI extends Phaser.Scene {
   }
 
   createMenus() {
+    let bg;
+
     this.add
       .image(gameW * 0.17, gameH * 0.35, "menuBig")
       .setDisplaySize(gameW * 0.28, gameH * 0.5)
@@ -899,15 +898,20 @@ class StationUI extends Phaser.Scene {
       .setTint(COLORS.stationColor)
       .setAlpha(0.8);
 
-    this.add
-      .image(gameW * 0.7, gameH * 0.9, "menuSmall")
-      .setDisplaySize(gameW * 0.12, gameH * 0.1)
-      .setTint(COLORS.stationColor)
-      .setAlpha(0.8);
+    const menu4 = this.add.container(gameW * 0.7, gameH * 0.9).add([
+      this.add
+        .image(0, 0, "menuSmall")
+        .setDisplaySize(gameW * 0.12, gameH * 0.1)
+        .setTint(COLORS.stationColor)
+        .setAlpha(0.8),
+      new GameText(this, 0, 0, "next", 2, () => {
+        console.log("Hwllo");
+      }),
+    ]);
   }
 
   startScene() {
-    this.cameras.main.fadeIn();
+    //this.cameras.main.fadeIn();
   }
 
   resize(gameSize) {
@@ -2289,7 +2293,7 @@ class GameText extends Phaser.GameObjects.Text {
     x,
     y,
     text,
-    size = "m", // s, m, l, or g for small, medium, large, or giant
+    size = 3, // s, m, l, or g for small, medium, large, or giant
     callback = null // provided only for buttons
   ) {
     super(scene);
@@ -2297,18 +2301,14 @@ class GameText extends Phaser.GameObjects.Text {
     // isn't this just creating two text objects...?
     const cT = scene.add
       .text(x, y, text, {
-        font:
-          size == "g"
-            ? "144px"
-            : size == "l"
-            ? "108px"
-            : size == "m"
-            ? "84px"
-            : "60px",
+        font: `${size * 12 + 48}px`,
         fill: "#fff",
         align: "center",
       })
-      .setFontFamily("Titillium Web");
+      .setFontFamily("PT Sans")
+      .setOrigin(0.5, 0.5)
+      .setStroke("#9381ff", 2);
+    // .setShadow(0, 0, "#a5ffd6", 10, true, true);
 
     // if callback is given, assume it's a button and add callback.
     // fine-tuned this code so button only clicks if player
@@ -2316,39 +2316,26 @@ class GameText extends Phaser.GameObjects.Text {
     // update 2: now much more complex w/ arrow key integration
     if (callback) {
       cT.setInteractive({ useHandCursor: true })
-        .on("pointermove", function (pointer) {
-          this.emit("pointerover", pointer);
-        })
         .on("pointerover", function (pointer) {
-          if (this.scale == 1) {
-            scene.scene.get("MainUI").playSound("pointerover");
-          }
+          this.setShadow(0, 0, "#faedcb", 3, false, true);
 
-          if (pointer) scene.activeOption = scene.activeOptions.indexOf(this);
-
-          this.setTint(COLORS.tintColor).setScale(1.02);
-          scene.activeOptions.forEach((option) => {
-            if (option != this) option.emit("pointerout");
-          });
+          //this.setTint(COLORS.highlightColor);
         })
         .on("pointerout", function (pointer) {
-          if (pointer) scene.activeOption = -1; // if mouse used, reset arrow key selection
-          this.setTint(COLORS.white).setScale(1);
+          // this.setTint(COLORS.white);
+          this.setShadow(0, 0, "#99c1de", 0, true, true);
+
           this.off("pointerup", callback, scene);
         })
         .on("pointerdown", function () {
-          // don't do anything if tweens are running between menus
-          if (scene.transition) return;
-
           this.setTint(COLORS.clickColor);
           if (this.listenerCount("pointerup") < 2) {
             this.on("pointerup", callback, scene);
           }
         })
         .on("pointerup", function () {
-          scene.scene.get("MainUI").playSound("pointerup");
-
-          this.setTint(COLORS.tintColor);
+          this.setTint(COLORS.white);
+          this.setShadow(0, 0, "#fcf5c7", 4, false, true);
         });
     }
 
@@ -2379,7 +2366,7 @@ class GameButton extends Phaser.GameObjects.Image {
 
     cB.setInteractive()
       .on("pointerover", function () {
-        this.setTint(COLORS.tintColor).setScale(0.82);
+        this.setTint(COLORS.highlightColor).setScale(0.82);
         scene.scene.get("MainUI").playSound("pointerover");
       })
       .on("pointerout", function () {
