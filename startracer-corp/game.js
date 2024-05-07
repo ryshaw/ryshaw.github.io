@@ -42,8 +42,8 @@ class Background extends Phaser.Scene {
     );
     this.graphics.fillRect(0, 0, w, h);
 
-    this.scene.launch("Station");
     this.scene.launch("HUD"); // UI above every scene
+    this.scene.launch("Game");
 
     this.scale.on("resize", this.resize, this);
   }
@@ -255,6 +255,7 @@ class Game extends Phaser.Scene {
   }
 
   startGame() {
+    //this.cameras.main.fade(0);
     this.cameras.main.fadeIn();
 
     this.cameras.main
@@ -292,7 +293,14 @@ class Game extends Phaser.Scene {
     this.time.delayedCall(2500, () => {
       this.cameras.main.fade();
       this.time.delayedCall(1000, () => {
-        this.scene.start("Station");
+        /* this.scene.start("Station") causes
+        a visual glitch, so instead I do launch Station and 
+        then stop Game right after. 
+        not sure why this happens... I know it's weird */
+        this.scene.launch("Station");
+        this.time.delayedCall(0, () => {
+          this.scene.stop();
+        });
       });
     });
   }
@@ -476,6 +484,7 @@ class Station extends Phaser.Scene {
         this.createMenus();
       },
     });
+
     this.cameras.main.fadeIn();
   }
 
@@ -717,15 +726,10 @@ class Station extends Phaser.Scene {
     ]);
   }
 
-  startScene() {
-    this.cameras.main.fadeIn();
-  }
-
   endScene() {
     this.cameras.main.fade();
     this.time.delayedCall(1000, () => {
       this.scene.start("Game");
-      this.scene.bringToTop("HUD");
     });
   }
 
