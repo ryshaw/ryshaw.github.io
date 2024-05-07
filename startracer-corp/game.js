@@ -42,8 +42,8 @@ class Background extends Phaser.Scene {
     );
     this.graphics.fillRect(0, 0, w, h);
 
-    //this.scene.launch("MainUI"); // start menu, tutorial, and game launcher
     this.scene.launch("Station");
+    this.scene.launch("HUD"); // UI above every scene
 
     this.scale.on("resize", this.resize, this);
   }
@@ -64,7 +64,6 @@ class Background extends Phaser.Scene {
 class Game extends Phaser.Scene {
   player;
   keysDown;
-  bounds; // 1920x1080 rectangle showcasing the game resolution
   roadblocks; // physics group containing obstacles on road we collide with
   roadY = gameH * 0.9; // for placing everything down consistently
   gameLength; // integer. measured in gameW, so total is gameW * gameLength
@@ -77,7 +76,7 @@ class Game extends Phaser.Scene {
   preload() {}
 
   create(data) {
-    this.gameLength = 3;
+    this.gameLength = 1;
 
     this.createResolution();
 
@@ -113,6 +112,7 @@ class Game extends Phaser.Scene {
     this.sizer.setSize(width, height);
 
     this.updateCamera();
+    this.cameras.main.centerOn(gameW / 2, gameH / 2);
 
     this.scale.on("resize", this.resize, this);
   }
@@ -170,16 +170,6 @@ class Game extends Phaser.Scene {
   }
 
   createLayout() {
-    // show bounds while in development
-    this.bounds = this.add
-      .rectangle(
-        gameW * this.gameLength * 0.5,
-        gameH * 0.5,
-        gameW * this.gameLength,
-        gameH
-      )
-      .setStrokeStyle(4, 0xffffff, 0.4);
-
     // road
     this.add
       .rectangle(
@@ -301,9 +291,7 @@ class Game extends Phaser.Scene {
 
     this.time.delayedCall(2500, () => {
       this.cameras.main.fade();
-      this.scene.get("GameUI").cameras.main.fade();
       this.time.delayedCall(1000, () => {
-        this.scene.stop("GameUI");
         this.scene.start("Station");
       });
     });
@@ -453,134 +441,15 @@ class Game extends Phaser.Scene {
     // new line:
     const offset = this.parent.height / this.sizer.height;
 
-    camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
-    camera.setZoom(Math.max(scaleX, scaleY));
-    camera.centerOn(gameW / 2, gameH / 2);
-  }
-
-  update() {}
-
-  restartGame() {}
-}
-
-class GameUI extends Phaser.Scene {
-  gameScene; // reference to game scene
-
-  constructor() {
-    super("GameUI");
-  }
-
-  preload() {
-    // load google's library for the various fonts we want to use
-    this.load.script(
-      "webfont",
-      "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
-    );
-  }
-
-  create(data) {
-    this.gameScene = this.scene.get("Game");
-
-    this.createResolution();
-
-    WebFont.load({
-      google: {
-        families: FONTS,
-      },
-      active: () => {
-        this.createText();
-        this.cameras.main.fadeIn();
-      },
-    });
-  }
-
-  createResolution() {
-    // I don't know how this code works but it's magic. I also stole it from here:
-    // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
-    const width = this.scale.gameSize.width;
-    const height = this.scale.gameSize.height;
-
-    this.parent = new Phaser.Structs.Size(width, height);
-
-    this.sizer = new Phaser.Structs.Size(
-      gameW,
-      gameH,
-      Phaser.Structs.Size.FIT,
-      this.parent
-    );
-
-    this.parent.setSize(width, height);
-    this.sizer.setSize(width, height);
-
-    this.updateCamera();
-
-    this.scale.on("resize", this.resize, this);
-  }
-
-  createText() {
-    new GameText(this, gameW * 0.5, 5, VERSION, 5).setOrigin(0.5, 0);
-
-    const fpsText = new GameText(
-      this,
-      0,
-      0,
-      `${Math.round(this.sys.game.loop.actualFps)}`
-    )
-      .setOrigin(0, 0)
-      .setVisible(DEV_MODE);
-
-    this.time.addEvent({
-      delay: 500,
-      loop: DEV_MODE,
-      callbackScope: this,
-      callback: () => {
-        fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`);
-      },
-    });
-  }
-
-  resize(gameSize) {
-    const width = gameSize.width;
-    const height = gameSize.height;
-
-    this.parent.setSize(width, height);
-    this.sizer.setSize(width, height);
-
-    this.updateCamera();
-  }
-
-  updateCamera() {
-    const camera = this.cameras.main;
-
-    const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
-    const y = 0;
-    const scaleX = this.sizer.width / gameW;
-    const scaleY = this.sizer.height / gameH;
-
-    // this offset was meant to move the game screen a little up
-    // because it was being centered a little down when playing it on
-    // my phone (iPhone 12). I'm going to remove it now because
-    // I'm prioritizing a multi-platform game and the offset looks
-    // weird on other platforms.
-
-    // offset is comparing the game's height to the window's height,
-    // and centering the game in (kind of) the middle of the window.
-    // old line:
-    //const offset = (1 + this.parent.height / this.sizer.height) / 2;
-    // new line:
-    const offset = this.parent.height / this.sizer.height;
+    if (!camera) return;
 
     camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
     camera.setZoom(Math.max(scaleX, scaleY));
-    camera.centerOn(gameW / 2, gameH / 2);
+    camera.centerOn(camera.midPoint.x, camera.midPoint.y);
   }
-
-  update() {}
 }
 
 class Station extends Phaser.Scene {
-  bounds; // 1920x1080 rectangle showcasing the game resolution
-
   constructor() {
     super("Station");
   }
@@ -595,12 +464,9 @@ class Station extends Phaser.Scene {
 
   create(data) {
     this.createResolution();
-
     this.createTextures();
     this.createStars();
     this.createLayout();
-
-    this.startScene();
 
     WebFont.load({
       google: {
@@ -610,6 +476,7 @@ class Station extends Phaser.Scene {
         this.createMenus();
       },
     });
+    this.cameras.main.fadeIn();
   }
 
   createResolution() {
@@ -631,6 +498,7 @@ class Station extends Phaser.Scene {
     this.sizer.setSize(width, height);
 
     this.updateCamera();
+    this.cameras.main.centerOn(gameW / 2, gameH / 2);
 
     this.scale.on("resize", this.resize, this);
   }
@@ -711,11 +579,6 @@ class Station extends Phaser.Scene {
   }
 
   createLayout() {
-    // show bounds while in development
-    this.bounds = this.add
-      .rectangle(gameW, gameH * 0.5, gameW * 2, gameH)
-      .setStrokeStyle(4, 0xffffff, 0.4);
-
     const hex = this.add
       .image(gameW, gameH * 0.5, "bigHexagon")
       .setTint(COLORS.stationColor)
@@ -725,7 +588,7 @@ class Station extends Phaser.Scene {
     this.add.tween({
       targets: hex,
       angle: "+=360",
-      duration: 80 * 1000,
+      duration: 30 * 1000,
       loop: -1,
     });
   }
@@ -861,9 +724,8 @@ class Station extends Phaser.Scene {
   endScene() {
     this.cameras.main.fade();
     this.time.delayedCall(1000, () => {
-      this.scene.stop("Station");
       this.scene.start("Game");
-      this.scene.start("GameUI");
+      this.scene.bringToTop("HUD");
     });
   }
 
@@ -885,25 +747,121 @@ class Station extends Phaser.Scene {
     const scaleX = this.sizer.width / gameW;
     const scaleY = this.sizer.height / gameH;
 
-    // this offset was meant to move the game screen a little up
-    // because it was being centered a little down when playing it on
-    // my phone (iPhone 12). I'm going to remove it now because
-    // I'm prioritizing a multi-platform game and the offset looks
-    // weird on other platforms.
+    if (!camera) return;
 
-    // offset is comparing the game's height to the window's height,
-    // and centering the game in (kind of) the middle of the window.
-    // old line:
-    //const offset = (1 + this.parent.height / this.sizer.height) / 2;
-    // new line:
-    const offset = this.parent.height / this.sizer.height;
-
-    camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
+    camera.setViewport(x, y, this.sizer.width, this.parent.height);
     camera.setZoom(Math.max(scaleX, scaleY));
-    camera.centerOn(gameW / 2, gameH / 2);
+    camera.centerOn(camera.midPoint.x, camera.midPoint.y);
   }
 
   update() {}
+}
+
+class HUD extends Phaser.Scene {
+  bounds;
+
+  constructor() {
+    super("HUD");
+  }
+
+  preload() {
+    // load google's library for the various fonts we want to use
+    this.load.script(
+      "webfont",
+      "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
+    );
+  }
+
+  create(data) {
+    this.createResolution();
+
+    // show bounds of game while in dev
+    this.bounds = this.add
+      .rectangle(gameW / 2, gameH / 2, gameW, gameH)
+      .setStrokeStyle(4, 0xffffff, 0.6);
+
+    WebFont.load({
+      google: {
+        families: FONTS,
+      },
+      active: () => {
+        this.createText();
+      },
+    });
+  }
+
+  createText() {
+    const version = new GameText(this, gameW, gameH, VERSION, 0)
+      .setOrigin(1, 1)
+      .setPadding(5);
+
+    const fpsText = new GameText(
+      this,
+      0,
+      gameH,
+      `${Math.round(this.sys.game.loop.actualFps)}`,
+      0
+    )
+      .setOrigin(0, 1)
+      .setPadding(5);
+
+    this.time.addEvent({
+      delay: 500,
+      loop: true,
+      callbackScope: this,
+      callback: () => {
+        fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`);
+      },
+    });
+  }
+
+  createResolution() {
+    // I don't know how this code works but it's magic. I also stole it from here:
+    // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
+    const width = this.scale.gameSize.width;
+    const height = this.scale.gameSize.height;
+
+    this.parent = new Phaser.Structs.Size(width, height);
+
+    this.sizer = new Phaser.Structs.Size(
+      gameW,
+      gameH,
+      Phaser.Structs.Size.FIT,
+      this.parent
+    );
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+    this.cameras.main.centerOn(gameW / 2, gameH / 2);
+
+    this.scale.on("resize", this.resize, this);
+  }
+
+  resize(gameSize) {
+    const width = gameSize.width;
+    const height = gameSize.height;
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+  }
+
+  updateCamera() {
+    const camera = this.cameras.main;
+
+    const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
+    const y = 0;
+    const scaleX = this.sizer.width / gameW;
+    const scaleY = this.sizer.height / gameH;
+
+    if (!camera) return;
+    camera.setViewport(x, y, this.sizer.width, this.parent.height);
+    camera.setZoom(Math.max(scaleX, scaleY));
+    camera.centerOn(camera.midPoint.x, camera.midPoint.y);
+  }
 }
 
 class MainUI extends Phaser.Scene {
@@ -2224,7 +2182,7 @@ const config = {
     height: gameH,
   },
   // pixelArt: true,
-  scene: [Background, MainUI, Game, GameUI, Station],
+  scene: [Background, HUD, Game, Station],
   physics: {
     default: "arcade",
     arcade: {
