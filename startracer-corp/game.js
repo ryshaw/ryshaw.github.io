@@ -1,6 +1,6 @@
 const VERSION = "Startracer Corp v0.1";
 
-const DEV_MODE = false; // turns on physics debug mode, fps
+const DEV_MODE = true; // turns on physics debug mode
 
 const gameW = 1920;
 const gameH = 1080;
@@ -79,11 +79,12 @@ class Game extends Phaser.Scene {
 
     this.createTextures();
     this.createStars();
+
     this.createPlayer();
     this.createLayout();
-    this.createPhysics();
+    this.createSpaceEvents();
 
-    // this.createRoadblocks();
+    this.createPhysics();
 
     this.createKeyboardControls();
 
@@ -183,14 +184,16 @@ class Game extends Phaser.Scene {
       .image(gameW * 0.5, this.roadY, "hexagon")
       .setTint(COLORS.stationColor)
       .setName("hex")
-      .setDepth(1);
+      .setDepth(1)
+      .setScale(1.2);
 
     // arriving station
     this.endStation = this.physics.add
       .staticImage(gameW * this.gameLength, this.roadY, "hexagon")
       .setTint(COLORS.stationColor)
       .setName("hex")
-      .setDepth(1);
+      .setDepth(1)
+      .setScale(1.2);
   }
 
   createStars() {
@@ -227,8 +230,6 @@ class Game extends Phaser.Scene {
   }
 
   createPhysics() {
-    this.spaceEvents = this.physics.add.group();
-
     this.physics.add.overlap(this.player, this.spaceEvents, (p, r) => {
       if (r.activated) return;
 
@@ -242,6 +243,40 @@ class Game extends Phaser.Scene {
     });
   }
 
+  createSpaceEvents() {
+    /*const num = Phaser.Math.Between(
+      Math.round(this.gameLength / 3),
+      Math.round((2 * this.gameLength) / 3)
+    );*/
+    const num = 5;
+
+    this.spaceEvents = this.physics.add.staticGroup({
+      key: "hexagon",
+      quantity: num,
+      setScale: { x: 0.75, y: 0.75 },
+    });
+
+    const boundLine = new Phaser.Geom.Line(
+      gameW * 1.5,
+      this.roadY,
+      gameW * (this.gameLength - 0.5),
+      this.roadY
+    );
+
+    Phaser.Actions.PlaceOnLine(this.spaceEvents.getChildren(), boundLine);
+
+    const length = Phaser.Geom.Line.Length(boundLine);
+    console.log(length / num);
+
+    for (const spaceEvent of this.spaceEvents.getChildren()) {
+      spaceEvent.body.setSize(200, 200);
+      let randomOffset = Phaser.Math.Between(-length / num, length / num);
+      spaceEvent.x += randomOffset / 3;
+    }
+
+    this.spaceEvents.refresh();
+  }
+
   createPlayer() {
     this.player = this.physics.add
       .image(gameW * 0.5, this.roadY, "ship1")
@@ -252,9 +287,9 @@ class Game extends Phaser.Scene {
   }
 
   startGame() {
-    this.cameras.main.fadeIn();
+    //this.cameras.main.fadeIn();
 
-    this.cameras.main
+    /*this.cameras.main
       .startFollow(this.player, false, 0.01, 1)
       .setFollowOffset(0, this.roadY - gameH * 0.5);
 
@@ -268,7 +303,10 @@ class Game extends Phaser.Scene {
         delay: 2000,
         ease: "sine.in",
       });
-    });
+    });*/
+
+    this.cameras.main.setScroll((gameW * this.gameLength) / 2, gameH * 0.5);
+    this.cameras.main.setZoom(0.13);
   }
 
   endGame() {
