@@ -28,9 +28,6 @@ class Background extends Phaser.Scene {
   }
 
   create() {
-    const w = window.innerWidth; // take up the full browser window
-    const h = window.innerHeight;
-
     this.graphics = this.add.graphics();
 
     this.graphics.fillGradientStyle(
@@ -40,10 +37,10 @@ class Background extends Phaser.Scene {
       COLORS.bottomGradient,
       0.9
     );
-    this.graphics.fillRect(0, 0, w, h);
+    this.graphics.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
-    this.scene.launch("HUD"); // UI above every scene
     this.scene.launch("Game");
+    this.scene.launch("HUD"); // UI above every scene
 
     this.scale.on("resize", this.resize, this);
   }
@@ -64,8 +61,8 @@ class Background extends Phaser.Scene {
 class Game extends Phaser.Scene {
   player;
   keysDown;
-  roadblocks; // physics group containing obstacles on road we collide with
-  roadY = gameH * 0.9; // for placing everything down consistently
+  spaceEvents; // physic group containing obstacles/events... in space!
+  roadY = gameH * 0.9; // for placing everything down consistently at the bottom
   gameLength; // integer. measured in gameW, so total is gameW * gameLength
   endStation; // ending station of level
 
@@ -76,7 +73,7 @@ class Game extends Phaser.Scene {
   preload() {}
 
   create(data) {
-    this.gameLength = 1;
+    this.gameLength = 6;
 
     this.createResolution();
 
@@ -178,8 +175,8 @@ class Game extends Phaser.Scene {
         gameW * (this.gameLength + 1),
         60
       )
-      .setStrokeStyle(4, 0xffffff, 1)
-      .setFillStyle(0x000000, 1);
+      .setStrokeStyle(4, COLORS.white, 1)
+      .setFillStyle(COLORS.black, 1);
 
     // departing station
     this.add
@@ -230,9 +227,9 @@ class Game extends Phaser.Scene {
   }
 
   createPhysics() {
-    this.roadblocks = this.physics.add.group();
+    this.spaceEvents = this.physics.add.group();
 
-    this.physics.add.overlap(this.player, this.roadblocks, (p, r) => {
+    this.physics.add.overlap(this.player, this.spaceEvents, (p, r) => {
       if (r.activated) return;
 
       r.activated = true;
@@ -255,7 +252,6 @@ class Game extends Phaser.Scene {
   }
 
   startGame() {
-    //this.cameras.main.fade(0);
     this.cameras.main.fadeIn();
 
     this.cameras.main
@@ -276,6 +272,7 @@ class Game extends Phaser.Scene {
   }
 
   endGame() {
+    console.log(Phaser.Math.RoundTo(this.time.now / 1000, -1) + " seconds");
     this.cameras.main.pan(
       this.endStation.x,
       this.endStation.y,
@@ -322,7 +319,7 @@ class Game extends Phaser.Scene {
 
     hex.activated = false;
 
-    this.roadblocks.add(hex);
+    this.spaceEvents.add(hex);
 
     hex.body.onWorldBounds = true;
     hex.setCollideWorldBounds(true);
