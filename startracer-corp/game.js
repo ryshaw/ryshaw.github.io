@@ -82,7 +82,7 @@ class Game extends Phaser.Scene {
 
     this.createPlayer();
     this.createLayout();
-    this.createSpaceEvents();
+    //this.createSpaceEvents();
 
     this.createPhysics();
 
@@ -122,11 +122,11 @@ class Game extends Phaser.Scene {
     const fillColor = lineColor.clone().darken(80);
 
     // triangle ship
-    const shipW = 60;
-    const shipH = 36;
+    const shipW = 90;
+    const shipH = 48;
 
     graphics
-      .lineStyle(5, lineColor.color, 1)
+      .lineStyle(7, lineColor.color, 1)
       .fillStyle(fillColor.color, 1)
       .fillTriangle(0, 0, 0, shipH, shipW, shipH / 2)
       .strokeTriangle(0, 0, 0, shipH, shipW, shipH / 2)
@@ -197,20 +197,17 @@ class Game extends Phaser.Scene {
   }
 
   createStars() {
+    const length = 20;
+
     this.stars = this.add.group({
       key: "square",
-      quantity: this.gameLength * 300,
+      quantity: length * 200,
       setAlpha: { value: 0.8 },
     });
 
     Phaser.Actions.RandomRectangle(
       this.stars.getChildren(),
-      new Phaser.Geom.Rectangle(
-        -gameW,
-        -gameH / 2,
-        gameW * this.gameLength,
-        gameH * 2
-      )
+      new Phaser.Geom.Rectangle(-gameW, -gameH / 2, gameW * length, gameH * 2)
     );
 
     Phaser.Actions.Call(this.stars.getChildren(), (star) => {
@@ -227,6 +224,10 @@ class Game extends Phaser.Scene {
         yoyo: true,
       });
     });
+
+    this.starsBound = this.physics.add
+      .staticImage(gameW * (length - 1), gameH * 0.5, "square")
+      .setBodySize(gameW * 0.1, gameH);
   }
 
   createPhysics() {
@@ -240,6 +241,16 @@ class Game extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.endStation, () => {
       this.endStation.disableBody(); // so it only runs once
       this.endGame();
+    });
+
+    this.physics.add.overlap(this.player, this.starsBound, () => {
+      if (this.starsBound.activated) return;
+
+      this.starsBound.activated = true;
+      this.time.delayedCall(1000, () => {
+        this.starsBound.activated = false;
+      });
+      console.log("hello");
     });
   }
 
@@ -279,34 +290,34 @@ class Game extends Phaser.Scene {
 
   createPlayer() {
     this.player = this.physics.add
-      .image(gameW * 0.5, this.roadY, "ship1")
+      .image(gameW * 0.5, gameH * 0.1, "ship1")
       .setTint(Phaser.Utils.Array.GetRandom(COLORS.shipColors))
       .setName("player")
       .setDepth(1)
-      .setMaxVelocity(400, 0);
+      .setMaxVelocity(1000, 0);
   }
 
   startGame() {
-    //this.cameras.main.fadeIn();
+    this.cameras.main.fadeIn();
 
-    /*this.cameras.main
+    this.cameras.main
       .startFollow(this.player, false, 0.01, 1)
-      .setFollowOffset(0, this.roadY - gameH * 0.5);
+      .setFollowOffset(0, -gameH * 0.4);
 
     this.time.delayedCall(1500, () => {
-      this.player.setAccelerationX(100);
+      this.player.setAccelerationX(200);
 
       this.tweens.add({
         targets: this.cameras.main.lerp,
-        x: 0.6,
-        duration: 10000,
+        x: 0.8,
+        duration: 8000,
         delay: 2000,
         ease: "sine.in",
       });
-    });*/
+    });
 
-    this.cameras.main.setScroll((gameW * this.gameLength) / 2, gameH * 0.5);
-    this.cameras.main.setZoom(0.13);
+    //this.cameras.main.setScroll((gameW * this.gameLength) / 2, gameH * 0.5);
+    //this.cameras.main.setZoom(0.13);
   }
 
   endGame() {

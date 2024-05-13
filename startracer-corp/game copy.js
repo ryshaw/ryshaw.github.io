@@ -1,32 +1,23 @@
 const VERSION = "Startracer Corp v0.1";
 
-const DEV_MODE = false; // turns on physics debug mode, devtext, fps
+const DEV_MODE = true; // turns on physics debug mode
 
 const gameW = 1920;
 const gameH = 1080;
 
-const FONTS = [
-  "Roboto Mono",
-  "IBM Plex Mono",
-  "Finger Paint",
-  "Anonymous Pro",
-  "Roboto Mono",
-  "PT Sans",
-  "Quicksand",
-  "IBM Plex Sans",
-  "Titillium Web",
-];
+const FONTS = ["PT Sans"];
 
 const COLORS = {
-  topGradient: 0x11001c, // for background
-  bottomGradient: 0x000000, //001845, // for background
-  fillColor: 0x070600, // colors UI #and drawings
-  tintColor: 0xfbf8cc, // for highlighting text
-  clickColor: 0xdddddd, // when text is clicked
+  topGradient: 0x0c1821, // for background
+  bottomGradient: 0x000000, // for background
+  fillColor: 0xedf2fb, // colors UI
+  highlightColor: 0xfbf8cc, // for highlighting text
+  clickColor: 0xbfbdc1, // when text is clicked
   buttonColor: 0xe0fbfc, // for coloring buttons and the title
   white: 0xffffff,
   black: 0x000000,
   shipColors: [0xcdb4db, 0xffc8dd, 0xffafcc, 0xbde0fe, 0xa2d2ff, 0x8affc1],
+  stationColor: 0x98f5e1,
 };
 
 class Background extends Phaser.Scene {
@@ -37,9 +28,6 @@ class Background extends Phaser.Scene {
   }
 
   create() {
-    const w = window.innerWidth; // take up the full browser window
-    const h = window.innerHeight;
-
     this.graphics = this.add.graphics();
 
     this.graphics.fillGradientStyle(
@@ -49,10 +37,10 @@ class Background extends Phaser.Scene {
       COLORS.bottomGradient,
       0.9
     );
-    this.graphics.fillRect(0, 0, w, h);
+    this.graphics.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
-    //this.scene.launch("MainUI"); // start menu, tutorial, and game launcher
     this.scene.launch("Game");
+    this.scene.launch("HUD"); // UI above every scene
 
     this.scale.on("resize", this.resize, this);
   }
@@ -73,47 +61,34 @@ class Background extends Phaser.Scene {
 class Game extends Phaser.Scene {
   player;
   keysDown;
-  bounds; // 1920x1080 rectangle showcasing the game resolution
-  devText; // corner text displaying game data so we don't spam the console
-  roadblocks; // physics group containing obstacles on road we collide with
-  roadY = gameH * 0.9; // for placing everything down consistently
+  spaceEvents; // physic group containing obstacles/events... in space!
+  roadY = gameH * 0.9; // for placing everything down consistently at the bottom
+  gameLength; // integer. measured in gameW, so total is gameW * gameLength
+  endStation; // ending station of level
 
   constructor() {
     super("Game");
   }
 
-  preload() {
-    // load google's library for the various fonts we want to use
-    this.load.script(
-      "webfont",
-      "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
-    );
-  }
+  preload() {}
 
   create(data) {
+    this.gameLength = 6;
+
     this.createResolution();
 
     this.createTextures();
-    this.createPlayer();
-    this.createPhysics();
-    this.createLayout();
     this.createStars();
 
-    // this.createRoadblocks();
+    this.createPlayer();
+    this.createLayout();
+    this.createSpaceEvents();
+
+    this.createPhysics();
 
     this.createKeyboardControls();
 
-    WebFont.load({
-      google: {
-        families: FONTS,
-      },
-      active: () => {
-        this.loadGameText();
-      },
-    });
-
-    //////
-    //this.cameras.main.setZoom(0.5);
+    this.startGame();
   }
 
   createResolution() {
@@ -135,22 +110,24 @@ class Game extends Phaser.Scene {
     this.sizer.setSize(width, height);
 
     this.updateCamera();
+    this.cameras.main.centerOn(gameW / 2, gameH / 2);
 
     this.scale.on("resize", this.resize, this);
   }
 
   createTextures() {
     const graphics = this.make.graphics(); // disposable graphics obj
+
+    const lineColor = Phaser.Display.Color.ValueToColor(0xffffff);
+    const fillColor = lineColor.clone().darken(80);
+
+    // triangle ship
     const shipW = 60;
     const shipH = 36;
 
-    // triangle ship
-    const c = Phaser.Utils.Array.GetRandom(COLORS.shipColors);
-    let color = Phaser.Display.Color.ValueToColor(c);
-
     graphics
-      .lineStyle(5, color.color, 1)
-      .fillStyle(color.darken(80).color, 1)
+      .lineStyle(5, lineColor.color, 1)
+      .fillStyle(fillColor.color, 1)
       .fillTriangle(0, 0, 0, shipH, shipW, shipH / 2)
       .strokeTriangle(0, 0, 0, shipH, shipW, shipH / 2)
       .generateTexture("ship1", shipW, shipH)
@@ -158,11 +135,9 @@ class Game extends Phaser.Scene {
 
     // hexagon for outpost
 
-    color = Phaser.Display.Color.ValueToColor(0xffffff);
-
     graphics
-      .lineStyle(12, color.color, 1)
-      .fillStyle(color.darken(80).color, 1)
+      .lineStyle(12, lineColor.color, 1)
+      .fillStyle(fillColor.color, 1)
       .beginPath();
 
     let r = 50;
@@ -184,7 +159,7 @@ class Game extends Phaser.Scene {
     // small square for star
     w = 16;
     graphics
-      .fillStyle(0xffffff, 1)
+      .fillStyle(lineColor.color, 1)
       .fillRect(0, 0, w, w)
       .generateTexture("square", w, w)
       .clear();
@@ -193,51 +168,61 @@ class Game extends Phaser.Scene {
   }
 
   createLayout() {
-    // show bounds while in development
-    this.bounds = this.add
-      .rectangle(gameW * 0.5, gameH * 0.5, gameW, gameH)
-      .setStrokeStyle(4, 0xffffff, 0.4);
-
     // road
     this.add
-      .rectangle(gameW * 0.5, this.roadY, gameW, 60)
-      .setStrokeStyle(4, 0xffffff, 1);
+      .rectangle(
+        gameW * this.gameLength * 0.5,
+        this.roadY,
+        gameW * (this.gameLength + 1),
+        60
+      )
+      .setStrokeStyle(4, COLORS.white, 1)
+      .setFillStyle(COLORS.black, 1);
 
-    const hex = this.physics.add
-      .image(gameW * 0.5 - 100, this.roadY, "hexagon")
+    // departing station
+    this.add
+      .image(gameW * 0.5, this.roadY, "hexagon")
+      .setTint(COLORS.stationColor)
       .setName("hex")
-      .setDepth(1);
+      .setDepth(1)
+      .setScale(1.2);
 
-    hex.body.onWorldBounds = true;
-    hex.setCollideWorldBounds(true);
-    this.time.delayedCall(1000, () => {
-      hex.setAccelerationX(-200);
-    });
+    // arriving station
+    this.endStation = this.physics.add
+      .staticImage(gameW * this.gameLength, this.roadY, "hexagon")
+      .setTint(COLORS.stationColor)
+      .setName("hex")
+      .setDepth(1)
+      .setScale(1.2);
   }
 
   createStars() {
-    this.stars.createMultiple({ quantity: 500, key: "square" });
+    this.stars = this.add.group({
+      key: "square",
+      quantity: this.gameLength * 300,
+      setAlpha: { value: 0.8 },
+    });
 
     Phaser.Actions.RandomRectangle(
       this.stars.getChildren(),
-      this.physics.world.bounds
+      new Phaser.Geom.Rectangle(
+        -gameW,
+        -gameH / 2,
+        gameW * this.gameLength,
+        gameH * 2
+      )
     );
 
     Phaser.Actions.Call(this.stars.getChildren(), (star) => {
       star.setScale(Phaser.Math.FloatBetween(0.05, 0.6));
-      star.setAlpha(0.8);
-      star.setMaxVelocity(star.scale * 800);
-      this.time.delayedCall(1000, () => {
-        star.setAcceleration(-50, 0);
-      });
-      star.body.onWorldBounds = true;
-      star.setCollideWorldBounds(true);
+
+      star.setScrollFactor(star.scale);
 
       this.tweens.add({
         targets: star,
         alpha: 0,
         duration: 200,
-        delay: Phaser.Math.Between(500, 5000),
+        delay: Phaser.Math.Between(500, 6000),
         loop: -1,
         yoyo: true,
       });
@@ -245,118 +230,112 @@ class Game extends Phaser.Scene {
   }
 
   createPhysics() {
-    this.roadblocks = this.physics.add.group();
-    this.stars = this.physics.add.group();
-
-    this.physics.world.setBounds(
-      -gameW * 0.2,
-      -gameH * 0.2,
-      gameW * 1.4,
-      gameH * 1.4
-    );
-
-    this.physics.world.on("worldbounds", (body) => {
-      if (this.roadblocks.contains(body.gameObject)) {
-        this.roadblocks.remove(body.gameObject, true, true);
-      } else if (this.stars.contains(body.gameObject)) {
-        const newX = gameW * 0.5 - body.gameObject.x;
-        body.reset(newX + gameW * 0.5, body.gameObject.y);
-        body.setAcceleration(-50, 0);
-      } else {
-        body.gameObject.destroy();
-      }
-    });
-
-    this.physics.add.overlap(this.player, this.roadblocks, (p, r) => {
+    this.physics.add.overlap(this.player, this.spaceEvents, (p, r) => {
       if (r.activated) return;
 
       r.activated = true;
       console.log("activated");
     });
+
+    this.physics.add.overlap(this.player, this.endStation, () => {
+      this.endStation.disableBody(); // so it only runs once
+      this.endGame();
+    });
+  }
+
+  createSpaceEvents() {
+    /*const num = Phaser.Math.Between(
+      Math.round(this.gameLength / 3),
+      Math.round((2 * this.gameLength) / 3)
+    );*/
+    const num = 5;
+
+    this.spaceEvents = this.physics.add.staticGroup({
+      key: "hexagon",
+      quantity: num,
+      setScale: { x: 0.75, y: 0.75 },
+    });
+
+    const boundLine = new Phaser.Geom.Line(
+      gameW * 1.5,
+      this.roadY,
+      gameW * (this.gameLength - 0.5),
+      this.roadY
+    );
+
+    Phaser.Actions.PlaceOnLine(this.spaceEvents.getChildren(), boundLine);
+
+    const length = Phaser.Geom.Line.Length(boundLine);
+    console.log(length / num);
+
+    for (const spaceEvent of this.spaceEvents.getChildren()) {
+      spaceEvent.body.setSize(200, 200);
+      let randomOffset = Phaser.Math.Between(-length / num, length / num);
+      spaceEvent.x += randomOffset / 3;
+    }
+
+    this.spaceEvents.refresh();
   }
 
   createPlayer() {
-    const c = Phaser.Utils.Array.GetRandom(COLORS.shipColors);
-    const color = Phaser.Display.Color.ValueToColor(c);
-
     this.player = this.physics.add
-      .image(gameW * 0.5 - 80, this.roadY, "ship1")
+      .image(gameW * 0.5, this.roadY, "ship1")
+      .setTint(Phaser.Utils.Array.GetRandom(COLORS.shipColors))
       .setName("player")
       .setDepth(1)
-      .setScale(1);
-    /*
-    // midpoint body so player stops moving at midpoint
-    const midpoint = this.physics.add
-      .image(gameW * 0.5 + this.player.width, this.player.y, "square")
-      .setVisible(false);
+      .setMaxVelocity(400, 0);
+  }
 
-    // move to, then stop, at middle to indicate player speeding up
-    this.physics.accelerateToObject(this.player, midpoint, 100, 300, 300);
-    this.physics.add.overlap(this.player, midpoint, () => {
-      this.player.body.reset(this.player.x, this.player.y);
+  startGame() {
+    this.cameras.main.fadeIn();
+
+    this.cameras.main
+      .startFollow(this.player, false, 0.01, 1)
+      .setFollowOffset(0, this.roadY - gameH * 0.5);
+
+    this.time.delayedCall(1500, () => {
+      this.player.setAccelerationX(100);
+
+      this.tweens.add({
+        targets: this.cameras.main.lerp,
+        x: 0.6,
+        duration: 10000,
+        delay: 2000,
+        ease: "sine.in",
+      });
     });
 
-    // test "level win" animation
-    this.input.keyboard.on("keydown-SPACE", () => {
-      midpoint.disableBody();
-      this.physics.accelerateTo(
-        this.player,
-        gameW,
-        this.player.y,
-        1000,
-        2000,
-        2000
-      );
-    });*/
+    //this.cameras.main.setScroll((gameW * this.gameLength) / 2, gameH * 0.5);
+    //this.cameras.main.setZoom(0.13);
+  }
 
-    const leftPos = this.player.getTopLeft();
-    const h = this.player.height;
-    const num = 5;
-    const offset = (h - 8) / (num - 1);
+  endGame() {
+    console.log(Phaser.Math.RoundTo(this.time.now / 1000, -1) + " seconds");
+    this.cameras.main.pan(
+      this.endStation.x,
+      this.endStation.y,
+      1500,
+      Phaser.Math.Easing.Sine.InOut
+    );
+    this.cameras.main.stopFollow();
+    this.player.setAccelerationX(0);
+    this.tweens.add({
+      targets: this.player,
+      alpha: 0,
+      duration: 300,
+    });
 
-    for (let i = 0; i < num; i++) {
-      const rect = this.add
-        .rectangle(
-          leftPos.x - 4,
-          4 + leftPos.y + i * offset,
-          0,
-          2,
-          COLORS.white,
-          1
-        )
-        .setOrigin(1, 0.5);
-
-      const distFromMid = 2 - Math.abs(Math.floor(num / 2) - i);
-      this.tweens.add({
-        targets: rect,
-        duration: 2000,
-        width: this.player.width * 0.15 + distFromMid * 20,
-        x: `-=${this.player.width * 0.1 + distFromMid * 20 + 4}`,
-        delay: 1500,
-        onComplete: () => {
-          this.time.delayedCall(1500, () => {
-            this.tweens.add({
-              targets: rect,
-              duration: 2500,
-              width: `+=${20}`,
-              x: `+=60`,
-              loop: -1,
-              yoyo: true,
-              ease: "sine.inout",
-            });
-          });
-        },
-      });
-    }
-
-    this.time.delayedCall(5000, () => {
-      this.tweens.add({
-        targets: this.player,
-        duration: 2500,
-        x: `+=80`,
-        loop: -1,
-        yoyo: true,
-        ease: "sine.inout",
+    this.time.delayedCall(2500, () => {
+      this.cameras.main.fade();
+      this.time.delayedCall(1000, () => {
+        /* this.scene.start("Station") causes
+        a visual glitch, so instead I do launch Station and 
+        then stop Game right after. 
+        not sure why this happens... I know it's weird */
+        this.scene.launch("Station");
+        this.time.delayedCall(0, () => {
+          this.scene.stop();
+        });
       });
     });
   }
@@ -378,7 +357,7 @@ class Game extends Phaser.Scene {
 
     hex.activated = false;
 
-    this.roadblocks.add(hex);
+    this.spaceEvents.add(hex);
 
     hex.body.onWorldBounds = true;
     hex.setCollideWorldBounds(true);
@@ -474,39 +453,7 @@ class Game extends Phaser.Scene {
     });*/
   }
 
-  loadGameText() {
-    new GameText(this, gameW * 0.5, 5, VERSION, "s").setOrigin(0.5, 0);
-
-    const fpsText = new GameText(
-      this,
-      0,
-      0,
-      `${Math.round(this.sys.game.loop.actualFps)}`
-    )
-      .setOrigin(0, 0)
-      .setVisible(DEV_MODE);
-
-    this.time.addEvent({
-      delay: 500,
-      loop: DEV_MODE,
-      callbackScope: this,
-      callback: () => {
-        fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`);
-      },
-    });
-
-    // records player direction, player velocity, etc
-    this.devText = new GameText(this, gameW, gameH, "", "s")
-      .setAlign("right")
-      .setPadding(10)
-      .setOrigin(1, 1)
-      .setVisible(DEV_MODE);
-  }
-
   resize(gameSize) {
-    // don't resize if scene stopped. this fixes a bug
-    if (!this.scene.isActive("Game") && !this.scene.isPaused("Game")) return;
-
     const width = gameSize.width;
     const height = gameSize.height;
 
@@ -537,20 +484,423 @@ class Game extends Phaser.Scene {
     // new line:
     const offset = this.parent.height / this.sizer.height;
 
+    if (!camera) return;
+
     camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
     camera.setZoom(Math.max(scaleX, scaleY));
-    camera.centerOn(gameW / 2, gameH / 2);
+    camera.centerOn(camera.midPoint.x, camera.midPoint.y);
+  }
+}
+
+class Station extends Phaser.Scene {
+  constructor() {
+    super("Station");
   }
 
-  update() {
-    if (this.devText) this.updateDevText();
+  preload() {
+    // load google's library for the various fonts we want to use
+    this.load.script(
+      "webfont",
+      "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
+    );
   }
 
-  updateDevText() {
-    this.devText.text = `text dev`;
+  create(data) {
+    this.createResolution();
+    this.createTextures();
+    this.createStars();
+    this.createLayout();
+
+    WebFont.load({
+      google: {
+        families: FONTS,
+      },
+      active: () => {
+        this.createMenus();
+      },
+    });
+
+    this.cameras.main.fadeIn();
   }
 
-  restartGame() {}
+  createResolution() {
+    // I don't know how this code works but it's magic. I also stole it from here:
+    // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
+    const width = this.scale.gameSize.width;
+    const height = this.scale.gameSize.height;
+
+    this.parent = new Phaser.Structs.Size(width, height);
+
+    this.sizer = new Phaser.Structs.Size(
+      gameW,
+      gameH,
+      Phaser.Structs.Size.FIT,
+      this.parent
+    );
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+    this.cameras.main.centerOn(gameW / 2, gameH / 2);
+
+    this.scale.on("resize", this.resize, this);
+  }
+
+  createTextures() {
+    const graphics = this.make.graphics(); // disposable graphics obj
+
+    const lineColor = Phaser.Display.Color.ValueToColor(0xffffff);
+    const fillColor = lineColor.clone().darken(80);
+
+    // triangle ship
+    const shipW = 60;
+    const shipH = 36;
+
+    graphics
+      .lineStyle(5, lineColor.color, 1)
+      .fillStyle(fillColor.color, 1)
+      .fillTriangle(0, 0, 0, shipH, shipW, shipH / 2)
+      .strokeTriangle(0, 0, 0, shipH, shipW, shipH / 2)
+      .generateTexture("ship1", shipW, shipH)
+      .clear();
+
+    // big hexagon
+
+    const stroke = 108;
+    graphics
+      .lineStyle(stroke, lineColor.color, 1)
+      .fillStyle(fillColor.color, 1)
+      .beginPath();
+
+    let r = 450;
+    let w = r + stroke; // extended by stroke / 2, so stroke edges aren't cut off
+    for (let index = 1; index < 7; index++) {
+      graphics.lineTo(
+        r * Math.cos((index * Math.PI) / 3) + w,
+        r * Math.sin((index * Math.PI) / 3) + w
+      );
+    }
+
+    graphics
+      .closePath()
+      .strokePath()
+      .fillPath()
+      .generateTexture("bigHexagon", w * 2, w * 2)
+      .clear();
+
+    // small square for star
+    w = 16;
+    graphics
+      .fillStyle(lineColor.color, 1)
+      .fillRect(0, 0, w, w)
+      .generateTexture("square", w, w)
+      .clear();
+
+    // big menu rectangle
+    let size = gameW;
+
+    graphics
+      .lineStyle(size * 0.04, lineColor.color, 1)
+      .fillStyle(fillColor.color, 1)
+      .fillRect(0, 0, size, size)
+      .strokeRect(0, 0, size, size)
+      .generateTexture("menuBig", size, size)
+      .clear();
+
+    // small menu rectangle
+    size = gameW * 0.2;
+
+    graphics
+      .lineStyle(size * 0.1, lineColor.color, 1)
+      .fillStyle(fillColor.color, 1)
+      .fillRect(0, 0, size, size)
+      .strokeRect(0, 0, size, size)
+      .generateTexture("menuSmall", size, size)
+      .clear();
+
+    graphics.destroy();
+  }
+
+  createLayout() {
+    const hex = this.add
+      .image(gameW, gameH * 0.5, "bigHexagon")
+      .setTint(COLORS.stationColor)
+      .setName("hex")
+      .setAngle(Phaser.Math.Between(0, 59));
+
+    this.add.tween({
+      targets: hex,
+      angle: "+=360",
+      duration: 30 * 1000,
+      loop: -1,
+    });
+  }
+
+  createStars() {
+    this.stars = this.add.group({
+      key: "square",
+      quantity: 600,
+      setAlpha: { value: 0.8 },
+    });
+
+    Phaser.Actions.RandomRectangle(
+      this.stars.getChildren(),
+      new Phaser.Geom.Rectangle(-gameW / 2, -gameH / 2, gameW * 3, gameH * 2)
+    );
+
+    Phaser.Actions.Call(this.stars.getChildren(), (star) => {
+      star.setScale(Phaser.Math.FloatBetween(0.05, 0.6));
+
+      star.setScrollFactor(star.scale);
+
+      this.tweens.add({
+        targets: star,
+        alpha: 0,
+        duration: 200,
+        delay: Phaser.Math.Between(500, 6000),
+        loop: -1,
+        yoyo: true,
+      });
+    });
+  }
+
+  createMenus() {
+    const menu1 = this.add.container(gameW * 0.17, gameH * 0.35).add([
+      this.add
+        .image(0, 0, "menuBig")
+        .setDisplaySize(gameW * 0.28, gameH * 0.5)
+        .setTint(COLORS.stationColor)
+        .setAlpha(0.8),
+      new GameText(this, -240, -240, "shop", 3).setOrigin(0),
+    ]);
+
+    const menu2 = this.add.container(gameW * 0.47, gameH * 0.35).add([
+      this.add
+        .image(0, 0, "menuBig")
+        .setDisplaySize(gameW * 0.28, gameH * 0.5)
+        .setTint(COLORS.stationColor)
+        .setAlpha(0.8),
+      new GameText(this, -240, -240, "inventory", 3).setOrigin(0),
+    ]);
+
+    const menu3 = this.add.container(gameW * 0.32, gameH * 0.8).add([
+      this.add
+        .image(0, 0, "menuBig")
+        .setDisplaySize(gameW * 0.6, gameH * 0.3)
+        .setTint(COLORS.stationColor)
+        .setAlpha(0.8),
+      new GameText(
+        this,
+        -520,
+        -120,
+        "hover over an item to display info",
+        2
+      ).setOrigin(0),
+    ]);
+
+    const menu4 = this.add.container(gameW * 0.7, gameH * 0.9).add([
+      this.add
+        .image(0, 0, "menuSmall")
+        .setDisplaySize(gameW * 0.12, gameH * 0.1)
+        .setTint(COLORS.stationColor)
+        .setAlpha(0.8),
+      new GameText(this, 0, 0, "next", 4, () => {
+        this.cameras.main.pan(
+          gameW * 1.5,
+          gameH * 0.5,
+          800,
+          Phaser.Math.Easing.Sine.InOut
+        );
+      }),
+    ]);
+
+    const menu5 = this.add.container(gameW * 1.68, gameH * 0.35).add([
+      this.add
+        .image(0, 0, "menuBig")
+        .setDisplaySize(gameW * 0.56, gameH * 0.5)
+        .setTint(COLORS.stationColor)
+        .setAlpha(0.8),
+      new GameText(this, -480, -240, "map", 3).setOrigin(0),
+    ]);
+
+    const menu6 = this.add.container(gameW * 1.57, gameH * 0.8).add([
+      this.add
+        .image(0, 0, "menuBig")
+        .setDisplaySize(gameW * 0.34, gameH * 0.3)
+        .setTint(COLORS.stationColor)
+        .setAlpha(0.8),
+      new GameText(this, -280, -120, "hover over a station\nto display info", 2)
+        .setOrigin(0)
+        .setAlign("left"),
+    ]);
+
+    const menu7 = this.add.container(gameW * 1.86, gameH * 0.8).add([
+      this.add
+        .image(0, 0, "menuSmall")
+        .setDisplaySize(gameW * 0.18, gameH * 0.18)
+        .setTint(COLORS.stationColor)
+        .setAlpha(0.8),
+      new GameText(this, 0, 0, "DEPART", 4, this.endScene),
+    ]);
+
+    const menu8 = this.add.container(gameW * 1.3, gameH * 0.9).add([
+      this.add
+        .image(0, 0, "menuSmall")
+        .setDisplaySize(gameW * 0.12, gameH * 0.1)
+        .setTint(COLORS.stationColor)
+        .setAlpha(0.8),
+      new GameText(this, 0, 0, "back", 4, () => {
+        this.cameras.main.pan(
+          gameW * 0.5,
+          gameH * 0.5,
+          800,
+          Phaser.Math.Easing.Sine.InOut
+        );
+      }),
+    ]);
+  }
+
+  endScene() {
+    this.cameras.main.fade();
+    this.time.delayedCall(1000, () => {
+      this.scene.start("Game");
+    });
+  }
+
+  resize(gameSize) {
+    const width = gameSize.width;
+    const height = gameSize.height;
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+  }
+
+  updateCamera() {
+    const camera = this.cameras.main;
+
+    const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
+    const y = 0;
+    const scaleX = this.sizer.width / gameW;
+    const scaleY = this.sizer.height / gameH;
+
+    if (!camera) return;
+
+    camera.setViewport(x, y, this.sizer.width, this.parent.height);
+    camera.setZoom(Math.max(scaleX, scaleY));
+    camera.centerOn(camera.midPoint.x, camera.midPoint.y);
+  }
+
+  update() {}
+}
+
+class HUD extends Phaser.Scene {
+  bounds;
+
+  constructor() {
+    super("HUD");
+  }
+
+  preload() {
+    // load google's library for the various fonts we want to use
+    this.load.script(
+      "webfont",
+      "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
+    );
+  }
+
+  create(data) {
+    this.createResolution();
+
+    // show bounds of game while in dev
+    this.bounds = this.add
+      .rectangle(gameW / 2, gameH / 2, gameW, gameH)
+      .setStrokeStyle(4, 0xffffff, 0.6);
+
+    WebFont.load({
+      google: {
+        families: FONTS,
+      },
+      active: () => {
+        this.createText();
+      },
+    });
+  }
+
+  createText() {
+    const version = new GameText(this, gameW, gameH, VERSION, 0)
+      .setOrigin(1, 1)
+      .setPadding(5);
+
+    const fpsText = new GameText(
+      this,
+      0,
+      gameH,
+      `${Math.round(this.sys.game.loop.actualFps)}`,
+      0
+    )
+      .setOrigin(0, 1)
+      .setPadding(5);
+
+    this.time.addEvent({
+      delay: 500,
+      loop: true,
+      callbackScope: this,
+      callback: () => {
+        fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`);
+      },
+    });
+  }
+
+  createResolution() {
+    // I don't know how this code works but it's magic. I also stole it from here:
+    // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
+    const width = this.scale.gameSize.width;
+    const height = this.scale.gameSize.height;
+
+    this.parent = new Phaser.Structs.Size(width, height);
+
+    this.sizer = new Phaser.Structs.Size(
+      gameW,
+      gameH,
+      Phaser.Structs.Size.FIT,
+      this.parent
+    );
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+    this.cameras.main.centerOn(gameW / 2, gameH / 2);
+
+    this.scale.on("resize", this.resize, this);
+  }
+
+  resize(gameSize) {
+    const width = gameSize.width;
+    const height = gameSize.height;
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+  }
+
+  updateCamera() {
+    const camera = this.cameras.main;
+
+    const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
+    const y = 0;
+    const scaleX = this.sizer.width / gameW;
+    const scaleY = this.sizer.height / gameH;
+
+    if (!camera) return;
+    camera.setViewport(x, y, this.sizer.width, this.parent.height);
+    camera.setZoom(Math.max(scaleX, scaleY));
+    camera.centerOn(camera.midPoint.x, camera.midPoint.y);
+  }
 }
 
 class MainUI extends Phaser.Scene {
@@ -1871,7 +2221,7 @@ const config = {
     height: gameH,
   },
   // pixelArt: true,
-  scene: [Background, MainUI, Game],
+  scene: [Background, HUD, Game, Station],
   physics: {
     default: "arcade",
     arcade: {
@@ -1893,7 +2243,7 @@ class GameText extends Phaser.GameObjects.Text {
     x,
     y,
     text,
-    size = "m", // s, m, l, or g for small, medium, large, or giant
+    size = 3, // s, m, l, or g for small, medium, large, or giant
     callback = null // provided only for buttons
   ) {
     super(scene);
@@ -1901,58 +2251,38 @@ class GameText extends Phaser.GameObjects.Text {
     // isn't this just creating two text objects...?
     const cT = scene.add
       .text(x, y, text, {
-        font:
-          size == "g"
-            ? "144px"
-            : size == "l"
-            ? "108px"
-            : size == "m"
-            ? "84px"
-            : "60px",
+        font: `${size * 12 + 24}px`,
         fill: "#fff",
         align: "center",
       })
-      .setFontFamily("Titillium Web");
+      .setFontFamily("PT Sans")
+      .setOrigin(0.5, 0.5)
+      .setShadow(0, 1, "#00a8e8", 3, false, true)
+      .setLineSpacing(8);
 
     // if callback is given, assume it's a button and add callback.
     // fine-tuned this code so button only clicks if player
     // emits both pointerdown and pointerup events on it
-    // update 2: now much more complex w/ arrow key integration
     if (callback) {
       cT.setInteractive({ useHandCursor: true })
-        .on("pointermove", function (pointer) {
-          this.emit("pointerover", pointer);
-        })
         .on("pointerover", function (pointer) {
-          if (this.scale == 1) {
-            scene.scene.get("MainUI").playSound("pointerover");
-          }
-
-          if (pointer) scene.activeOption = scene.activeOptions.indexOf(this);
-
-          this.setTint(COLORS.tintColor).setScale(1.02);
-          scene.activeOptions.forEach((option) => {
-            if (option != this) option.emit("pointerout");
-          });
+          this.setTint(COLORS.highlightColor);
         })
         .on("pointerout", function (pointer) {
-          if (pointer) scene.activeOption = -1; // if mouse used, reset arrow key selection
-          this.setTint(COLORS.white).setScale(1);
+          this.setTint(COLORS.white);
+          //this.setShadow(0, 0, "#99c1de", 0, true, true);
+
           this.off("pointerup", callback, scene);
         })
         .on("pointerdown", function () {
-          // don't do anything if tweens are running between menus
-          if (scene.transition) return;
-
           this.setTint(COLORS.clickColor);
           if (this.listenerCount("pointerup") < 2) {
             this.on("pointerup", callback, scene);
           }
         })
         .on("pointerup", function () {
-          scene.scene.get("MainUI").playSound("pointerup");
-
-          this.setTint(COLORS.tintColor);
+          this.setTint(COLORS.highlightColor);
+          // this.setShadow(0, 0, "#fcf5c7", 4, false, true);
         });
     }
 
@@ -1983,7 +2313,7 @@ class GameButton extends Phaser.GameObjects.Image {
 
     cB.setInteractive()
       .on("pointerover", function () {
-        this.setTint(COLORS.tintColor).setScale(0.82);
+        this.setTint(COLORS.highlightColor).setScale(0.82);
         scene.scene.get("MainUI").playSound("pointerover");
       })
       .on("pointerout", function () {
