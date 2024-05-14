@@ -1,6 +1,6 @@
 const VERSION = "Startracer Corp v0.1";
 
-const DEV_MODE = true; // turns on physics debug mode
+const DEV_MODE = false; // turns on physics debug mode
 
 const gameW = 1920;
 const gameH = 1080;
@@ -61,58 +61,40 @@ class Background extends Phaser.Scene {
 class Game extends Phaser.Scene {
   player;
   keysDown;
-  spaceEvents; // physic group containing obstacles/events... in space!
-  roadY = gameH * 0.9; // for placing everything down consistently at the bottom
-  gameLength; // integer. measured in gameW, so total is gameW * gameLength
-  endStation; // ending station of level
+  stars;
 
   constructor() {
     super("Game");
   }
 
-  preload() {}
-
-  create(data) {
-    this.gameLength = 6;
-
-    this.createResolution();
-
-    this.createTextures();
-    this.createStars();
-
-    this.createPlayer();
-    this.createLayout();
-    //this.createSpaceEvents();
-
-    this.createPhysics();
-
-    this.createKeyboardControls();
-
-    this.startGame();
-  }
-
-  createResolution() {
-    // I don't know how this code works but it's magic. I also stole it from here:
-    // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
-    const width = this.scale.gameSize.width;
-    const height = this.scale.gameSize.height;
-
-    this.parent = new Phaser.Structs.Size(width, height);
-
-    this.sizer = new Phaser.Structs.Size(
-      gameW,
-      gameH,
-      Phaser.Structs.Size.FIT,
-      this.parent
+  preload() {
+    // load google's library for the various fonts we want to use
+    this.load.script(
+      "webfont",
+      "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
     );
 
-    this.parent.setSize(width, height);
-    this.sizer.setSize(width, height);
+    this.load.text("story", "assets/story.txt");
+  }
+  create(data) {
+    this.createResolution();
+    this.createKeyboardControls();
 
-    this.updateCamera();
-    this.cameras.main.centerOn(gameW / 2, gameH / 2);
+    this.createTextures();
+    this.createPhysics();
 
-    this.scale.on("resize", this.resize, this);
+    this.createLayout();
+    this.createStars();
+    this.createPlayer();
+
+    WebFont.load({
+      google: {
+        families: FONTS,
+      },
+      active: () => {
+        this.createText();
+      },
+    });
   }
 
   createTextures() {
@@ -168,52 +150,29 @@ class Game extends Phaser.Scene {
   }
 
   createLayout() {
-    // road
-    this.add
-      .rectangle(
-        gameW * this.gameLength * 0.5,
-        this.roadY,
-        gameW * (this.gameLength + 1),
-        60
-      )
-      .setStrokeStyle(4, COLORS.white, 1)
-      .setFillStyle(COLORS.black, 1);
-
-    // departing station
-    this.add
-      .image(gameW * 0.5, this.roadY, "hexagon")
-      .setTint(COLORS.stationColor)
-      .setName("hex")
-      .setDepth(1)
-      .setScale(1.2);
-
-    // arriving station
-    this.endStation = this.physics.add
-      .staticImage(gameW * this.gameLength, this.roadY, "hexagon")
-      .setTint(COLORS.stationColor)
-      .setName("hex")
-      .setDepth(1)
-      .setScale(1.2);
+    // show bounds of game while in dev
+    this.bounds = this.add
+      .rectangle(gameW / 2, gameH / 2, gameW, gameH)
+      .setStrokeStyle(4, 0xffffff, 0.6);
   }
 
   createStars() {
-    const length = 20;
-
-    this.stars = this.add.group({
+    this.stars.createMultiple({
       key: "square",
-      quantity: length * 200,
+      quantity: 500,
       setAlpha: { value: 0.8 },
     });
 
     Phaser.Actions.RandomRectangle(
       this.stars.getChildren(),
-      new Phaser.Geom.Rectangle(-gameW, -gameH / 2, gameW * length, gameH * 2)
+      new Phaser.Geom.Rectangle(-gameW / 2, -gameH / 2, gameW * 2, gameH * 2)
     );
 
     Phaser.Actions.Call(this.stars.getChildren(), (star) => {
-      star.setScale(Phaser.Math.FloatBetween(0.05, 0.6));
-
-      star.setScrollFactor(star.scale);
+      star.setScale(Phaser.Math.FloatBetween(0.05, 0.6)).setName("star");
+      star.body.collideWorldBounds = true;
+      star.body.onWorldBounds = true;
+      star.body.setVelocityX(-200 * star.scale);
 
       this.tweens.add({
         targets: star,
@@ -224,165 +183,44 @@ class Game extends Phaser.Scene {
         yoyo: true,
       });
     });
-
-    this.starsBound = this.physics.add
-      .staticImage(gameW * (length - 1), gameH * 0.5, "square")
-      .setBodySize(gameW * 0.1, gameH);
   }
 
   createPhysics() {
-    this.physics.add.overlap(this.player, this.spaceEvents, (p, r) => {
-      if (r.activated) return;
+    this.stars = this.physics.add.group();
 
-      r.activated = true;
-      console.log("activated");
+    this.physics.world.setBounds(-gameW / 2, -gameH / 2, gameW * 2, gameH * 2);
+
+    this.physics.world.on("worldbounds", (body) => {
+      switch (body.gameObject.name) {
+        case "star":
+          // move to other side of bounds and start moving left again
+          body.x += this.physics.world.bounds.width - body.gameObject.width;
+          body.setVelocityX(-200 * body.gameObject.scale);
+          break;
+
+        default:
+          body.gameObject.destroy();
+          break;
+      }
     });
-
-    this.physics.add.overlap(this.player, this.endStation, () => {
-      this.endStation.disableBody(); // so it only runs once
-      this.endGame();
-    });
-
-    this.physics.add.overlap(this.player, this.starsBound, () => {
-      if (this.starsBound.activated) return;
-
-      this.starsBound.activated = true;
-      this.time.delayedCall(1000, () => {
-        this.starsBound.activated = false;
-      });
-      console.log("hello");
-    });
-  }
-
-  createSpaceEvents() {
-    /*const num = Phaser.Math.Between(
-      Math.round(this.gameLength / 3),
-      Math.round((2 * this.gameLength) / 3)
-    );*/
-    const num = 5;
-
-    this.spaceEvents = this.physics.add.staticGroup({
-      key: "hexagon",
-      quantity: num,
-      setScale: { x: 0.75, y: 0.75 },
-    });
-
-    const boundLine = new Phaser.Geom.Line(
-      gameW * 1.5,
-      this.roadY,
-      gameW * (this.gameLength - 0.5),
-      this.roadY
-    );
-
-    Phaser.Actions.PlaceOnLine(this.spaceEvents.getChildren(), boundLine);
-
-    const length = Phaser.Geom.Line.Length(boundLine);
-    console.log(length / num);
-
-    for (const spaceEvent of this.spaceEvents.getChildren()) {
-      spaceEvent.body.setSize(200, 200);
-      let randomOffset = Phaser.Math.Between(-length / num, length / num);
-      spaceEvent.x += randomOffset / 3;
-    }
-
-    this.spaceEvents.refresh();
   }
 
   createPlayer() {
     this.player = this.physics.add
-      .image(gameW * 0.5, gameH * 0.1, "ship1")
+      .image(gameW * 0.5, gameH * 0.08, "ship1")
       .setTint(Phaser.Utils.Array.GetRandom(COLORS.shipColors))
       .setName("player")
-      .setDepth(1)
-      .setMaxVelocity(1000, 0);
+      .setDepth(1);
   }
 
-  startGame() {
-    this.cameras.main.fadeIn();
+  createText() {
+    const text = this.cache.text.get("story");
 
-    this.cameras.main
-      .startFollow(this.player, false, 0.01, 1)
-      .setFollowOffset(0, -gameH * 0.4);
-
-    this.time.delayedCall(1500, () => {
-      this.player.setAccelerationX(200);
-
-      this.tweens.add({
-        targets: this.cameras.main.lerp,
-        x: 0.8,
-        duration: 8000,
-        delay: 2000,
-        ease: "sine.in",
-      });
-    });
-
-    //this.cameras.main.setScroll((gameW * this.gameLength) / 2, gameH * 0.5);
-    //this.cameras.main.setZoom(0.13);
-  }
-
-  endGame() {
-    console.log(Phaser.Math.RoundTo(this.time.now / 1000, -1) + " seconds");
-    this.cameras.main.pan(
-      this.endStation.x,
-      this.endStation.y,
-      1500,
-      Phaser.Math.Easing.Sine.InOut
-    );
-    this.cameras.main.stopFollow();
-    this.player.setAccelerationX(0);
-    this.tweens.add({
-      targets: this.player,
-      alpha: 0,
-      duration: 300,
-    });
-
-    this.time.delayedCall(2500, () => {
-      this.cameras.main.fade();
-      this.time.delayedCall(1000, () => {
-        /* this.scene.start("Station") causes
-        a visual glitch, so instead I do launch Station and 
-        then stop Game right after. 
-        not sure why this happens... I know it's weird */
-        this.scene.launch("Station");
-        this.time.delayedCall(0, () => {
-          this.scene.stop();
-        });
-      });
-    });
-  }
-
-  createRoadblocks() {
-    this.time.addEvent({
-      delay: Phaser.Math.Between(1000, 2000),
-      callback: () => {
-        this.createRoadblock();
-        //this.createRoadblocks(); // loop back so we can keep it going
-      },
-    });
-  }
-
-  createRoadblock() {
-    const hex = this.physics.add
-      .image(gameW * 1.1, this.roadY - 100, "hexagon")
-      .setName("hex");
-
-    hex.activated = false;
-
-    this.spaceEvents.add(hex);
-
-    hex.body.onWorldBounds = true;
-    hex.setCollideWorldBounds(true);
-
-    hex.setVelocityX(-200);
-    hex.body.setSize(200, (gameH - hex.y) * 2); // make sure player hits it
-
-    hex.setAngle(Phaser.Math.Between(0, 59));
-    this.add.tween({
-      targets: hex,
-      angle: "+=360",
-      duration: 10000,
-      loop: -1,
-    });
+    const version = new GameText(this, gameW * 0.5, gameH * 0.16, text, 2)
+      .setOrigin(0.5, 0)
+      .setLineSpacing(16)
+      .setAlign("left")
+      .setWordWrapWidth(gameW * 0.6, true);
   }
 
   createKeyboardControls() {
@@ -464,6 +302,30 @@ class Game extends Phaser.Scene {
     });*/
   }
 
+  createResolution() {
+    // I don't know how this code works but it's magic. I also stole it from here:
+    // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
+    const width = this.scale.gameSize.width;
+    const height = this.scale.gameSize.height;
+
+    this.parent = new Phaser.Structs.Size(width, height);
+
+    this.sizer = new Phaser.Structs.Size(
+      gameW,
+      gameH,
+      Phaser.Structs.Size.FIT,
+      this.parent
+    );
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+    this.cameras.main.centerOn(gameW / 2, gameH / 2);
+
+    this.scale.on("resize", this.resize, this);
+  }
+
   resize(gameSize) {
     const width = gameSize.width;
     const height = gameSize.height;
@@ -482,22 +344,9 @@ class Game extends Phaser.Scene {
     const scaleX = this.sizer.width / gameW;
     const scaleY = this.sizer.height / gameH;
 
-    // this offset was meant to move the game screen a little up
-    // because it was being centered a little down when playing it on
-    // my phone (iPhone 12). I'm going to remove it now because
-    // I'm prioritizing a multi-platform game and the offset looks
-    // weird on other platforms.
-
-    // offset is comparing the game's height to the window's height,
-    // and centering the game in (kind of) the middle of the window.
-    // old line:
-    //const offset = (1 + this.parent.height / this.sizer.height) / 2;
-    // new line:
-    const offset = this.parent.height / this.sizer.height;
-
     if (!camera) return;
 
-    camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
+    camera.setViewport(x, y, this.sizer.width, this.parent.height);
     camera.setZoom(Math.max(scaleX, scaleY));
     camera.centerOn(camera.midPoint.x, camera.midPoint.y);
   }
@@ -824,11 +673,6 @@ class HUD extends Phaser.Scene {
 
   create(data) {
     this.createResolution();
-
-    // show bounds of game while in dev
-    this.bounds = this.add
-      .rectangle(gameW / 2, gameH / 2, gameW, gameH)
-      .setStrokeStyle(4, 0xffffff, 0.6);
 
     WebFont.load({
       google: {
