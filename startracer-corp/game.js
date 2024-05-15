@@ -62,6 +62,8 @@ class Game extends Phaser.Scene {
   player;
   keysDown;
   stars;
+  story; // object containing organized text, choices, actions
+  storyIndex; // which story part are we on?
 
   constructor() {
     super("Game");
@@ -76,6 +78,7 @@ class Game extends Phaser.Scene {
 
     this.load.text("story", "assets/story.txt");
   }
+
   create(data) {
     this.createResolution();
     this.createKeyboardControls();
@@ -86,6 +89,8 @@ class Game extends Phaser.Scene {
     this.createLayout();
     this.createStars();
     this.createPlayer();
+
+    this.processStoryText();
 
     WebFont.load({
       google: {
@@ -213,14 +218,123 @@ class Game extends Phaser.Scene {
       .setDepth(1);
   }
 
-  createText() {
-    const text = this.cache.text.get("story");
+  processStoryText() {
+    let text = this.cache.text.get("story");
+    this.story = {};
 
-    const version = new GameText(this, gameW * 0.5, gameH * 0.16, text, 2)
+    // split text into story parts by double line returns
+    let parts = text.split("\r\n\r\n\r\n");
+
+    parts.forEach((part) => {
+      // split by line
+      const array = part.split("\r\n");
+
+      // build up storyPart object
+      const storyPart = {};
+      storyPart["text"] = "";
+
+      while (array.length > 0) {
+        let line = array.shift();
+
+        if (line.indexOf("#") == 0) {
+          // story part ID is number on the first line after the hashtag
+          storyPart["id"] = Number(line.slice(1));
+        } else if (line.indexOf("[") == 0) {
+          // build actions list
+          if (!storyPart["actions"]) storyPart["actions"] = [];
+
+          const action = {};
+
+          const nextIndex = line.indexOf("#"); // next ID starts here
+          const endNextIndex = line.indexOf("]", nextIndex); // and ends here
+
+          // next story part ID
+          action["next"] = Number(line.slice(nextIndex + 1, endNextIndex));
+          // what the choice actually says
+          action["text"] = line.slice(1, nextIndex - 1);
+
+          storyPart["actions"].push(action);
+        } else {
+          // just a normal dialog line, add it to the text
+          if (line == "") line = "\n\n"; // make sure new lines are counted
+          storyPart["text"] += line;
+        }
+      }
+
+      this.story[storyPart.id] = storyPart;
+    });
+  }
+
+  createText() {
+    this.storyIndex = 1; // start at story part #1
+    const part = this.story[this.storyIndex];
+
+    const text = this.newStoryText(gameW * 0.5, gameH * 0.16, part["text"]);
+
+    // grab the font size so we can calculate the spacing b/w text and actions
+    const size = text.style.fontSize;
+    const spacing = Number(size.slice(0, size.length - 2)) + text.lineSpacing;
+
+    let bottom = text.getBottomCenter().y; //
+
+    part["actions"].forEach((action) => {
+      const text = this.newStoryText(
+        gameW * 0.5,
+        bottom + spacing,
+        action["text"],
+        () => this.nextStoryPart(action["next"])
+      );
+    });
+  }
+
+  newStoryText(x, y, text, callback) {
+    // isn't this just creating two text objects...?
+    const width = gameW * 0.6;
+    const t = this.add
+      .text(x, y, text, {
+        font: `48px`,
+        fill: "#fff",
+        align: "left",
+        fixedWidth: width,
+        wordWrap: { width: width, useAdvancedWrap: true },
+        shadow: {
+          offsetX: 0,
+          offsetY: 1,
+          color: "#00a8e8",
+          blur: 3,
+          stroke: false,
+          fill: true,
+        },
+      })
+      .setFontFamily("PT Sans")
       .setOrigin(0.5, 0)
-      .setLineSpacing(16)
-      .setAlign("left")
-      .setWordWrapWidth(gameW * 0.6, true);
+      .setLineSpacing(16);
+
+    if (callback) {
+      t.setInteractive({ useHandCursor: true })
+        .on("pointerover", function (pointer) {
+          this.setTint(COLORS.highlightColor);
+        })
+        .on("pointerout", function (pointer) {
+          this.setTint(COLORS.white);
+          this.off("pointerup", callback);
+        })
+        .on("pointerdown", function () {
+          this.setTint(COLORS.clickColor);
+          if (this.listenerCount("pointerup") < 2) {
+            this.on("pointerup", callback);
+          }
+        })
+        .on("pointerup", function () {
+          this.setTint(COLORS.highlightColor);
+        });
+    }
+
+    return t;
+  }
+
+  nextStoryPart(id) {
+    console.log(id);
   }
 
   createKeyboardControls() {

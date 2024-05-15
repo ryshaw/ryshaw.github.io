@@ -1,5 +1,20 @@
+#1
 You awaken.
 
 The stars blink against a dark sheet of space.
 
 You are on a dilapidated Yotsuba-class hauler ship, and the only signs of life are the mutterings of voices behind thin closed doors.
+
+[1. Continue... #2]
+
+
+#2
+Upon stirring awake, the voices suddenly stop and the doors slide open, revealing too much light. One of the voices apparently notices you holding up your hand to block it out and says "A9, hurry up and get the door!" 
+
+Once the door closes again, your eyes adjust to see two people standing in front of you. Brief introductions reveal they're named A9 and B5, and they're not people at all - they're robots, employed as assistants for this hauling rig.
+
+[1. Continue... #3]
+
+
+#0
+End of story. Thank you for playing!
