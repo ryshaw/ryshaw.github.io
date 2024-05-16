@@ -268,6 +268,12 @@ class Game extends Phaser.Scene {
   createText() {
     this.storyIndex = 1; // start at story part #1
     const part = this.story[this.storyIndex];
+    console.log(
+      this.storyIndex,
+      this.story,
+      part,
+      this.cache.text.get("story")
+    );
 
     this.textContainer = this.add.container();
 
