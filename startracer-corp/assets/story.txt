@@ -6,6 +6,8 @@ The stars blink against a dark sheet of space.
 You are on a dilapidated Yotsuba-class hauler ship, and the only signs of life are the mutterings of voices behind thin closed doors.
 
 [1. Continue... #2]
+[2. Continue but better... #2]
+[3. Scream. Scream as if the devil is waiting for you, scream so the stars can hear you, scream to reverse the terrible plotline you're about to experience. #2]
 
 
 #2
@@ -17,4 +19,6 @@ Once the door closes again, your eyes adjust to see two people standing in front
 
 
 #0
-End of story. Thank you for playing!
+Default story part.
+
+How did you get here?

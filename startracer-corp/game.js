@@ -64,6 +64,7 @@ class Game extends Phaser.Scene {
   stars;
   story; // object containing organized text, choices, actions
   storyIndex; // which story part are we on?
+  textContainer; // container with all the story text and choices
 
   constructor() {
     super("Game");
@@ -90,13 +91,12 @@ class Game extends Phaser.Scene {
     this.createStars();
     this.createPlayer();
 
-    this.processStoryText();
-
     WebFont.load({
       google: {
         families: FONTS,
       },
       active: () => {
+        this.processStoryText();
         this.createText();
       },
     });
@@ -269,33 +269,39 @@ class Game extends Phaser.Scene {
     this.storyIndex = 1; // start at story part #1
     const part = this.story[this.storyIndex];
 
-    const text = this.newStoryText(gameW * 0.5, gameH * 0.16, part["text"]);
+    this.textContainer = this.add.container();
+
+    let text = this.newStoryText(gameH * 0.14, part["text"]);
+
+    this.textContainer.add(text);
 
     // grab the font size so we can calculate the spacing b/w text and actions
     const size = text.style.fontSize;
-    const spacing = Number(size.slice(0, size.length - 2)) + text.lineSpacing;
+    const spacing = Number(size.slice(0, size.length - 2));
+    let bottom = text.getBottomCenter().y + text.lineSpacing;
 
-    let bottom = text.getBottomCenter().y; //
+    if (!part["actions"]) return;
 
     part["actions"].forEach((action) => {
-      const text = this.newStoryText(
-        gameW * 0.5,
-        bottom + spacing,
-        action["text"],
-        () => this.nextStoryPart(action["next"])
+      text = this.newStoryText(bottom + spacing, action["text"], () =>
+        this.nextStoryPart(action["next"])
       );
+
+      this.textContainer.add(text);
+
+      bottom = text.getBottomCenter().y;
     });
   }
 
-  newStoryText(x, y, text, callback) {
-    // isn't this just creating two text objects...?
+  newStoryText(y, text, callback) {
     const width = gameW * 0.6;
+    const x = (gameW - width) / 2;
     const t = this.add
       .text(x, y, text, {
         font: `48px`,
         fill: "#fff",
         align: "left",
-        fixedWidth: width,
+        // fixedWidth: width,
         wordWrap: { width: width, useAdvancedWrap: true },
         shadow: {
           offsetX: 0,
@@ -307,7 +313,7 @@ class Game extends Phaser.Scene {
         },
       })
       .setFontFamily("PT Sans")
-      .setOrigin(0.5, 0)
+      .setOrigin(0, 0)
       .setLineSpacing(16);
 
     if (callback) {
@@ -334,7 +340,37 @@ class Game extends Phaser.Scene {
   }
 
   nextStoryPart(id) {
-    console.log(id);
+    this.textContainer.removeAll(true);
+
+    this.storyIndex = id;
+    let part = this.story[this.storyIndex];
+
+    if (!part) {
+      // no part found, go to default
+      this.storyIndex = 0;
+      part = this.story[this.storyIndex];
+    }
+
+    let text = this.newStoryText(gameH * 0.15, part["text"]);
+
+    this.textContainer.add(text);
+
+    // grab the font size so we can calculate the spacing b/w text and actions
+    const size = text.style.fontSize;
+    const spacing = Number(size.slice(0, size.length - 2));
+    let bottom = text.getBottomCenter().y + text.lineSpacing;
+
+    if (!part["actions"]) return;
+
+    part["actions"].forEach((action) => {
+      text = this.newStoryText(bottom + spacing, action["text"], () =>
+        this.nextStoryPart(action["next"])
+      );
+
+      this.textContainer.add(text);
+
+      bottom = text.getBottomCenter().y;
+    });
   }
 
   createKeyboardControls() {
