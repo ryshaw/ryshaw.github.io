@@ -63,7 +63,6 @@ class Game extends Phaser.Scene {
   keysDown;
   stars;
   story; // object containing organized text, choices, actions
-  storyIndex; // which story part are we on?
   textContainer; // container with all the story text and choices
 
   constructor() {
@@ -219,15 +218,15 @@ class Game extends Phaser.Scene {
   }
 
   processStoryText() {
-    let text = this.cache.text.get("story");
+    let text = this.cache.text.get("story").replaceAll("\r", "");
     this.story = {};
 
     // split text into story parts by double line returns
-    let parts = text.split("\r\n\r\n\r\n");
+    let parts = text.split("\n\n\n");
 
     parts.forEach((part) => {
       // split by line
-      const array = part.split("\r\n");
+      const array = part.split("\n");
 
       // build up storyPart object
       const storyPart = {};
@@ -266,18 +265,18 @@ class Game extends Phaser.Scene {
   }
 
   createText() {
-    this.storyIndex = 1; // start at story part #1
-    const part = this.story[this.storyIndex];
-    console.log(
-      this.storyIndex,
-      this.story,
-      part,
-      this.cache.text.get("story")
-    );
-
     this.textContainer = this.add.container();
+    this.nextStoryPart(1); // start at 1
+  }
 
-    let text = this.newStoryText(gameH * 0.14, part["text"]);
+  nextStoryPart(id) {
+    this.textContainer.removeAll(true);
+
+    let part = this.story[id];
+
+    if (!part) part = this.story[0]; // no part found, go to default
+
+    let text = this.newStoryText(gameH * 0.15, part["text"]);
 
     this.textContainer.add(text);
 
@@ -343,40 +342,6 @@ class Game extends Phaser.Scene {
     }
 
     return t;
-  }
-
-  nextStoryPart(id) {
-    this.textContainer.removeAll(true);
-
-    this.storyIndex = id;
-    let part = this.story[this.storyIndex];
-
-    if (!part) {
-      // no part found, go to default
-      this.storyIndex = 0;
-      part = this.story[this.storyIndex];
-    }
-
-    let text = this.newStoryText(gameH * 0.15, part["text"]);
-
-    this.textContainer.add(text);
-
-    // grab the font size so we can calculate the spacing b/w text and actions
-    const size = text.style.fontSize;
-    const spacing = Number(size.slice(0, size.length - 2));
-    let bottom = text.getBottomCenter().y + text.lineSpacing;
-
-    if (!part["actions"]) return;
-
-    part["actions"].forEach((action) => {
-      text = this.newStoryText(bottom + spacing, action["text"], () =>
-        this.nextStoryPart(action["next"])
-      );
-
-      this.textContainer.add(text);
-
-      bottom = text.getBottomCenter().y;
-    });
   }
 
   createKeyboardControls() {
