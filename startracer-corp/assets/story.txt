@@ -18,6 +18,17 @@ Once the door closes again, your eyes adjust to see two people standing in front
 [1. Continue... #3]
 
 
+#3
+Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. 
+
+Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. 
+
+[1. Continue... #2]
+[2. Continue but better... #2]
+[3. Scream. Scream as if the devil is waiting for you, scream so the stars can hear you, scream to reverse the terrible plotline you're about to experience. #2]
+[4. Help me #1]
+
+
 #0
 Default story part.
 

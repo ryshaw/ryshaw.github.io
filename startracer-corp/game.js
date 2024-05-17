@@ -64,6 +64,8 @@ class Game extends Phaser.Scene {
   stars;
   story; // object containing organized text, choices, actions
   textContainer; // container with all the story text and choices
+  scrollPos; // where the mouse wheel is scrolling to, for interpolation
+  transition; // true if the text is transitioning to next part (stop lerp)
 
   constructor() {
     super("Game");
@@ -81,7 +83,6 @@ class Game extends Phaser.Scene {
 
   create(data) {
     this.createResolution();
-    this.createKeyboardControls();
 
     this.createTextures();
     this.createPhysics();
@@ -89,6 +90,9 @@ class Game extends Phaser.Scene {
     this.createLayout();
     this.createStars();
     this.createPlayer();
+
+    this.createKeyboardControls();
+    this.createMouseControls();
 
     WebFont.load({
       google: {
@@ -265,18 +269,48 @@ class Game extends Phaser.Scene {
   }
 
   createText() {
+    this.cameras.main.setZoom(0.4);
     this.textContainer = this.add.container();
+    this.transition = false;
     this.nextStoryPart(1); // start at 1
   }
 
   nextStoryPart(id) {
-    this.textContainer.removeAll(true);
+    // get text container bounds so we can align the new text correctly
+    const bounds = this.textContainer.getBounds();
+
+    // push all current text up to make room
+    this.tweens.add({
+      targets: this.textContainer,
+      y: `-=${bounds.bottom}`,
+      duration: 800,
+      ease: "sine.out",
+      onActive: () => (this.transition = true),
+      onComplete: () => {
+        this.transition = false;
+        this.scrollPos = this.textContainer.y;
+      },
+    });
+
+    this.textContainer.each((t) => {
+      t.removeInteractive();
+      this.tweens.add({
+        targets: t,
+        alpha: 0.2,
+        duration: 600,
+      });
+    });
 
     let part = this.story[id];
 
     if (!part) part = this.story[0]; // no part found, go to default
 
-    let text = this.newStoryText(gameH * 0.15, part["text"]);
+    let y = gameH * 0.15 + bounds.height; // new text will start here
+
+    // if there's text already, we gotta push new text even more down
+    if (this.textContainer.length > 0) y += gameH * 0.15;
+
+    let text = this.newStoryText(y, part["text"]); // get story text
 
     this.textContainer.add(text);
 
@@ -285,7 +319,7 @@ class Game extends Phaser.Scene {
     const spacing = Number(size.slice(0, size.length - 2));
     let bottom = text.getBottomCenter().y + text.lineSpacing;
 
-    if (!part["actions"]) return;
+    if (!part["actions"]) return; // no actions so we're done
 
     part["actions"].forEach((action) => {
       text = this.newStoryText(bottom + spacing, action["text"], () =>
@@ -294,7 +328,7 @@ class Game extends Phaser.Scene {
 
       this.textContainer.add(text);
 
-      bottom = text.getBottomCenter().y;
+      bottom = text.getBottomCenter().y; // put actions below each other
     });
   }
 
@@ -319,7 +353,14 @@ class Game extends Phaser.Scene {
       })
       .setFontFamily("PT Sans")
       .setOrigin(0, 0)
-      .setLineSpacing(16);
+      .setLineSpacing(16)
+      .setAlpha(0);
+
+    this.tweens.add({
+      targets: t,
+      alpha: 1,
+      duration: 600,
+    });
 
     if (callback) {
       t.setInteractive({ useHandCursor: true })
@@ -423,6 +464,12 @@ class Game extends Phaser.Scene {
     });*/
   }
 
+  createMouseControls() {
+    this.input.on("wheel", (p, over, dX, dY, dZ) => {
+      this.scrollPos -= dY * 0.4; // lerp handled in update() method
+    });
+  }
+
   createResolution() {
     // I don't know how this code works but it's magic. I also stole it from here:
     // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
@@ -470,6 +517,28 @@ class Game extends Phaser.Scene {
     camera.setViewport(x, y, this.sizer.width, this.parent.height);
     camera.setZoom(Math.max(scaleX, scaleY));
     camera.centerOn(camera.midPoint.x, camera.midPoint.y);
+  }
+
+  update() {
+    // if text hasn't been created or we're transitioning, don't lerp
+    if (!this.textContainer || this.transition) return;
+    if (!this.scrollPos) this.scrollPos = this.textContainer.y; // set lerp
+
+    this.textContainer.y = Phaser.Math.Linear(
+      this.textContainer.y,
+      this.scrollPos,
+      0.3
+    );
+
+    this.textContainer.each((t) => {
+      //t.setScale(1);
+    });
+
+    const list = this.cameras.main.cull(this.textContainer.getAll());
+
+    list.forEach((t) => {
+      //this.tweens.add({ targets: t, scale: 1.2, duration: 1000 });
+    });
   }
 }
 
