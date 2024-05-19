@@ -272,11 +272,14 @@ class Game extends Phaser.Scene {
   createText() {
     this.cameras.main.setZoom(0.6);
 
-    this.textContainer = this.add.container();
+    this.textContainer = this.add.container(gameW * 0.5);
 
     this.transition = false;
 
     this.nextStoryPart(1); // start at 1
+
+    this.textContainer.setSize(gameW * 0.6, Phaser.Math.MAX_SAFE_INTEGER);
+    this.textContainer.setInteractive({ draggable: true });
   }
 
   nextStoryPart(id) {
@@ -338,7 +341,7 @@ class Game extends Phaser.Scene {
 
   newStoryText(y, text, callback) {
     const width = gameW * 0.6;
-    const x = (gameW - width) / 2;
+    const x = -width / 2; // so it's centered in the container
     const t = this.add
       .text(x, y, text, {
         font: `48px`,
@@ -488,7 +491,11 @@ class Game extends Phaser.Scene {
     this.input.on("gameout", () => (this.pointerDown = false));
 
     this.input.on("pointermove", (p) => {
-      if (this.pointerDown) this.scrollPos += p.velocity.y * 0.2;
+      //if (this.pointerDown) this.scrollPos += p.velocity.y * 0.2;
+    });
+
+    this.input.on("drag", (pointer, gameObject, dragX, dragY) => {
+      this.scrollPos = dragY;
     });
   }
 
