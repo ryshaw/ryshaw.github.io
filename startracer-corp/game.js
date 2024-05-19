@@ -272,14 +272,21 @@ class Game extends Phaser.Scene {
   createText() {
     this.cameras.main.setZoom(0.6);
 
-    this.textContainer = this.add.container(gameW * 0.5);
+    // create our big huge text container, enable it for scrolling (dragging)
+    // when the pointer is inside the x values of the text container.
+    this.textContainer = this.add.container(gameW * 0.5).setInteractive({
+      draggable: true,
+      hitArea: new Phaser.Geom.Point(),
+      hitAreaCallback: (point, x, y, gameObject) => {
+        // hard coded, I'll gotta update this in the future
+        return Math.abs(x) <= gameW * 0.3;
+      },
+    });
 
+    // we transition when player clicks a button, moving to next story part
     this.transition = false;
 
     this.nextStoryPart(1); // start at 1
-
-    this.textContainer.setSize(gameW * 0.6, Phaser.Math.MAX_SAFE_INTEGER);
-    this.textContainer.setInteractive({ draggable: true });
   }
 
   nextStoryPart(id) {
@@ -473,7 +480,7 @@ class Game extends Phaser.Scene {
 
   createMouseControls() {
     this.input.on("wheel", (p, over, dX, dY, dZ) => {
-      this.scrollPos -= dY * 0.5; // lerp handled in update() method
+      this.scrollPos -= dY * 0.8; // lerp handled in update() method
     });
 
     this.pointerDown = false;
