@@ -64,8 +64,9 @@ class Game extends Phaser.Scene {
   stars;
   story; // object containing organized text, choices, actions
   textContainer; // container with all the story text and choices
-  scrollPos; // where the mouse wheel is scrolling to, for interpolation
+  scrollPos; // in update(), adds smooth scrolling of the text
   transition; // true if the text is transitioning to next part (stop lerp)
+  pointerDown; // is mouse or touch pointer down?
 
   constructor() {
     super("Game");
@@ -269,9 +270,12 @@ class Game extends Phaser.Scene {
   }
 
   createText() {
-    this.cameras.main.setZoom(0.4);
+    this.cameras.main.setZoom(0.6);
+
     this.textContainer = this.add.container();
+
     this.transition = false;
+
     this.nextStoryPart(1); // start at 1
   }
 
@@ -466,7 +470,25 @@ class Game extends Phaser.Scene {
 
   createMouseControls() {
     this.input.on("wheel", (p, over, dX, dY, dZ) => {
-      this.scrollPos -= dY * 0.4; // lerp handled in update() method
+      this.scrollPos -= dY * 0.5; // lerp handled in update() method
+    });
+
+    this.pointerDown = false;
+
+    this.input.on("pointerdown", (p, over) => {
+      if (over.length > 0) return; // mouse is over button
+
+      // this is hard coded for now, I assume I'll have to change this
+      if (p.worldX >= gameW * 0.2 && p.worldX <= gameW * 0.8)
+        this.pointerDown = true;
+    });
+
+    this.input.on("pointerup", () => (this.pointerDown = false));
+
+    this.input.on("gameout", () => (this.pointerDown = false));
+
+    this.input.on("pointermove", (p) => {
+      if (this.pointerDown) this.scrollPos += p.velocity.y * 0.2;
     });
   }
 
@@ -524,10 +546,21 @@ class Game extends Phaser.Scene {
     if (!this.textContainer || this.transition) return;
     if (!this.scrollPos) this.scrollPos = this.textContainer.y; // set lerp
 
+    if (this.keysDown.first) this.scrollPos -= this.keysDown.last.y * 15;
+
+    const bounds = this.textContainer.getBounds();
+
+    if (bounds.top > gameH * 0.5 && this.scrollPos > this.textContainer.y) {
+      this.scrollPos = this.textContainer.y;
+    }
+    if (bounds.bottom < gameH * 0.5 && this.scrollPos < this.textContainer.y) {
+      this.scrollPos = this.textContainer.y;
+    }
+
     this.textContainer.y = Phaser.Math.Linear(
       this.textContainer.y,
       this.scrollPos,
-      0.3
+      0.25
     );
 
     this.textContainer.each((t) => {
