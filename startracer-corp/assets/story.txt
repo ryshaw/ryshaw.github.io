@@ -24,9 +24,15 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor i
 Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. 
 
 [1. Continue... #2]
-[2. Continue but better... #2]
+[2. Continue but better... #4]
 [3. Scream. Scream as if the devil is waiting for you, scream so the stars can hear you, scream to reverse the terrible plotline you're about to experience. #2]
 [4. Help me #1]
+
+
+#4
+Help
+
+[1. Help... #1]
 
 
 #0

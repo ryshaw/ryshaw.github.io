@@ -270,8 +270,6 @@ class Game extends Phaser.Scene {
   }
 
   createText() {
-    this.cameras.main.setZoom(0.6);
-
     // create our big huge text container, enable it for scrolling (dragging)
     // when the pointer is inside the x values of the text container.
     this.textContainer = this.add.container(gameW * 0.5).setInteractive({
@@ -562,18 +560,23 @@ class Game extends Phaser.Scene {
 
     if (!this.scrollPos) this.scrollPos = this.textContainer.y; // set lerp
 
-    const bounds = this.textContainer.getBounds();
-
-    if (bounds.top > gameH * 0.5 && this.scrollPos > this.textContainer.y) {
-      this.scrollPos = this.textContainer.y;
-    }
-    if (bounds.bottom < gameH * 0.5 && this.scrollPos < this.textContainer.y) {
-      this.scrollPos = this.textContainer.y;
+    if (!this.transition && this.keysDown.first) {
+      this.scrollPos -= this.keysDown.last.y * 15;
     }
 
+    // too far down
+    if (this.textContainer.y >= 0 && this.scrollPos > this.textContainer.y) {
+      this.scrollPos = this.textContainer.y;
+    }
+
+    // too far up
+    const bottom = this.textContainer.last.getBottomCenter(undefined, true).y;
+    if (bottom <= 0 && this.scrollPos < this.textContainer.y) {
+      this.scrollPos = this.textContainer.y;
+    }
+
+    // move text based on scrollPos
     if (!this.transition) {
-      if (this.keysDown.first) this.scrollPos -= this.keysDown.last.y * 15;
-
       this.textContainer.y = Phaser.Math.Linear(
         this.textContainer.y,
         this.scrollPos,
@@ -581,6 +584,7 @@ class Game extends Phaser.Scene {
       );
     }
 
+    // crop text if over the top
     this.textContainer.each((t) => {
       t.setCrop(
         0,
