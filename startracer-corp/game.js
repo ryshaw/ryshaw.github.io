@@ -312,6 +312,7 @@ class Game extends Phaser.Scene {
         targets: t,
         alpha: 0.2,
         duration: 600,
+        onComplete: () => t.setAlpha(1),
       });
     });
 
@@ -557,10 +558,9 @@ class Game extends Phaser.Scene {
 
   update() {
     // if text hasn't been created or we're transitioning, don't lerp
-    if (!this.textContainer || this.transition) return;
-    if (!this.scrollPos) this.scrollPos = this.textContainer.y; // set lerp
+    if (!this.textContainer) return;
 
-    if (this.keysDown.first) this.scrollPos -= this.keysDown.last.y * 15;
+    if (!this.scrollPos) this.scrollPos = this.textContainer.y; // set lerp
 
     const bounds = this.textContainer.getBounds();
 
@@ -571,20 +571,23 @@ class Game extends Phaser.Scene {
       this.scrollPos = this.textContainer.y;
     }
 
-    this.textContainer.y = Phaser.Math.Linear(
-      this.textContainer.y,
-      this.scrollPos,
-      0.25
-    );
+    if (!this.transition) {
+      if (this.keysDown.first) this.scrollPos -= this.keysDown.last.y * 15;
+
+      this.textContainer.y = Phaser.Math.Linear(
+        this.textContainer.y,
+        this.scrollPos,
+        0.25
+      );
+    }
 
     this.textContainer.each((t) => {
-      //t.setScale(1);
-    });
-
-    const list = this.cameras.main.cull(this.textContainer.getAll());
-
-    list.forEach((t) => {
-      //this.tweens.add({ targets: t, scale: 1.2, duration: 1000 });
+      t.setCrop(
+        0,
+        gameH * 0.15 - t.getTopCenter(undefined, true).y,
+        gameW,
+        t.getBottomCenter(undefined, true).y
+      );
     });
   }
 }
