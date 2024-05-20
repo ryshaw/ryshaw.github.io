@@ -2,8 +2,8 @@ const VERSION = "Startracer Corp v0.1";
 
 const DEV_MODE = false; // turns on physics debug mode
 
-const gameW = 1920;
-const gameH = 1080;
+const gameW = window.innerWidth;
+const gameH = window.innerHeight;
 
 const FONTS = ["PT Sans"];
 
@@ -83,12 +83,9 @@ class Game extends Phaser.Scene {
   }
 
   create(data) {
-    this.createResolution();
-
     this.createTextures();
     this.createPhysics();
 
-    this.createLayout();
     this.createStars();
     this.createPlayer();
 
@@ -104,6 +101,40 @@ class Game extends Phaser.Scene {
         this.createText();
       },
     });
+
+    this.scale.on(
+      "resize",
+      (newSize) => {
+        const w = newSize.width;
+        const h = newSize.height;
+
+        //this.cameras.main.setViewport(0, 0, w, h);
+        //this.cameras.main.centerOn(w / 2, h / 2);
+        this.textContainer.x = w / 2;
+        this.player.x = w / 2;
+
+        let prev = null;
+        const size = this.textContainer.first.style.fontSize;
+        const spacing = Number(size.slice(0, size.length - 2));
+        const lineSpacing = this.textContainer.first.lineSpacing;
+
+        this.textContainer.iterate((t) => {
+          t.setWordWrapWidth(w * 0.6, true);
+          t.x = -(w * 0.6) / 2;
+
+          if (prev) {
+            t.y = prev.getBottomCenter().y + spacing;
+
+            if (t.name == "action" && prev.name == "story") {
+              t.y += lineSpacing * 2;
+            }
+          }
+          prev = t;
+        });
+        //this.cameras.main.setZoom(0.3);
+      },
+      this
+    );
   }
 
   createTextures() {
@@ -156,13 +187,6 @@ class Game extends Phaser.Scene {
       .clear();
 
     graphics.destroy();
-  }
-
-  createLayout() {
-    // show bounds of game while in dev
-    this.bounds = this.add
-      .rectangle(gameW / 2, gameH / 2, gameW, gameH)
-      .setStrokeStyle(4, 0xffffff, 0.6);
   }
 
   createStars() {
@@ -323,21 +347,22 @@ class Game extends Phaser.Scene {
     // if there's text already, we gotta push new text even more down
     if (this.textContainer.length > 0) y += gameH * 0.15;
 
-    let text = this.newStoryText(y, part["text"]); // get story text
+    // get story text
+    let text = this.newStoryText(y, part["text"]).setName("story");
 
     this.textContainer.add(text);
 
     // grab the font size so we can calculate the spacing b/w text and actions
     const size = text.style.fontSize;
     const spacing = Number(size.slice(0, size.length - 2));
-    let bottom = text.getBottomCenter().y + text.lineSpacing;
+    let bottom = text.getBottomCenter().y + text.lineSpacing * 2;
 
     if (!part["actions"]) return; // no actions so we're done
 
     part["actions"].forEach((action) => {
       text = this.newStoryText(bottom + spacing, action["text"], () =>
         this.nextStoryPart(action["next"])
-      );
+      ).setName("action");
 
       this.textContainer.add(text);
 
@@ -350,7 +375,7 @@ class Game extends Phaser.Scene {
     const x = -width / 2; // so it's centered in the container
     const t = this.add
       .text(x, y, text, {
-        font: `48px`,
+        font: `36px`,
         fill: "#fff",
         align: "left",
         // fixedWidth: width,
@@ -503,55 +528,6 @@ class Game extends Phaser.Scene {
     this.input.on("drag", (pointer, gameObject, dragX, dragY) => {
       this.scrollPos = dragY;
     });
-  }
-
-  createResolution() {
-    // I don't know how this code works but it's magic. I also stole it from here:
-    // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
-    const width = this.scale.gameSize.width;
-    const height = this.scale.gameSize.height;
-
-    this.parent = new Phaser.Structs.Size(width, height);
-
-    this.sizer = new Phaser.Structs.Size(
-      gameW,
-      gameH,
-      Phaser.Structs.Size.FIT,
-      this.parent
-    );
-
-    this.parent.setSize(width, height);
-    this.sizer.setSize(width, height);
-
-    this.updateCamera();
-    this.cameras.main.centerOn(gameW / 2, gameH / 2);
-
-    this.scale.on("resize", this.resize, this);
-  }
-
-  resize(gameSize) {
-    const width = gameSize.width;
-    const height = gameSize.height;
-
-    this.parent.setSize(width, height);
-    this.sizer.setSize(width, height);
-
-    this.updateCamera();
-  }
-
-  updateCamera() {
-    const camera = this.cameras.main;
-
-    const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
-    const y = 0;
-    const scaleX = this.sizer.width / gameW;
-    const scaleY = this.sizer.height / gameH;
-
-    if (!camera) return;
-
-    camera.setViewport(x, y, this.sizer.width, this.parent.height);
-    camera.setZoom(Math.max(scaleX, scaleY));
-    camera.centerOn(camera.midPoint.x, camera.midPoint.y);
   }
 
   update() {
