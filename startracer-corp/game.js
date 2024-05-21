@@ -67,6 +67,9 @@ class Game extends Phaser.Scene {
   scrollPos; // in update(), adds smooth scrolling of the text
   transition; // true if the text is transitioning to next part (stop lerp)
   pointerDown; // is mouse or touch pointer down?
+  w; // width of game window, will change game objects upon resize
+  h; // ditto as above but for height, will NOT scale however
+  hUnit; // height doesn't scale with resizing, so we have set units
 
   constructor() {
     super("Game");
@@ -83,6 +86,10 @@ class Game extends Phaser.Scene {
   }
 
   create(data) {
+    this.w = this.scale.gameSize.width;
+    this.h = this.scale.gameSize.height;
+    this.hUnit = 100;
+
     this.createTextures();
     this.createPhysics();
 
@@ -102,39 +109,41 @@ class Game extends Phaser.Scene {
       },
     });
 
-    this.scale.on(
-      "resize",
-      (newSize) => {
-        const w = newSize.width;
-        const h = newSize.height;
+    this.scale.on("resize", this.resize, this);
+  }
 
-        //this.cameras.main.setViewport(0, 0, w, h);
-        //this.cameras.main.centerOn(w / 2, h / 2);
-        this.textContainer.x = w / 2;
-        this.player.x = w / 2;
+  resize(newSize) {
+    console.log(this.cameras.main.centerX, this.cameras.main.centerX);
+    // height doesn't scale upon resize, so only check if width has changed
+    if (this.w == newSize.width) return;
 
-        let prev = null;
-        const size = this.textContainer.first.style.fontSize;
-        const spacing = Number(size.slice(0, size.length - 2));
-        const lineSpacing = this.textContainer.first.lineSpacing;
+    this.w = newSize.width;
+    this.h = newSize.height;
 
-        this.textContainer.iterate((t) => {
-          t.setWordWrapWidth(w * 0.6, true);
-          t.x = -(w * 0.6) / 2;
+    this.textContainer.x = this.w / 2;
+    this.player.x = this.w / 2;
 
-          if (prev) {
-            t.y = prev.getBottomCenter().y + spacing;
+    let prev = null;
+    const size = this.textContainer.first.style.fontSize;
+    const spacing = Number(size.slice(0, size.length - 2));
+    const lineSpacing = this.textContainer.first.lineSpacing;
 
-            if (t.name == "action" && prev.name == "story") {
-              t.y += lineSpacing * 2;
-            }
-          }
-          prev = t;
-        });
-        //this.cameras.main.setZoom(0.3);
-      },
-      this
-    );
+    this.textContainer.iterate((t) => {
+      t.setWordWrapWidth(this.w * 0.8, true);
+      t.x = -(this.w * 0.8) / 2;
+
+      if (prev) {
+        t.y = prev.getBottomCenter().y + spacing;
+
+        if (t.name == "action" && prev.name == "story") {
+          t.y += lineSpacing * 2;
+        } else if (t.name == "story" && prev.name == "action") {
+          t.y += this.hUnit * 2;
+          t.y -= spacing;
+        }
+      }
+      prev = t;
+    });
   }
 
   createTextures() {
@@ -144,11 +153,11 @@ class Game extends Phaser.Scene {
     const fillColor = lineColor.clone().darken(80);
 
     // triangle ship
-    const shipW = 90;
-    const shipH = 48;
+    const shipW = 64;
+    const shipH = 36;
 
     graphics
-      .lineStyle(7, lineColor.color, 1)
+      .lineStyle(5, lineColor.color, 1)
       .fillStyle(fillColor.color, 1)
       .fillTriangle(0, 0, 0, shipH, shipW, shipH / 2)
       .strokeTriangle(0, 0, 0, shipH, shipW, shipH / 2)
@@ -196,10 +205,15 @@ class Game extends Phaser.Scene {
       setAlpha: { value: 0.8 },
     });
 
+    // FIX THIS
+    console.log(this.physics.world.bounds);
+
     Phaser.Actions.RandomRectangle(
       this.stars.getChildren(),
-      new Phaser.Geom.Rectangle(-gameW / 2, -gameH / 2, gameW * 2, gameH * 2)
+      this.physics.world.bounds
     );
+
+    //this.cameras.main.setZoom(0.3);
 
     Phaser.Actions.Call(this.stars.getChildren(), (star) => {
       star.setScale(Phaser.Math.FloatBetween(0.05, 0.6)).setName("star");
@@ -221,7 +235,15 @@ class Game extends Phaser.Scene {
   createPhysics() {
     this.stars = this.physics.add.group();
 
-    this.physics.world.setBounds(-gameW / 2, -gameH / 2, gameW * 2, gameH * 2);
+    // size of star boundary is 3840x2160.
+    // any resolution above this will not be filled with stars.
+    const w = 3840;
+    const h = 2160;
+    this.physics.world.setBounds((w * -1) / 3, (h * -1) / 3, w, h);
+
+    const rect = new Phaser.Geom.Rectangle((w * -1) / 3, (h * -1) / 3, w, h);
+
+    console.log(rect.centerX, rect.centerY);
 
     this.physics.world.on("worldbounds", (body) => {
       switch (body.gameObject.name) {
@@ -240,7 +262,7 @@ class Game extends Phaser.Scene {
 
   createPlayer() {
     this.player = this.physics.add
-      .image(gameW * 0.5, gameH * 0.08, "ship1")
+      .image(this.w * 0.5, this.hUnit, "ship1")
       .setTint(Phaser.Utils.Array.GetRandom(COLORS.shipColors))
       .setName("player")
       .setDepth(1);
@@ -296,12 +318,12 @@ class Game extends Phaser.Scene {
   createText() {
     // create our big huge text container, enable it for scrolling (dragging)
     // when the pointer is inside the x values of the text container.
-    this.textContainer = this.add.container(gameW * 0.5).setInteractive({
+    this.textContainer = this.add.container(this.w * 0.5).setInteractive({
       draggable: true,
       hitArea: new Phaser.Geom.Point(),
       hitAreaCallback: (point, x, y, gameObject) => {
         // hard coded, I'll gotta update this in the future
-        return Math.abs(x) <= gameW * 0.3;
+        return Math.abs(x) <= this.w * 0.4;
       },
     });
 
@@ -342,10 +364,10 @@ class Game extends Phaser.Scene {
 
     if (!part) part = this.story[0]; // no part found, go to default
 
-    let y = gameH * 0.15 + bounds.height; // new text will start here
+    let y = this.hUnit * 2 + bounds.height; // new text will start here
 
     // if there's text already, we gotta push new text even more down
-    if (this.textContainer.length > 0) y += gameH * 0.15;
+    if (this.textContainer.length > 0) y += this.hUnit * 2;
 
     // get story text
     let text = this.newStoryText(y, part["text"]).setName("story");
@@ -371,11 +393,11 @@ class Game extends Phaser.Scene {
   }
 
   newStoryText(y, text, callback) {
-    const width = gameW * 0.6;
+    const width = this.w * 0.8;
     const x = -width / 2; // so it's centered in the container
     const t = this.add
       .text(x, y, text, {
-        font: `36px`,
+        font: `24px`,
         fill: "#fff",
         align: "left",
         // fixedWidth: width,
@@ -507,24 +529,6 @@ class Game extends Phaser.Scene {
       this.scrollPos -= dY * 0.8; // lerp handled in update() method
     });
 
-    this.pointerDown = false;
-
-    this.input.on("pointerdown", (p, over) => {
-      if (over.length > 0) return; // mouse is over button
-
-      // this is hard coded for now, I assume I'll have to change this
-      if (p.worldX >= gameW * 0.2 && p.worldX <= gameW * 0.8)
-        this.pointerDown = true;
-    });
-
-    this.input.on("pointerup", () => (this.pointerDown = false));
-
-    this.input.on("gameout", () => (this.pointerDown = false));
-
-    this.input.on("pointermove", (p) => {
-      //if (this.pointerDown) this.scrollPos += p.velocity.y * 0.2;
-    });
-
     this.input.on("drag", (pointer, gameObject, dragX, dragY) => {
       this.scrollPos = dragY;
     });
@@ -564,8 +568,8 @@ class Game extends Phaser.Scene {
     this.textContainer.each((t) => {
       t.setCrop(
         0,
-        gameH * 0.15 - t.getTopCenter(undefined, true).y,
-        gameW,
+        this.hUnit * 2 - t.getTopCenter(undefined, true).y,
+        this.w,
         t.getBottomCenter(undefined, true).y
       );
     });
