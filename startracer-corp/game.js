@@ -39,6 +39,7 @@ class Background extends Phaser.Scene {
     );
     this.graphics.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
+    this.scene.launch("Stars");
     this.scene.launch("Game");
     this.scene.launch("HUD"); // UI above every scene
 
@@ -58,10 +59,138 @@ class Background extends Phaser.Scene {
   }
 }
 
+class Stars extends Phaser.Scene {
+  constructor() {
+    super("Stars");
+  }
+
+  create() {
+    this.createResolution();
+
+    this.createTexture();
+    this.createStars();
+
+    console.log(
+      this.physics.world.bounds.centerX,
+      this.physics.world.bounds.centerY
+    );
+  }
+
+  createTexture() {
+    const graphics = this.make.graphics(); // disposable graphics obj
+
+    const lineColor = Phaser.Display.Color.ValueToColor(0xffffff);
+
+    // small square for star
+    const w = 16;
+    graphics
+      .fillStyle(lineColor.color, 1)
+      .fillRect(0, 0, w, w)
+      .generateTexture("square", w, w)
+      .clear();
+
+    graphics.destroy();
+  }
+
+  createStars() {
+    const numStars = 1000;
+
+    const w = 6000;
+    const h = 6000;
+    this.physics.world.setBounds(0, 0, w, h);
+
+    this.physics.world.on("worldbounds", (body) => {
+      // move to other side of bounds and start moving left again
+      body.x += this.physics.world.bounds.width - body.gameObject.width;
+      body.setVelocityX(-200 * body.gameObject.scale);
+    });
+
+    const stars = this.physics.add.group();
+
+    stars.createMultiple({
+      key: "square",
+      quantity: numStars,
+      setAlpha: { value: 0.8 },
+    });
+
+    Phaser.Actions.RandomRectangle(
+      stars.getChildren(),
+      this.physics.world.bounds
+    );
+
+    Phaser.Actions.Call(stars.getChildren(), (star) => {
+      star.setScale(Phaser.Math.FloatBetween(0.05, 0.6)).setName("star");
+      star.body.collideWorldBounds = true;
+      star.body.onWorldBounds = true;
+      star.body.setVelocityX(-200 * star.scale);
+
+      this.tweens.add({
+        targets: star,
+        alpha: 0,
+        duration: 200,
+        delay: Phaser.Math.Between(500, 6000),
+        loop: -1,
+        yoyo: true,
+      });
+    });
+  }
+
+  createResolution() {
+    // I don't know how this code works but it's magic. I also stole it from here:
+    // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
+    const width = 3840; //this.scale.gameSize.width;
+    const height = 2160; //this.scale.gameSize.height;
+
+    this.parent = new Phaser.Structs.Size(width, height);
+
+    this.sizer = new Phaser.Structs.Size(
+      gameW,
+      gameH,
+      Phaser.Structs.Size.ENVELOP,
+      this.parent
+    );
+
+    this.parent.setSize(width, height);
+    loolkllkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk,
+      lkl,
+      this.sizer.setSize(width, height);
+
+    this.updateCamera();
+
+    this.scale.on("resize", this.resize, this);
+  }
+
+  resize(gameSize) {
+    const width = gameSize.width;
+    const height = gameSize.height;
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+  }
+
+  updateCamera() {
+    const camera = this.cameras.main;
+
+    //const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
+    const x = 0;
+    const y = 0;
+    const scaleX = this.sizer.width / 2000; //gameW;
+    const scaleY = this.sizer.height / 2000; // gameH;
+
+    if (!camera) return;
+    //camera.setViewport(x, y, this.sizer.width, this.parent.height);
+    camera.setViewport(0, 0, this.parent.width, this.parent.height);
+    camera.setZoom(Math.max(scaleX, scaleY));
+    //camera.centerOn(camera.midPoint.x, camera.midPoint.y);
+    camera.centerOn(3000, 3000);
+  }
+}
+
 class Game extends Phaser.Scene {
   player;
   keysDown;
-  stars;
   story; // object containing organized text, choices, actions
   textContainer; // container with all the story text and choices
   scrollPos; // in update(), adds smooth scrolling of the text
@@ -91,9 +220,7 @@ class Game extends Phaser.Scene {
     this.hUnit = 100;
 
     this.createTextures();
-    this.createPhysics();
 
-    this.createStars();
     this.createPlayer();
 
     this.createKeyboardControls();
@@ -113,20 +240,14 @@ class Game extends Phaser.Scene {
   }
 
   resize(newSize) {
-    console.log(this.cameras.main.centerX, this.cameras.main.centerY);
     // height doesn't scale upon resize, so only check if width has changed
     if (this.w == newSize.width) return;
 
     this.w = newSize.width;
     this.h = newSize.height;
 
-    //this.cameras.main.centerOnX(this.w / 2);
-
     this.textContainer.x = this.w / 2;
     this.player.x = this.w / 2;
-
-    //this.cameras.main.centerOn(this.w / 2);
-    //console.log(this.cameras.main.centerX, this.cameras.main.centerX);
 
     let prev = null;
     const size = this.textContainer.first.style.fontSize;
@@ -201,68 +322,6 @@ class Game extends Phaser.Scene {
       .clear();
 
     graphics.destroy();
-  }
-
-  createStars() {
-    this.stars.createMultiple({
-      key: "square",
-      quantity: 500,
-      setAlpha: { value: 0.8 },
-    });
-
-    // FIX THIS
-    console.log(this.physics.world.bounds);
-
-    Phaser.Actions.RandomRectangle(
-      this.stars.getChildren(),
-      this.physics.world.bounds
-    );
-
-    this.cameras.main.setZoom(0.2);
-
-    Phaser.Actions.Call(this.stars.getChildren(), (star) => {
-      star.setScale(Phaser.Math.FloatBetween(0.05, 0.6)).setName("star");
-      star.body.collideWorldBounds = true;
-      star.body.onWorldBounds = true;
-      star.body.setVelocityX(-200 * star.scale);
-
-      this.tweens.add({
-        targets: star,
-        alpha: 0,
-        duration: 200,
-        delay: Phaser.Math.Between(500, 6000),
-        loop: -1,
-        yoyo: true,
-      });
-    });
-  }
-
-  createPhysics() {
-    this.stars = this.physics.add.group();
-
-    // size of star boundary is 3840x2160.
-    // any resolution above this will not be filled with stars.
-    const w = 6000;
-    const h = 6000;
-    this.physics.world.setBounds((w * -1) / 3, (h * -1) / 3, w, h);
-
-    const rect = new Phaser.Geom.Rectangle((w * -1) / 3, (h * -1) / 3, w, h);
-
-    console.log(rect.centerX, rect.centerY);
-
-    this.physics.world.on("worldbounds", (body) => {
-      switch (body.gameObject.name) {
-        case "star":
-          // move to other side of bounds and start moving left again
-          body.x += this.physics.world.bounds.width - body.gameObject.width;
-          body.setVelocityX(-200 * body.gameObject.scale);
-          break;
-
-        default:
-          body.gameObject.destroy();
-          break;
-      }
-    });
   }
 
   createPlayer() {
@@ -2305,7 +2364,7 @@ const config = {
     height: gameH,
   },
   // pixelArt: true,
-  scene: [Background, HUD, Game, Station],
+  scene: [Background, Stars, HUD, Game, Station],
   physics: {
     default: "arcade",
     arcade: {
