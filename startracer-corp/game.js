@@ -113,15 +113,20 @@ class Game extends Phaser.Scene {
   }
 
   resize(newSize) {
-    console.log(this.cameras.main.centerX, this.cameras.main.centerX);
+    console.log(this.cameras.main.centerX, this.cameras.main.centerY);
     // height doesn't scale upon resize, so only check if width has changed
     if (this.w == newSize.width) return;
 
     this.w = newSize.width;
     this.h = newSize.height;
 
+    //this.cameras.main.centerOnX(this.w / 2);
+
     this.textContainer.x = this.w / 2;
     this.player.x = this.w / 2;
+
+    //this.cameras.main.centerOn(this.w / 2);
+    //console.log(this.cameras.main.centerX, this.cameras.main.centerX);
 
     let prev = null;
     const size = this.textContainer.first.style.fontSize;
@@ -213,7 +218,7 @@ class Game extends Phaser.Scene {
       this.physics.world.bounds
     );
 
-    //this.cameras.main.setZoom(0.3);
+    this.cameras.main.setZoom(0.2);
 
     Phaser.Actions.Call(this.stars.getChildren(), (star) => {
       star.setScale(Phaser.Math.FloatBetween(0.05, 0.6)).setName("star");
@@ -237,8 +242,8 @@ class Game extends Phaser.Scene {
 
     // size of star boundary is 3840x2160.
     // any resolution above this will not be filled with stars.
-    const w = 3840;
-    const h = 2160;
+    const w = 6000;
+    const h = 6000;
     this.physics.world.setBounds((w * -1) / 3, (h * -1) / 3, w, h);
 
     const rect = new Phaser.Geom.Rectangle((w * -1) / 3, (h * -1) / 3, w, h);
