@@ -1,4 +1,4 @@
-const VERSION = "Snip It! v1.0";
+const VERSION = "Snip It! v1.1";
 
 const gameW = 640;
 const gameH = 960;
