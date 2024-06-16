@@ -92,8 +92,8 @@ class Game extends Phaser.Scene {
     const norma1 = this.add.image(gameW * 0.3, gameH * 0.8, "norma");
     norma1.setCrop(0, 0, 200, norma1.height).setScale(2);
 
-    const norma2 = this.add.image(gameW * 0.4, gameH * 0.35, "norma");
-    norma2.setCrop(250, 0, norma1.width, norma1.height).setScale(2);
+    const norma2 = this.add.image(gameW * 0.35, gameH * 0.45, "norma");
+    norma2.setCrop(250, 0, norma1.width, norma1.height).setScale(2.6);
 
     const rect = this.add
       .rectangle(
