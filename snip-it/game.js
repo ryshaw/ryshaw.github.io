@@ -1250,18 +1250,22 @@ class Game extends Phaser.Scene {
     });
 
     // only draw if covering undrawn area
-    if (this.checkInBounds(midPos) && !midEdge && !mid.body) {
+    if (
+      this.checkInBounds(midPos) &&
+      !midEdge &&
+      (!mid.body || !mid.body.enabled)
+    ) {
       // if we're in completely undrawn area, cover the area we're coming from
       if (this.checkInBounds(fromPos) && !fromEdge) {
         from.setFillStyle(COLORS.drawColor, 1);
-        this.physics.add.existing(from, true);
+        this.physics.world.enableBody(from, this.physics.STATIC_BODY);
         from.body.immovable = true;
         this.drawPath.push(from);
       }
 
       // draw the middle tile always
       mid.setFillStyle(COLORS.drawColor, 1);
-      this.physics.add.existing(mid, true);
+      this.physics.world.enableBody(mid, this.physics.STATIC_BODY);
       mid.body.immovable = true;
       this.drawPath.push(mid);
 
@@ -1275,10 +1279,14 @@ class Game extends Phaser.Scene {
     this.gridPos.x = toPos.x;
     this.gridPos.y = toPos.y;
 
-    const isTile = this.drawPath.find(to);
-    if (this.drawPath.includes(to)) {
-      //const toRemove = ;
-      //console.log(to);
+    const drawIndex = this.drawPath.indexOf(to);
+    if (drawIndex != -1) {
+      const toRemove = this.drawPath.splice(drawIndex);
+      toRemove.forEach((tile) => {
+        tile.setFillStyle(COLORS.fillColor, 0);
+        this.physics.world.disableBody(tile.body)
+        tile.body.destroy();
+      });
     }
 
     this.canMove = false;
@@ -1369,7 +1377,7 @@ class Game extends Phaser.Scene {
   fillInTilesRecursively(pos) {
     if (this.checkInBounds(pos)) {
       let tile = this.grid[pos.x][pos.y];
-      if (tile.body || tile.getData("filled")) return; // base case!
+      if ((tile.body) || tile.getData("filled")) return; // base case!
       tile.setFillStyle(COLORS.fillColor, 0.2);
       tile.setData("filled", true);
 
@@ -1385,7 +1393,7 @@ class Game extends Phaser.Scene {
   countTilesRecursiely(pos) {
     if (this.checkInBounds(pos)) {
       let tile = this.grid[pos.x][pos.y];
-      if (tile.body || tile.getData("counted")) return; // base case!
+      if ((tile.body) || tile.getData("filled")) return; // base case!
       tile.setData("counted", true);
       this.drawingArea++;
     } else return;
