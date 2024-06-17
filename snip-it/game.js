@@ -1168,7 +1168,7 @@ class Game extends Phaser.Scene {
     let direction = undefined;
     if (this.keysDown.last) direction = this.keysDown.last;
     else if (this.pointerDown) {
-      // for touch controls
+      // I'm using touch controls!
       const p1 = this.input.activePointer.positionToCamera(this.cameras.main);
       const p0 = new Phaser.Math.Vector2(this.player.x, this.player.y);
       const angle = Phaser.Math.RadToDeg(p1.subtract(p0).angle());
@@ -1576,7 +1576,7 @@ class Game extends Phaser.Scene {
       });
     });
 
-    // rainbow wave effect time
+    // rainbow effect time
     const ratio = 360 / (this.gridX + this.gridY); // for a full color gradient
     for (let i = 0; i < this.gridX; i++) {
       for (let j = 0; j < this.gridY; j++) {
@@ -1589,7 +1589,7 @@ class Game extends Phaser.Scene {
           delay: (i + j) * 15 + 600,
           onStart: () => {
             // don't ask. i tried to separate the sound loops as much as possible
-            if (i % 9 == 0 && i == j)
+            if (i % 8 == 0 && i == j)
               this.scene.get("MainUI").playSound("swirl");
           },
           tweens: [
@@ -1605,15 +1605,23 @@ class Game extends Phaser.Scene {
               },
             },
             {
+              scale: 1,
+              angle: 180,
+              fillAlpha: 0.7,
+              duration: 800,
+              ease: "sine.inout",
+              onComplete: () => {},
+            },
+            {
               // cutting out this tween for now because the waves are super cool
               ///scale: 1,
               /// angle: 180,
-              duration: 20, //800
+              duration: 800, //800
               ease: "sine.inout",
               onComplete: () => {
                 this.tweens.add({
                   targets: t,
-                  scale: 1.2,
+                  scale: 1.4,
                   yoyo: true,
                   loop: -1,
                   duration: 600, // 500
@@ -3358,6 +3366,19 @@ class GameButton extends Phaser.GameObjects.Image {
       .on("pointerdown", callback, scene)
       .on("pointerup", function () {
         scene.scene.get("MainUI").playSound("pointerup");
+
+        /* 
+        BUG: When player is controlling square w/ mouse and releases
+        the pointer over one of these buttons, the square will
+        still continue to move because the pointerup event will not
+        propagate to the game scene. Mouse events only propagate
+        to the top-level scene.
+        FIX: Here, check if the game is running and not paused.
+        If so, ensure the pointerDown variable in the game scene is false.
+        */
+
+        if (scene.scene.isActive("Game"))
+          scene.scene.get("Game").pointerDown = false;
       });
 
     return cB;
