@@ -1,24 +1,13 @@
-const VERSION = "Snip It! v1.1";
-
-const gameW = 640;
-const gameH = 960;
-const DEV_MODE = false; // sets timer high, enables level select, turns on FPS, and turns on physics debug
-const MAX_LEVEL = 25;
-
-const FONTS = ["Roboto Mono"];
-
-const COLORS = {
-  topGradient: 0x3f8efc, // for background
-  bottomGradient: 0x7de2d1, // for background
-  fillColor: 0x070600, // colors UI #and drawings
-  drawColor: 0xfffbfc, // colors player current drawing. other colors: 0xfdd35d, 0xfdca40
-  deathColor: 0xc1121f, // when player dies...
-  tintColor: 0xfbf8cc, // for highlighting text
-  clickColor: 0xdddddd, // when text is clicked
-  buttonColor: 0xe0fbfc, // for coloring buttons and the title
-  white: 0xffffff,
-  black: 0x000000,
-};
+import { GameText, GameButton } from "./customObjects.js";
+import {
+  VERSION,
+  gameW,
+  gameH,
+  DEV_MODE,
+  MAX_LEVEL,
+  FONTS,
+  COLORS,
+} from "./constants.js";
 
 class Background extends Phaser.Scene {
   graphics;
@@ -61,7 +50,7 @@ class Background extends Phaser.Scene {
 }
 
 class Game extends Phaser.Scene {
-  keysDown;
+  keysDown; // track the keys being pressed in order
   graphics;
   player;
   bounds; // big rectangle that is the "canvas"
@@ -93,6 +82,7 @@ class Game extends Phaser.Scene {
   lightWheel; // color wheel, saturation = 0.1
   cheatMode; // true if on, false if off
   drawPath; // current path of white squares that the player is drawing
+  dpadDown; // if gamepad is enabled, track which buttons are down
 
   constructor() {
     super("Game");
@@ -132,6 +122,7 @@ class Game extends Phaser.Scene {
     this.createPlayer();
     this.createPlayerControls();
     this.createMouseControls();
+    this.createDpadControls(); // dpad handled here, sticks in getInputDirection
     this.createPhysics();
 
     this.cheatMode = localStorage.getItem("cheat") == "on";
@@ -1103,6 +1094,53 @@ class Game extends Phaser.Scene {
     this.input.on("pointerup", () => (this.pointerDown = false));
   }
 
+  createDpadControls() {
+    this.dpadDown = new Phaser.Structs.List();
+
+    // for gamepad
+    this.input.gamepad.on("down", (pad, button, value) => {
+      // using Xbox wireless controller to calibrate this
+      switch (button.index) {
+        case 12: // D-pad up
+          this.dpadDown.add(Phaser.Math.Vector2.UP);
+          break;
+        case 13: // D-pad down
+          this.dpadDown.add(Phaser.Math.Vector2.DOWN);
+          break;
+        case 14: // D-pad left
+          this.dpadDown.add(Phaser.Math.Vector2.LEFT);
+          break;
+        case 15: // D-pad right
+          this.dpadDown.add(Phaser.Math.Vector2.RIGHT);
+          break;
+
+        default:
+          break;
+      }
+    });
+
+    this.input.gamepad.on("up", (pad, button, value) => {
+      // using Xbox wireless controller to calibrate this
+      switch (button.index) {
+        case 12: // D-pad up
+          this.dpadDown.remove(Phaser.Math.Vector2.UP);
+          break;
+        case 13: // D-pad down
+          this.dpadDown.remove(Phaser.Math.Vector2.DOWN);
+          break;
+        case 14: // D-pad left
+          this.dpadDown.remove(Phaser.Math.Vector2.LEFT);
+          break;
+        case 15: // D-pad right
+          this.dpadDown.remove(Phaser.Math.Vector2.RIGHT);
+          break;
+
+        default:
+          break;
+      }
+    });
+  }
+
   createLevelSelectControls() {
     this.levelSelect = "";
     this.input.keyboard.on("keydown", (event) => {
@@ -1240,16 +1278,37 @@ class Game extends Phaser.Scene {
       return direction;
     } else if (this.input.gamepad.total > 0) {
       // controller is connected!
-      const leftStick = this.input.gamepad.getPad(0).leftStick;
+
+      // return any dpad direction first, if dpad is being pressed
+      if (this.dpadDown.last) return this.dpadDown.last;
+
+      // check left stick first, if no left stick input, check right stick
+      let stick = this.input.gamepad.getPad(0).leftStick;
 
       // go in whatever direction the stick is pointing the most
-      if (Math.abs(leftStick.x) > Math.abs(leftStick.y)) leftStick.y = 0;
-      else leftStick.x = 0;
+      if (Math.abs(stick.x) > Math.abs(stick.y)) stick.y = 0;
+      else stick.x = 0;
 
-      leftStick.x = Math.round(leftStick.x);
-      leftStick.y = Math.round(leftStick.y);
+      stick.x = Math.round(stick.x);
+      stick.y = Math.round(stick.y);
 
-      return leftStick;
+      // return left stick if there's an input
+      if (stick.x != 0 || stick.y != 0) return stick;
+
+      // now check right stick since left stick had no movement
+      stick = this.input.gamepad.getPad(0).rightStick;
+
+      // go in whatever direction the stick is pointing the most
+      if (Math.abs(stick.x) > Math.abs(stick.y)) stick.y = 0;
+      else stick.x = 0;
+
+      stick.x = Math.round(stick.x);
+      stick.y = Math.round(stick.y);
+
+      // if right stick has movement, return right stick
+      if (stick.x != 0 || stick.y != 0) return stick;
+      // otherwise, return nothing
+      else return;
     } else return; // don't move if no input detected
   }
 
@@ -1721,6 +1780,7 @@ class Game extends Phaser.Scene {
 
       this.input.keyboard.once("keydown", () => this.restartGame());
       this.input.once("pointerdown", () => this.restartGame());
+      this.input.gamepad.once("down", () => this.restartGame());
     });
   }
 
@@ -1821,6 +1881,7 @@ class Game extends Phaser.Scene {
 
       this.input.keyboard.once("keydown", () => this.restartGame());
       this.input.once("pointerdown", () => this.restartGame());
+      this.input.gamepad.once("down", () => this.restartGame());
     });
   }
 
@@ -1936,6 +1997,7 @@ class MainUI extends Phaser.Scene {
   tutorialSegment; // which section of tutorial are we on?
   transition; // are we transitioning between menus or levels?
   transitionTime; // how fast transition should be. 400-500
+  stickMoved; // control the stick input through this variable in update()
 
   constructor() {
     super("MainUI");
@@ -2060,6 +2122,81 @@ class MainUI extends Phaser.Scene {
     this.gameActive = false;
     this.transition = false;
     this.transitionTime = 400;
+    this.stickMoved = false;
+  }
+
+  update() {
+    // I'm not seeing any event handlers to gamepad axes
+    // so I'm polling the gamepad sticks continuously in update()
+    // in order to have the gamepad sticks control the menu
+    if (this.input.gamepad.total > 0) {
+      //TODO  ////////////////this.checkGamepadCheatMode();
+
+      const axes = this.input.gamepad.getPad(0).axes;
+      let stick = 0;
+      // pick left or right stick depending on which one is being pressed
+      if (Math.abs(axes[1].value) > Math.abs(axes[3].value)) {
+        stick = Math.round(axes[1].value); // use left stick
+      } else {
+        stick = Math.round(axes[3].value); // use right stick
+      }
+
+      if (stick == 0) this.stickMoved = false; // stick released
+      else if (this.stickMoved)
+        return; // stick hasn't been released, don't reset
+      else if (stick == -1) {
+        this.moveOptionUp(); // if stick up, move option up
+        this.stickMoved = true; // don't keep moving option
+      } else if (stick == 1) {
+        this.moveOptionDown(); // otherwise, move down
+        this.stickMoved = true; // don't keep moving option
+      }
+    }
+  }
+
+  checkGamepadCheatMode() {
+    if (this.activeOptions != this.startOptions) return;
+
+    const pad = this.input.gamepad.getPad(0);
+    const l1 = Math.round(pad.L1);
+    const r2 = Math.round(pad.R2);
+    const b = pad.B;
+    const leftDpad = pad.left;
+
+    const v = this.startMenu.getByName("version");
+    const tween = {
+      targets: v,
+      alpha: 0,
+      delay: 5000,
+      duration: 5000,
+      onComplete: () => this.flipCheatMode(),
+    };
+
+    if (l1 && r2 && b && leftDpad) {
+      // don't do anything if tweens are running between menus
+      if (this.transition) return;
+      if (this.tweens.getTweensOf(v).length > 0) return;
+      this.tweens.add(tween);
+
+      console.log("yes");
+    } else {
+      console.log("no");
+    }
+
+    v.on("pointerdown", () => {
+      // don't do anything if tweens are running between menus
+      if (this.transition) return;
+
+      if (this.tweens.getTweensOf(v).length > 0) return;
+    })
+      .on("pointerup", () => {
+        this.tweens.killTweensOf(v);
+        v.setAlpha(1);
+      })
+      .on("pointerout", () => {
+        this.tweens.killTweensOf(v);
+        v.setAlpha(1);
+      });
   }
 
   takeSnapshot() {
@@ -2210,111 +2347,146 @@ class MainUI extends Phaser.Scene {
     );
 
     // integrating the menu arrow key selection
-
     this.input.keyboard.on("keydown-UP", () => {
-      if (this.activeOptions && Phaser.Input.Keyboard.JustDown(up)) {
-        if (this.activeOption == -1) this.activeOption = 0;
-        else if (this.activeOption > 0) this.activeOption--;
-
-        for (let i = 0; i < this.activeOptions.length; i++) {
-          if (this.activeOption == i) {
-            this.activeOptions[i].emit("pointerover");
-          } else {
-            this.activeOptions[i].emit("pointerout");
-          }
-        }
-      }
+      if (Phaser.Input.Keyboard.JustDown(up)) this.moveOptionUp();
     });
 
     this.input.keyboard.on("keydown-W", () => {
-      if (this.activeOptions && Phaser.Input.Keyboard.JustDown(w)) {
-        if (this.activeOption == -1) this.activeOption = 0;
-        else if (this.activeOption > 0) this.activeOption--;
-
-        for (let i = 0; i < this.activeOptions.length; i++) {
-          if (this.activeOption == i) {
-            this.activeOptions[i].emit("pointerover");
-          } else {
-            this.activeOptions[i].emit("pointerout");
-          }
-        }
-      }
+      if (Phaser.Input.Keyboard.JustDown(w)) this.moveOptionUp();
     });
 
     this.input.keyboard.on("keydown-DOWN", () => {
-      if (this.activeOptions && Phaser.Input.Keyboard.JustDown(down)) {
-        if (this.activeOption == -1) this.activeOption = 0;
-        else if (this.activeOption < this.activeOptions.length - 1)
-          this.activeOption++;
-
-        for (let i = 0; i < this.activeOptions.length; i++) {
-          if (this.activeOption == i) {
-            this.activeOptions[i].emit("pointerover");
-          } else {
-            this.activeOptions[i].emit("pointerout");
-          }
-        }
-      }
+      if (Phaser.Input.Keyboard.JustDown(down)) this.moveOptionDown();
     });
 
     this.input.keyboard.on("keydown-S", () => {
-      if (this.activeOptions && Phaser.Input.Keyboard.JustDown(s)) {
-        if (this.activeOption == -1) this.activeOption = 0;
-        else if (this.activeOption < this.activeOptions.length - 1)
-          this.activeOption++;
-
-        for (let i = 0; i < this.activeOptions.length; i++) {
-          if (this.activeOption == i) {
-            this.activeOptions[i].emit("pointerover");
-          } else {
-            this.activeOptions[i].emit("pointerout");
-          }
-        }
-      }
+      if (Phaser.Input.Keyboard.JustDown(s)) this.moveOptionDown();
     });
 
     this.input.keyboard.on("keydown-ENTER", () => {
-      if (
-        this.activeOptions &&
-        Phaser.Input.Keyboard.JustDown(enter) &&
-        this.activeOption != -1
-      ) {
-        this.activeOptions[this.activeOption].emit("pointerdown");
+      if (Phaser.Input.Keyboard.JustDown(enter)) {
+        this.selectOption();
+        this.setCreditsScrollingSpeed(5);
       }
     });
 
     this.input.keyboard.on("keyup-ENTER", () => {
-      if (
-        this.activeOptions &&
-        Phaser.Input.Keyboard.JustUp(enter) &&
-        this.activeOption != -1
-      ) {
-        const option = this.activeOptions[this.activeOption];
-        option.emit("pointerup");
-        option.emit("pointerout");
+      if (Phaser.Input.Keyboard.JustUp(enter)) {
+        this.deselectOption();
+        this.setCreditsScrollingSpeed(1);
       }
     });
 
     // for credits scrolling
-    this.input.on("pointerdown", () => {
-      if (this.creditsMenu.visible) {
-        const creditsText = this.creditsMenu.getByName("creditsText");
-        this.tweens.getTweensOf(creditsText)[0].timeScale = 5;
-      }
-    });
+    this.input.on("pointerdown", () => this.setCreditsScrollingSpeed(5));
 
-    this.input.on("pointerup", () => {
-      if (this.creditsMenu.visible) {
-        const creditsText = this.creditsMenu.getByName("creditsText");
-        this.tweens.getTweensOf(creditsText)[0].timeScale = 1;
-      }
-    });
+    this.input.on("pointerup", () => this.setCreditsScrollingSpeed(1));
 
     this.input.keyboard.createCombo("CAPYBARA", { resetOnMatch: true });
 
     this.input.keyboard.on("keycombomatch", () => {
       if (this.activeOptions == this.startOptions) this.flipCheatMode();
     });
+
+    // gamepad controls
+    this.input.gamepad.on("down", (pad, button, value) => {
+      // using Xbox wireless controller to calibrate this
+      switch (button.index) {
+        case 0: // A button
+          this.selectOption();
+          this.setCreditsScrollingSpeed(5);
+          break;
+        case 1: // B
+          if (this.scene.isPaused("Game")) this.pauseOrResumeGame();
+          break;
+        case 2: // X
+          this.flipMusic();
+          break;
+        case 3: // Y
+          this.flipMusic();
+          break;
+        case 9: // start
+          this.pauseOrResumeGame();
+          break;
+
+        case 12: // D-pad up
+          this.moveOptionUp();
+          break;
+        case 13: // D-pad down
+          this.moveOptionDown();
+          break;
+        case 14: // D-pad left
+          break;
+        case 15: // D-pad right
+          break;
+
+        default:
+          break;
+      }
+    });
+
+    this.input.gamepad.on("up", (pad, button, value) => {
+      switch (button.index) {
+        case 0: // A button
+          this.deselectOption();
+          this.setCreditsScrollingSpeed(1);
+          break;
+        default:
+          break;
+      }
+    });
+  }
+
+  moveOptionUp() {
+    if (this.activeOptions) {
+      if (this.activeOption == -1) this.activeOption = 0;
+      else if (this.activeOption > 0) this.activeOption--;
+
+      for (let i = 0; i < this.activeOptions.length; i++) {
+        if (this.activeOption == i) {
+          this.activeOptions[i].emit("pointerover");
+        } else {
+          this.activeOptions[i].emit("pointerout");
+        }
+      }
+    }
+  }
+
+  moveOptionDown() {
+    if (this.activeOptions) {
+      if (this.activeOption == -1) this.activeOption = 0;
+      else if (this.activeOption < this.activeOptions.length - 1)
+        this.activeOption++;
+
+      for (let i = 0; i < this.activeOptions.length; i++) {
+        if (this.activeOption == i) {
+          this.activeOptions[i].emit("pointerover");
+        } else {
+          this.activeOptions[i].emit("pointerout");
+        }
+      }
+    }
+  }
+
+  selectOption() {
+    if (this.activeOptions && this.activeOption != -1) {
+      this.activeOptions[this.activeOption].emit("pointerdown");
+    }
+  }
+
+  deselectOption() {
+    if (this.activeOptions && this.activeOption != -1) {
+      const option = this.activeOptions[this.activeOption];
+      option.emit("pointerup");
+      option.emit("pointerout");
+    }
+  }
+
+  setCreditsScrollingSpeed(num) {
+    if (this.creditsMenu?.visible) {
+      const creditsText = this.creditsMenu.getByName("creditsText");
+      this.tweens.getTweensOf(creditsText)[0].timeScale = num;
+    }
   }
 
   createAudio() {
@@ -3309,139 +3481,5 @@ const config = {
   title: VERSION,
   autoFocus: true,
 };
-
-class GameText extends Phaser.GameObjects.Text {
-  constructor(
-    scene, // always "this" in the scene class
-    x,
-    y,
-    text,
-    size = "m", // s, m, l, or g for small, medium, or large
-    align = "c", // l, c, or r for left, center, or right
-    callback = null // provided only for buttons
-  ) {
-    super(scene);
-
-    this.clickedOn = false;
-
-    const cT = scene.add
-      .text(x, y, text, {
-        font:
-          size == "g"
-            ? "64px"
-            : size == "l"
-            ? "48px"
-            : size == "m"
-            ? "32px"
-            : "26px",
-        fill: "#fff",
-        align: "center",
-      })
-      .setFontFamily("Roboto Mono")
-      .setOrigin(align == "l" ? 0 : align == "c" ? 0.5 : 1, 0.5)
-      .setPadding(3)
-      .setStroke(COLORS.fillColor, 2)
-      .setShadow(2, 2, "#333333", 2, true, true);
-
-    if (size == "s") {
-      cT.setStroke(COLORS.fillColor).setShadow(2, 2, "#333333", 0, true, true);
-    }
-
-    // if callback is given, assume it's a button and add callback.
-    // fine-tuned this code so button only clicks if player
-    // emits both pointerdown and pointerup events on it
-    // update 2: now much more complex w/ arrow key integration
-    if (callback) {
-      cT.setInteractive({ useHandCursor: true })
-        .on("pointermove", function (pointer) {
-          this.emit("pointerover", pointer);
-        })
-        .on("pointerover", function (pointer) {
-          if (this.scale == 1) {
-            scene.scene.get("MainUI").playSound("pointerover");
-          }
-
-          if (pointer) scene.activeOption = scene.activeOptions.indexOf(this);
-
-          this.setTint(COLORS.tintColor).setScale(1.02);
-          scene.activeOptions.forEach((option) => {
-            if (option != this) option.emit("pointerout");
-          });
-        })
-        .on("pointerout", function (pointer) {
-          if (pointer) scene.activeOption = -1; // if mouse used, reset arrow key selection
-          this.setTint(COLORS.white).setScale(1);
-          this.off("pointerup", callback, scene);
-        })
-        .on("pointerdown", function () {
-          // don't do anything if tweens are running between menus
-          if (scene.transition) return;
-
-          this.setTint(COLORS.clickColor);
-          if (this.listenerCount("pointerup") < 2) {
-            this.on("pointerup", callback, scene);
-          }
-        })
-        .on("pointerup", function () {
-          scene.scene.get("MainUI").playSound("pointerup");
-
-          this.setTint(COLORS.tintColor);
-        });
-    }
-
-    return cT;
-  }
-}
-
-class GameButton extends Phaser.GameObjects.Image {
-  constructor(
-    scene, // always "this" in the scene class
-    x,
-    y,
-    key,
-    callback
-  ) {
-    super(scene);
-
-    const cB = scene.add
-      .image(x, y, key)
-      .setScale(0.75)
-      .setTint(COLORS.buttonColor);
-
-    // fx slow down phones, so only allow on desktop
-    /*if (scene.sys.game.device.os.desktop) {
-      cB.preFX.setPadding(32);
-      cB.preFX.addShadow(-2, -2, 0.06, 0.75, 0x000000, 4, 0.8);
-    }*/
-
-    cB.setInteractive()
-      .on("pointerover", function () {
-        this.setTint(COLORS.tintColor).setScale(0.82);
-        scene.scene.get("MainUI").playSound("pointerover");
-      })
-      .on("pointerout", function () {
-        this.setTint(COLORS.buttonColor).setScale(0.75);
-      })
-      .on("pointerdown", callback, scene)
-      .on("pointerup", function () {
-        scene.scene.get("MainUI").playSound("pointerup");
-
-        /* 
-        BUG: When player is controlling square w/ mouse and releases
-        the pointer over one of these buttons, the square will
-        still continue to move because the pointerup event will not
-        propagate to the game scene. Mouse events only propagate
-        to the top-level scene.
-        FIX: Here, check if the game is running and not paused.
-        If so, ensure the pointerDown variable in the game scene is false.
-        */
-
-        if (scene.scene.isActive("Game"))
-          scene.scene.get("Game").pointerDown = false;
-      });
-
-    return cB;
-  }
-}
 
 const game = new Phaser.Game(config);
