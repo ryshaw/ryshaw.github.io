@@ -2,7 +2,7 @@ const VERSION = "Snip It! v1.1";
 
 const gameW = 640;
 const gameH = 960;
-const DEV_MODE = false; // sets timer high, enables level select, turns on FPS, and turns on physics debug
+const DEV_MODE = true; // sets timer high, enables level select, turns on FPS, and turns on physics debug
 const MAX_LEVEL = 25;
 
 const FONTS = ["Roboto Mono"];
@@ -92,6 +92,7 @@ class Game extends Phaser.Scene {
   darkWheel; // color wheel. saturation = 0.4
   lightWheel; // color wheel, saturation = 0.1
   cheatMode; // true if on, false if off
+  drawPath; // current path of white squares that the player is drawing
 
   constructor() {
     super("Game");
@@ -115,6 +116,8 @@ class Game extends Phaser.Scene {
     this.level = data.level; // level is any number from 0 (tutorial) to 26 (game complete)
     this.level = this.level / 1; // make sure it's a number
 
+    this.level = 1;
+
     this.createResolution();
     this.createEvents();
 
@@ -136,7 +139,7 @@ class Game extends Phaser.Scene {
 
     const numCircles = Math.floor(Math.sqrt(2.8 * this.level));
     const numSquares = Math.floor(this.level * (0.03 * this.level + 0.45));
-    this.createCircles(numCircles);
+    //this.createCircles(numCircles);
     this.createSquares(numSquares);
     this.createPowerups();
 
@@ -289,6 +292,7 @@ class Game extends Phaser.Scene {
     this.canMove = true;
     this.speedScale = 1;
     this.drawing = false;
+    this.drawPath = [];
   }
 
   createCircles(num) {
@@ -1213,11 +1217,12 @@ class Game extends Phaser.Scene {
       if (midPos.x == p.x && midPos.y == p.y) midEdge = true;
     });
 
+    // DISABLED for Snip It 1.1
     // player is not allowed to move onto any filled area that isn't an edge
-    if ((nextTile.getData("filled") || nextTile.body) && !edge) return;
+    //if ((nextTile.getData("filled") || nextTile.body) && !edge) return;
 
     // check midpoint as well
-    if ((mid.body || mid.getData("filled")) && !midEdge) return;
+    if (mid.getData("filled") && !midEdge) return;
 
     // all checks pass, move the player
     this.movePlayer(this.gridPos, nextPos, edge);
@@ -1251,12 +1256,14 @@ class Game extends Phaser.Scene {
         from.setFillStyle(COLORS.drawColor, 1);
         this.physics.add.existing(from, true);
         from.body.immovable = true;
+        this.drawPath.push(from);
       }
 
       // draw the middle tile always
       mid.setFillStyle(COLORS.drawColor, 1);
       this.physics.add.existing(mid, true);
       mid.body.immovable = true;
+      this.drawPath.push(mid);
 
       // complete drawing if we've hit a wall or an edge
       if (!this.checkInBounds(toPos) || toEdge) {
@@ -1267,6 +1274,12 @@ class Game extends Phaser.Scene {
     this.player.setPosition(to.x, to.y);
     this.gridPos.x = toPos.x;
     this.gridPos.y = toPos.y;
+
+    const isTile = this.drawPath.find(to);
+    if (this.drawPath.includes(to)) {
+      //const toRemove = ;
+      //console.log(to);
+    }
 
     this.canMove = false;
     let speed = (80 - this.level * 1.6) / this.speedScale;
@@ -1298,6 +1311,9 @@ class Game extends Phaser.Scene {
         direction = dir.clone();
       }
     }
+
+    // clear the player's drawing path now that these are all edges
+    this.drawPath.length = 0;
 
     this.fillInTilesRecursively(startPos.clone().add(direction));
 
