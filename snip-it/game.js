@@ -2,7 +2,7 @@ const VERSION = "Snip It! v1.1";
 
 const gameW = 640;
 const gameH = 960;
-const DEV_MODE = true; // sets timer high, enables level select, turns on FPS, and turns on physics debug
+const DEV_MODE = false; // sets timer high, enables level select, turns on FPS, and turns on physics debug
 const MAX_LEVEL = 25;
 
 const FONTS = ["Roboto Mono"];
@@ -132,14 +132,13 @@ class Game extends Phaser.Scene {
     this.createPlayer();
     this.createPlayerControls();
     this.createMouseControls();
-    if (DEV_MODE) this.createLevelSelectControls();
     this.createPhysics();
 
     this.cheatMode = localStorage.getItem("cheat") == "on";
 
     const numCircles = Math.floor(Math.sqrt(2.8 * this.level));
     const numSquares = Math.floor(this.level * (0.03 * this.level + 0.45));
-    //this.createCircles(numCircles);
+    this.createCircles(numCircles);
     this.createSquares(numSquares);
     this.createPowerups();
 
@@ -149,6 +148,8 @@ class Game extends Phaser.Scene {
       },
       active: () => {
         this.loadGameText();
+        if (DEV_MODE) this.createLevelSelectControls();
+
         this.startGame();
       },
     });
@@ -1169,26 +1170,8 @@ class Game extends Phaser.Scene {
     if (!this.canMove) return; // don't move between moves
 
     // check keyboard input first then touch input
-    let direction = undefined;
-    if (this.keysDown.last) direction = this.keysDown.last;
-    else if (this.pointerDown) {
-      // I'm using touch controls!
-      const p1 = this.input.activePointer.positionToCamera(this.cameras.main);
-      const p0 = new Phaser.Math.Vector2(this.player.x, this.player.y);
-      const angle = Phaser.Math.RadToDeg(p1.subtract(p0).angle());
-
-      if (p1.length() < this.grid[0][0].width * 1.2) return; // too short of a distance to move
-
-      direction = Phaser.Math.Vector2.UP;
-
-      if (angle >= 315 || angle < 45) {
-        direction = Phaser.Math.Vector2.RIGHT;
-      } else if (angle >= 45 && angle < 135) {
-        direction = Phaser.Math.Vector2.DOWN;
-      } else if (angle >= 135 && angle < 225) {
-        direction = Phaser.Math.Vector2.LEFT;
-      }
-    } else return; // don't move if no input detected
+    let direction = this.getInputDirection();
+    if (!direction) return; // don't move if no input
 
     // grab the player's next intended position, two tile movement
     const nextPos = this.gridPos.clone().add(direction.clone().scale(2));
@@ -1217,15 +1200,57 @@ class Game extends Phaser.Scene {
       if (midPos.x == p.x && midPos.y == p.y) midEdge = true;
     });
 
-    // DISABLED for Snip It 1.1
+    // player can also "walk back" on the path now, in Snip It 1.1
+    const onPath = this.drawPath.includes(nextTile);
+    const isFilled = nextTile.getData("filled") || nextTile.body?.enable;
+
     // player is not allowed to move onto any filled area that isn't an edge
-    //if ((nextTile.getData("filled") || nextTile.body) && !edge) return;
+    if (isFilled && !edge && !onPath) return;
 
     // check midpoint as well
     if (mid.getData("filled") && !midEdge) return;
 
     // all checks pass, move the player
     this.movePlayer(this.gridPos, nextPos, edge);
+  }
+
+  getInputDirection() {
+    // check input in this order: keyboard, then mouse, then controller
+    // return a vector that's up, down, left, or right, and move player
+
+    if (this.keysDown.last) return this.keysDown.last;
+    else if (this.pointerDown) {
+      // I'm using touch controls!
+      const p1 = this.input.activePointer.positionToCamera(this.cameras.main);
+      const p0 = new Phaser.Math.Vector2(this.player.x, this.player.y);
+      const angle = Phaser.Math.RadToDeg(p1.subtract(p0).angle());
+
+      if (p1.length() < this.grid[0][0].width * 1.2) return; // too short of a distance to move
+
+      let direction = Phaser.Math.Vector2.UP;
+
+      if (angle >= 315 || angle < 45) {
+        direction = Phaser.Math.Vector2.RIGHT;
+      } else if (angle >= 45 && angle < 135) {
+        direction = Phaser.Math.Vector2.DOWN;
+      } else if (angle >= 135 && angle < 225) {
+        direction = Phaser.Math.Vector2.LEFT;
+      }
+
+      return direction;
+    } else if (this.input.gamepad.total > 0) {
+      // controller is connected!
+      const leftStick = this.input.gamepad.getPad(0).leftStick;
+
+      // go in whatever direction the stick is pointing the most
+      if (Math.abs(leftStick.x) > Math.abs(leftStick.y)) leftStick.y = 0;
+      else leftStick.x = 0;
+
+      leftStick.x = Math.round(leftStick.x);
+      leftStick.y = Math.round(leftStick.y);
+
+      return leftStick;
+    } else return; // don't move if no input detected
   }
 
   movePlayer(fromPos, toPos, toEdge) {
@@ -1250,22 +1275,19 @@ class Game extends Phaser.Scene {
     });
 
     // only draw if covering undrawn area
-    if (
-      this.checkInBounds(midPos) &&
-      !midEdge &&
-      (!mid.body || !mid.body.enabled)
-    ) {
+    // guess who just learned about JavaScript option chaining, booyah!
+    if (this.checkInBounds(midPos) && !midEdge && !mid.body?.enable) {
       // if we're in completely undrawn area, cover the area we're coming from
       if (this.checkInBounds(fromPos) && !fromEdge) {
         from.setFillStyle(COLORS.drawColor, 1);
-        this.physics.world.enableBody(from, this.physics.STATIC_BODY);
+        this.physics.add.existing(from, true);
         from.body.immovable = true;
         this.drawPath.push(from);
       }
 
       // draw the middle tile always
       mid.setFillStyle(COLORS.drawColor, 1);
-      this.physics.world.enableBody(mid, this.physics.STATIC_BODY);
+      this.physics.add.existing(mid, true);
       mid.body.immovable = true;
       this.drawPath.push(mid);
 
@@ -1279,14 +1301,25 @@ class Game extends Phaser.Scene {
     this.gridPos.x = toPos.x;
     this.gridPos.y = toPos.y;
 
+    // if we crossed over the current drawing path,
+    // then delete everything that's not between the player and the edge
     const drawIndex = this.drawPath.indexOf(to);
     if (drawIndex != -1) {
       const toRemove = this.drawPath.splice(drawIndex);
       toRemove.forEach((tile) => {
         tile.setFillStyle(COLORS.fillColor, 0);
-        this.physics.world.disableBody(tile.body)
-        tile.body.destroy();
+        this.physics.world.disableBody(tile.body);
       });
+    }
+
+    // if we started drawing but returned to an edge
+    // without drawing a full path, then delete the path
+    if (toEdge && this.drawPath.length > 0) {
+      this.drawPath.forEach((tile) => {
+        tile.setFillStyle(COLORS.fillColor, 0);
+        this.physics.world.disableBody(tile.body);
+      });
+      this.drawPath.length = 0;
     }
 
     this.canMove = false;
@@ -1335,7 +1368,8 @@ class Game extends Phaser.Scene {
         const p = new Phaser.Math.Vector2(i, j);
         const t = this.grid[i][j];
         t.setData("counted", false);
-        if ((t.body || t.getData("filled")) && this.checkInBounds(p)) count++; // count how many tiles we've filled
+        if ((t.body?.enable || t.getData("filled")) && this.checkInBounds(p))
+          count++; // count how many tiles we've filled
 
         // player can only walk on edge points
         // edge points are the filled points next to unfilled area
@@ -1350,7 +1384,7 @@ class Game extends Phaser.Scene {
             this.checkInBounds(v) &&
             !this.grid[v.x][v.y].getData("filled") &&
             !this.grid[v.x][v.y].body &&
-            t.body
+            t.body?.enable
           ) {
             t.setFillStyle(COLORS.fillColor, 1);
             t.setData("filled", true);
@@ -1377,7 +1411,7 @@ class Game extends Phaser.Scene {
   fillInTilesRecursively(pos) {
     if (this.checkInBounds(pos)) {
       let tile = this.grid[pos.x][pos.y];
-      if ((tile.body) || tile.getData("filled")) return; // base case!
+      if (tile.body?.enable || tile.getData("filled")) return; // base case!
       tile.setFillStyle(COLORS.fillColor, 0.2);
       tile.setData("filled", true);
 
@@ -1393,7 +1427,7 @@ class Game extends Phaser.Scene {
   countTilesRecursiely(pos) {
     if (this.checkInBounds(pos)) {
       let tile = this.grid[pos.x][pos.y];
-      if ((tile.body) || tile.getData("filled")) return; // base case!
+      if (tile.body?.enable || tile.getData("counted")) return; // base case!
       tile.setData("counted", true);
       this.drawingArea++;
     } else return;
@@ -3271,6 +3305,7 @@ const config = {
       debug: DEV_MODE,
     },
   },
+  input: { gamepad: true },
   title: VERSION,
   autoFocus: true,
 };
