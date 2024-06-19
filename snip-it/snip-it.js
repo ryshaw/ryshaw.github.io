@@ -1386,10 +1386,7 @@ class MainUI extends Phaser.Scene {
             "\n\ntarget - explosion!";
           break;
         case 5:
-          t.text =
-            "controls:" +
-            "\nWASD/arrow keys or click/touch to move" +
-            "\n\nesc - pause\n\nm - mute";
+          this.createControlsText(t);
           break;
         case 6:
           t.text =
@@ -1401,6 +1398,29 @@ class MainUI extends Phaser.Scene {
 
       texts.add(t);
     }
+  }
+
+  createControlsText(t) {
+    const mouseKbText =
+      "mouse or kb controls:" +
+      "\n\nWASD/arrow keys or click/touch - move\n\nesc - pause\n\nm - mute";
+
+    const gamepadText =
+      "gamepad controls:" +
+      "\n\nstick or D-pad - move\n\nA - confirm\n\nstart - pause\n\nX/Y - mute";
+
+    this.input.gamepad.once("connected", () => (t.text = gamepadText));
+
+    this.input.gamepad.on("down", () => (t.text = gamepadText));
+
+    this.input.keyboard.on("keydown", () => (t.text = mouseKbText));
+
+    // this.input.on("pointermove", () => (t.text = mouseKbText));
+
+    //this.input.on("pointerdown", () => (t.text = mouseKbText));
+
+    t.text = gamepadText;
+    t.setLineSpacing(14);
   }
 
   setTutorialSegment(segment) {
