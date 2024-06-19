@@ -212,9 +212,32 @@ class MainUI extends Phaser.Scene {
     // so I'm polling the gamepad sticks continuously in update()
     // in order to have the gamepad sticks control the menu
     if (this.input.gamepad.total > 0) {
+      // check if player is holding down correct combo for cheat mode
       this.checkGamepadCheatMode();
 
+      // axes[0] is leftStickX, axes[1] is leftStickY,
+      // axes[2] is rightStickX, axes[3] is rightStickY
       const axes = this.input.gamepad.getPad(0).axes;
+
+      // if we detect any movement on the sticks, emit the down gamepad
+      // event which will change the tutorial controls to the gamepad version
+      const anyMovement = Math.round(
+        axes.reduce((total, axis) => {
+          return total + Math.abs(axis.value);
+        }, 0)
+      );
+      if (anyMovement > 0) {
+        this.input.gamepad.emit("down"); // this will change controls text
+        // also, emit the Game input gamepad "down" event.
+        // this will only activate while the gameLose or gameWin screens are
+        // waiting for input, in order to count the sticks as input.
+        // otherwise, the Game scene only uses "down" for the D-pad.
+        // yeah, emitting events in other scenes' input plugins is silly,
+        // but it's the easiest solution I got.
+        this.scene.get("Game").input.gamepad.emit("down");
+      }
+
+      // poll the sticks so player can select options on the menus
       let stick = 0;
       // pick left or right stick depending on which one is being pressed
       if (Math.abs(axes[1].value) > Math.abs(axes[3].value)) {
@@ -471,7 +494,33 @@ class MainUI extends Phaser.Scene {
     });
 
     // gamepad controls
+    this.input.gamepad.once("connected", (pad) => {
+      pad.setAxisThreshold(0.5);
+      // using gamepad, hide the mouse for convenience
+      this.sys.canvas.style.cursor = "none";
+    });
+
+    // if player moves mouse at all, make it appear
+    this.input.on(
+      "pointermove",
+      () => (this.sys.canvas.style.cursor = "default")
+    );
+
+    // if player clicks mouse at all, make it appear
+    this.input.on(
+      "pointerdown",
+      () => (this.sys.canvas.style.cursor = "default")
+    );
+
     this.input.gamepad.on("down", (pad, button, value) => {
+      this.sys.canvas.style.cursor = "none"; // make mouse disappear
+
+      /* in typical gameplay, this would be called when a gamepad button
+      is pressed, but the "down" event is also emitted by the sticks
+      in the update() method so that the event gets caught by the "down"
+      listener in createControlsText, so it can switch the text to gamepad. */
+      if (!button) return; // sometimes this will get called with no button
+
       // using Xbox wireless controller to calibrate this
       switch (button.index) {
         case 0: // A button
@@ -1415,11 +1464,9 @@ class MainUI extends Phaser.Scene {
 
     this.input.keyboard.on("keydown", () => (t.text = mouseKbText));
 
-    // this.input.on("pointermove", () => (t.text = mouseKbText));
+    this.input.on("pointerdown", () => (t.text = mouseKbText));
 
-    //this.input.on("pointerdown", () => (t.text = mouseKbText));
-
-    t.text = gamepadText;
+    t.text = mouseKbText;
     t.setLineSpacing(14);
   }
 

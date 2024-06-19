@@ -66,6 +66,8 @@ export class Game extends Phaser.Scene {
     this.level = data.level; // level is any number from 0 (tutorial) to 26 (game complete)
     this.level = this.level / 1; // make sure it's a number
 
+    this.level = 26;
+
     this.createResolution();
     this.createEvents();
 
@@ -1057,6 +1059,13 @@ export class Game extends Phaser.Scene {
 
     // for gamepad
     this.input.gamepad.on("down", (pad, button, value) => {
+      /* in typical gameplay, this would be called when a gamepad button
+      is pressed, but the "down" event is also emitted by the sticks
+      in the update() method of MainUI so that the event gets caught 
+      by the "down" listener in gameWin and gameLose, so it will progress
+      the level without requiring the player to press a button. */
+      if (!button) return; // sometimes this will get called with no button
+
       // using Xbox wireless controller to calibrate this
       switch (button.index) {
         case 12: // D-pad up
