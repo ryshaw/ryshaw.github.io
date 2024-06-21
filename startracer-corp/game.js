@@ -151,9 +151,7 @@ class Stars extends Phaser.Scene {
     );
 
     this.parent.setSize(width, height);
-    loolkllkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk,
-      lkl,
-      this.sizer.setSize(width, height);
+    this.sizer.setSize(width, height);
 
     this.updateCamera();
 
