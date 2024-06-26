@@ -1,9 +1,9 @@
 const VERSION = "Startracer Corp v0.1";
 
-const DEV_MODE = true; // turns on physics debug mode
+const DEV_MODE = false; // turns on physics debug mode
 
-const gameW = 1920;
-const gameH = 1080;
+const gameW = window.innerWidth;
+const gameH = window.innerHeight;
 
 const FONTS = ["PT Sans"];
 
@@ -39,6 +39,7 @@ class Background extends Phaser.Scene {
     );
     this.graphics.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
+    this.scene.launch("Stars");
     this.scene.launch("Game");
     this.scene.launch("HUD"); // UI above every scene
 
@@ -58,58 +59,94 @@ class Background extends Phaser.Scene {
   }
 }
 
-class Game extends Phaser.Scene {
-  player;
-  keysDown;
-  spaceEvents; // physic group containing obstacles/events... in space!
-  roadY = gameH * 0.9; // for placing everything down consistently at the bottom
-  gameLength; // integer. measured in gameW, so total is gameW * gameLength
-  endStation; // ending station of level
-
+class Stars extends Phaser.Scene {
   constructor() {
-    super("Game");
+    super("Stars");
   }
 
-  preload() {
-    this.load.setPath("./assets/kenney_planets/Planets/");
-    for (let i = 0; i < 10; i++)
-      this.load.image(`planet${i}`, `planet0${i}.png`);
-
-    this.load.setPath("./assets/kenney_simple-space/PNG/Retina/");
-    this.load.image("ship", "ship_sidesA.png");
-  }
-
-  create(data) {
-    this.gameLength = 6;
-
+  create() {
     this.createResolution();
 
-    this.createTextures();
+    this.createTexture();
     this.createStars();
 
-    this.createPlayer();
-    this.createLayout();
-    this.createSpaceEvents();
+    console.log(
+      this.physics.world.bounds.centerX,
+      this.physics.world.bounds.centerY
+    );
+  }
 
-    this.createPhysics();
+  createTexture() {
+    const graphics = this.make.graphics(); // disposable graphics obj
 
-    this.createKeyboardControls();
+    const lineColor = Phaser.Display.Color.ValueToColor(0xffffff);
 
-    this.startGame();
+    // small square for star
+    const w = 16;
+    graphics
+      .fillStyle(lineColor.color, 1)
+      .fillRect(0, 0, w, w)
+      .generateTexture("square", w, w)
+      .clear();
+
+    graphics.destroy();
+  }
+
+  createStars() {
+    const numStars = 1000;
+
+    const w = 6000;
+    const h = 6000;
+    this.physics.world.setBounds(0, 0, w, h);
+
+    this.physics.world.on("worldbounds", (body) => {
+      // move to other side of bounds and start moving left again
+      body.x += this.physics.world.bounds.width - body.gameObject.width;
+      body.setVelocityX(-200 * body.gameObject.scale);
+    });
+
+    const stars = this.physics.add.group();
+
+    stars.createMultiple({
+      key: "square",
+      quantity: numStars,
+      setAlpha: { value: 0.8 },
+    });
+
+    Phaser.Actions.RandomRectangle(
+      stars.getChildren(),
+      this.physics.world.bounds
+    );
+
+    Phaser.Actions.Call(stars.getChildren(), (star) => {
+      star.setScale(Phaser.Math.FloatBetween(0.05, 0.6)).setName("star");
+      star.body.collideWorldBounds = true;
+      star.body.onWorldBounds = true;
+      star.body.setVelocityX(-200 * star.scale);
+
+      this.tweens.add({
+        targets: star,
+        alpha: 0,
+        duration: 200,
+        delay: Phaser.Math.Between(500, 6000),
+        loop: -1,
+        yoyo: true,
+      });
+    });
   }
 
   createResolution() {
     // I don't know how this code works but it's magic. I also stole it from here:
     // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
-    const width = this.scale.gameSize.width;
-    const height = this.scale.gameSize.height;
+    const width = 3840; //this.scale.gameSize.width;
+    const height = 2160; //this.scale.gameSize.height;
 
     this.parent = new Phaser.Structs.Size(width, height);
 
     this.sizer = new Phaser.Structs.Size(
       gameW,
       gameH,
-      Phaser.Structs.Size.FIT,
+      Phaser.Structs.Size.ENVELOP,
       this.parent
     );
 
@@ -117,9 +154,120 @@ class Game extends Phaser.Scene {
     this.sizer.setSize(width, height);
 
     this.updateCamera();
-    this.cameras.main.centerOn(gameW / 2, gameH / 2);
 
     this.scale.on("resize", this.resize, this);
+  }
+
+  resize(gameSize) {
+    const width = gameSize.width;
+    const height = gameSize.height;
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+  }
+
+  updateCamera() {
+    const camera = this.cameras.main;
+
+    //const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
+    const x = 0;
+    const y = 0;
+    const scaleX = this.sizer.width / 2000; //gameW;
+    const scaleY = this.sizer.height / 2000; // gameH;
+
+    if (!camera) return;
+    //camera.setViewport(x, y, this.sizer.width, this.parent.height);
+    camera.setViewport(0, 0, this.parent.width, this.parent.height);
+    camera.setZoom(Math.max(scaleX, scaleY));
+    //camera.centerOn(camera.midPoint.x, camera.midPoint.y);
+    camera.centerOn(3000, 3000);
+  }
+}
+
+class Game extends Phaser.Scene {
+  player;
+  keysDown;
+  story; // object containing organized text, choices, actions
+  textContainer; // container with all the story text and choices
+  scrollPos; // in update(), adds smooth scrolling of the text
+  transition; // true if the text is transitioning to next part (stop lerp)
+  pointerDown; // is mouse or touch pointer down?
+  w; // width of game window, will change game objects upon resize
+  h; // ditto as above but for height, will NOT scale however
+  hUnit; // height doesn't scale with resizing, so we have set units
+
+  constructor() {
+    super("Game");
+  }
+
+  preload() {
+    // load google's library for the various fonts we want to use
+    this.load.script(
+      "webfont",
+      "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
+    );
+
+    this.load.text("story", "assets/story.txt");
+  }
+
+  create(data) {
+    this.w = this.scale.gameSize.width;
+    this.h = this.scale.gameSize.height;
+    this.hUnit = 100;
+
+    this.createTextures();
+
+    this.createPlayer();
+
+    this.createKeyboardControls();
+    this.createMouseControls();
+
+    WebFont.load({
+      google: {
+        families: FONTS,
+      },
+      active: () => {
+        this.processStoryText();
+        this.createText();
+      },
+    });
+
+    this.scale.on("resize", this.resize, this);
+  }
+
+  resize(newSize) {
+    // height doesn't scale upon resize, so only check if width has changed
+    if (this.w == newSize.width) return;
+
+    this.w = newSize.width;
+    this.h = newSize.height;
+
+    this.textContainer.x = this.w / 2;
+    this.player.x = this.w / 2;
+
+    let prev = null;
+    const size = this.textContainer.first.style.fontSize;
+    const spacing = Number(size.slice(0, size.length - 2));
+    const lineSpacing = this.textContainer.first.lineSpacing;
+
+    this.textContainer.iterate((t) => {
+      t.setWordWrapWidth(this.w * 0.8, true);
+      t.x = -(this.w * 0.8) / 2;
+
+      if (prev) {
+        t.y = prev.getBottomCenter().y + spacing;
+
+        if (t.name == "action" && prev.name == "story") {
+          t.y += lineSpacing * 2;
+        } else if (t.name == "story" && prev.name == "action") {
+          t.y += this.hUnit * 2;
+          t.y -= spacing;
+        }
+      }
+      prev = t;
+    });
   }
 
   createTextures() {
@@ -129,7 +277,7 @@ class Game extends Phaser.Scene {
     const fillColor = lineColor.clone().darken(80);
 
     // triangle ship
-    const shipW = 60;
+    const shipW = 64;
     const shipH = 36;
 
     graphics
@@ -174,215 +322,189 @@ class Game extends Phaser.Scene {
     graphics.destroy();
   }
 
-  createLayout() {
-    // road
-    this.add
-      .rectangle(
-        gameW * this.gameLength * 0.5,
-        this.roadY,
-        gameW * (this.gameLength + 1),
-        60
-      )
-      .setStrokeStyle(4, COLORS.white, 1)
-      .setFillStyle(COLORS.black, 1);
-
-    // departing station
-    this.add
-      .image(gameW * 0.5, this.roadY, "hexagon")
-      .setTint(COLORS.stationColor)
-      .setName("hex")
-      // .setDepth(1)
-      .setScale(1.2);
-
-    // arriving station
-    this.endStation = this.physics.add
-      .staticImage(gameW * this.gameLength, this.roadY, "hexagon")
-      .setTint(COLORS.stationColor)
-      .setName("hex")
-      //.setDepth(1)
-      .setScale(1.2);
-
-    this.add.image(gameW * 0.5, this.roadY, "planet0").setScale(0.18);
-  }
-
-  createStars() {
-    this.stars = this.add.group({
-      key: "square",
-      quantity: this.gameLength * 300,
-      setAlpha: { value: 0.8 },
-    });
-
-    Phaser.Actions.RandomRectangle(
-      this.stars.getChildren(),
-      new Phaser.Geom.Rectangle(
-        -gameW,
-        gameH * 0.01,
-        gameW * this.gameLength,
-        gameH * 0.98
-      )
-    );
-
-    Phaser.Actions.Call(this.stars.getChildren(), (star) => {
-      star.setScale(Phaser.Math.FloatBetween(0.05, 0.6));
-
-      star.setScrollFactor(star.scale);
-
-      this.tweens.add({
-        targets: star,
-        alpha: 0,
-        duration: 200,
-        delay: Phaser.Math.Between(500, 6000),
-        loop: -1,
-        yoyo: true,
-      });
-    });
-  }
-
-  createPhysics() {
-    this.physics.add.overlap(this.player, this.spaceEvents, (p, r) => {
-      if (r.activated) return;
-
-      r.activated = true;
-      console.log("activated");
-    });
-
-    this.physics.add.overlap(this.player, this.endStation, () => {
-      this.endStation.disableBody(); // so it only runs once
-      this.endGame();
-    });
-  }
-
-  createSpaceEvents() {
-    /*const num = Phaser.Math.Between(
-      Math.round(this.gameLength / 3),
-      Math.round((2 * this.gameLength) / 3)
-    );*/
-    const num = 5;
-
-    this.spaceEvents = this.physics.add.staticGroup({
-      key: "hexagon",
-      quantity: num,
-      setScale: { x: 0.75, y: 0.75 },
-    });
-
-    const boundLine = new Phaser.Geom.Line(
-      gameW * 1.5,
-      this.roadY,
-      gameW * (this.gameLength - 0.5),
-      this.roadY
-    );
-
-    Phaser.Actions.PlaceOnLine(this.spaceEvents.getChildren(), boundLine);
-
-    const length = Phaser.Geom.Line.Length(boundLine);
-    console.log(length / num);
-
-    for (const spaceEvent of this.spaceEvents.getChildren()) {
-      spaceEvent.body.setSize(200, 200);
-      let randomOffset = Phaser.Math.Between(-length / num, length / num);
-      spaceEvent.x += randomOffset / 3;
-    }
-
-    this.spaceEvents.refresh();
-  }
-
   createPlayer() {
     this.player = this.physics.add
-      .image(gameW * 0.5, this.roadY, "ship") // ship1
+      .image(this.w * 0.5, this.hUnit, "ship1")
       .setTint(Phaser.Utils.Array.GetRandom(COLORS.shipColors))
       .setName("player")
-      .setDepth(1)
-      .setMaxVelocity(400, 0)
-      .setAngle(90)
-      .setScale(0.8);
+      .setDepth(1);
   }
 
-  startGame() {
-    //this.cameras.main.fadeIn();
+  processStoryText() {
+    let text = this.cache.text.get("story").replaceAll("\r", "");
+    this.story = {};
 
-    this.cameras.main
-      .startFollow(this.player, false, 0.01, 1)
-      .setFollowOffset(0, this.roadY - gameH * 0.5);
+    // split text into story parts by double line returns
+    let parts = text.split("\n\n\n");
 
-    this.time.delayedCall(1500, () => {
-      //  this.player.setAccelerationX(100);
+    parts.forEach((part) => {
+      // split by line
+      const array = part.split("\n");
 
-      this.tweens.add({
-        targets: this.cameras.main.lerp,
-        x: 0.6,
-        duration: 10000,
-        delay: 2000,
-        ease: "sine.in",
-      });
-    });
+      // build up storyPart object
+      const storyPart = {};
+      storyPart["text"] = "";
 
-    //this.cameras.main.setScroll((gameW * this.gameLength) / 2, gameH * 0.5);
-    //this.cameras.main.setZoom(0.13);
-  }
+      while (array.length > 0) {
+        let line = array.shift();
 
-  endGame() {
-    console.log(Phaser.Math.RoundTo(this.time.now / 1000, -1) + " seconds");
-    this.cameras.main.pan(
-      this.endStation.x,
-      this.endStation.y,
-      1500,
-      Phaser.Math.Easing.Sine.InOut
-    );
-    this.cameras.main.stopFollow();
-    this.player.setAccelerationX(0);
-    this.tweens.add({
-      targets: this.player,
-      alpha: 0,
-      duration: 300,
-    });
+        if (line.indexOf("#") == 0) {
+          // story part ID is number on the first line after the hashtag
+          storyPart["id"] = Number(line.slice(1));
+        } else if (line.indexOf("[") == 0) {
+          // build actions list
+          if (!storyPart["actions"]) storyPart["actions"] = [];
 
-    this.time.delayedCall(2500, () => {
-      this.cameras.main.fade();
-      this.time.delayedCall(1000, () => {
-        /* this.scene.start("Station") causes
-        a visual glitch, so instead I do launch Station and 
-        then stop Game right after. 
-        not sure why this happens... I know it's weird */
-        this.scene.launch("Station");
-        this.time.delayedCall(0, () => {
-          this.scene.stop();
-        });
-      });
+          const action = {};
+
+          const nextIndex = line.indexOf("#"); // next ID starts here
+          const endNextIndex = line.indexOf("]", nextIndex); // and ends here
+
+          // next story part ID
+          action["next"] = Number(line.slice(nextIndex + 1, endNextIndex));
+          // what the choice actually says
+          action["text"] = line.slice(1, nextIndex - 1);
+
+          storyPart["actions"].push(action);
+        } else {
+          // just a normal dialog line, add it to the text
+          if (line == "") line = "\n\n"; // make sure new lines are counted
+          storyPart["text"] += line;
+        }
+      }
+
+      this.story[storyPart.id] = storyPart;
     });
   }
 
-  createRoadblocks() {
-    this.time.addEvent({
-      delay: Phaser.Math.Between(1000, 2000),
-      callback: () => {
-        this.createRoadblock();
-        //this.createRoadblocks(); // loop back so we can keep it going
+  createText() {
+    // create our big huge text container, enable it for scrolling (dragging)
+    // when the pointer is inside the x values of the text container.
+    this.textContainer = this.add.container(this.w * 0.5).setInteractive({
+      draggable: true,
+      hitArea: new Phaser.Geom.Point(),
+      hitAreaCallback: (point, x, y, gameObject) => {
+        // hard coded, I'll gotta update this in the future
+        return Math.abs(x) <= this.w * 0.4;
       },
     });
+
+    // we transition when player clicks a button, moving to next story part
+    this.transition = false;
+
+    this.nextStoryPart(1); // start at 1
   }
 
-  createRoadblock() {
-    const hex = this.physics.add
-      .image(gameW * 1.1, this.roadY - 100, "hexagon")
-      .setName("hex");
+  nextStoryPart(id) {
+    // get text container bounds so we can align the new text correctly
+    const bounds = this.textContainer.getBounds();
 
-    hex.activated = false;
-
-    this.spaceEvents.add(hex);
-
-    hex.body.onWorldBounds = true;
-    hex.setCollideWorldBounds(true);
-
-    hex.setVelocityX(-200);
-    hex.body.setSize(200, (gameH - hex.y) * 2); // make sure player hits it
-
-    hex.setAngle(Phaser.Math.Between(0, 59));
-    this.add.tween({
-      targets: hex,
-      angle: "+=360",
-      duration: 10000,
-      loop: -1,
+    // push all current text up to make room
+    this.tweens.add({
+      targets: this.textContainer,
+      y: `-=${bounds.bottom}`,
+      duration: 800,
+      ease: "sine.out",
+      onActive: () => (this.transition = true),
+      onComplete: () => {
+        this.transition = false;
+        this.scrollPos = this.textContainer.y;
+      },
     });
+
+    this.textContainer.each((t) => {
+      t.removeInteractive();
+      this.tweens.add({
+        targets: t,
+        alpha: 0.2,
+        duration: 600,
+        onComplete: () => t.setAlpha(1),
+      });
+    });
+
+    let part = this.story[id];
+
+    if (!part) part = this.story[0]; // no part found, go to default
+
+    let y = this.hUnit * 2 + bounds.height; // new text will start here
+
+    // if there's text already, we gotta push new text even more down
+    if (this.textContainer.length > 0) y += this.hUnit * 2;
+
+    // get story text
+    let text = this.newStoryText(y, part["text"]).setName("story");
+
+    this.textContainer.add(text);
+
+    // grab the font size so we can calculate the spacing b/w text and actions
+    const size = text.style.fontSize;
+    const spacing = Number(size.slice(0, size.length - 2));
+    let bottom = text.getBottomCenter().y + text.lineSpacing * 2;
+
+    if (!part["actions"]) return; // no actions so we're done
+
+    part["actions"].forEach((action) => {
+      text = this.newStoryText(bottom + spacing, action["text"], () =>
+        this.nextStoryPart(action["next"])
+      ).setName("action");
+
+      this.textContainer.add(text);
+
+      bottom = text.getBottomCenter().y; // put actions below each other
+    });
+  }
+
+  newStoryText(y, text, callback) {
+    const width = this.w * 0.8;
+    const x = -width / 2; // so it's centered in the container
+    const t = this.add
+      .text(x, y, text, {
+        font: `24px`,
+        fill: "#fff",
+        align: "left",
+        // fixedWidth: width,
+        wordWrap: { width: width, useAdvancedWrap: true },
+        shadow: {
+          offsetX: 0,
+          offsetY: 1,
+          color: "#00a8e8",
+          blur: 3,
+          stroke: false,
+          fill: true,
+        },
+      })
+      .setFontFamily("PT Sans")
+      .setOrigin(0, 0)
+      .setLineSpacing(16)
+      .setAlpha(0);
+
+    this.tweens.add({
+      targets: t,
+      alpha: 1,
+      duration: 600,
+    });
+
+    if (callback) {
+      t.setInteractive({ useHandCursor: true })
+        .on("pointerover", function (pointer) {
+          this.setTint(COLORS.highlightColor);
+        })
+        .on("pointerout", function (pointer) {
+          this.setTint(COLORS.white);
+          this.off("pointerup", callback);
+        })
+        .on("pointerdown", function () {
+          this.setTint(COLORS.clickColor);
+          if (this.listenerCount("pointerup") < 2) {
+            this.on("pointerup", callback);
+          }
+        })
+        .on("pointerup", function () {
+          this.setTint(COLORS.highlightColor);
+        });
+    }
+
+    return t;
   }
 
   createKeyboardControls() {
@@ -464,42 +586,55 @@ class Game extends Phaser.Scene {
     });*/
   }
 
-  resize(gameSize) {
-    const width = gameSize.width;
-    const height = gameSize.height;
+  createMouseControls() {
+    this.input.on("wheel", (p, over, dX, dY, dZ) => {
+      this.scrollPos -= dY * 0.8; // lerp handled in update() method
+    });
 
-    this.parent.setSize(width, height);
-    this.sizer.setSize(width, height);
-
-    this.updateCamera();
+    this.input.on("drag", (pointer, gameObject, dragX, dragY) => {
+      this.scrollPos = dragY;
+    });
   }
 
-  updateCamera() {
-    const camera = this.cameras.main;
+  update() {
+    // if text hasn't been created or we're transitioning, don't lerp
+    if (!this.textContainer) return;
 
-    const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
-    const y = 0;
-    const scaleX = this.sizer.width / gameW;
-    const scaleY = this.sizer.height / gameH;
+    if (!this.scrollPos) this.scrollPos = this.textContainer.y; // set lerp
 
-    // this offset was meant to move the game screen a little up
-    // because it was being centered a little down when playing it on
-    // my phone (iPhone 12). I'm going to remove it now because
-    // I'm prioritizing a multi-platform game and the offset looks
-    // weird on other platforms.
+    if (!this.transition && this.keysDown.first) {
+      this.scrollPos -= this.keysDown.last.y * 15;
+    }
 
-    // offset is comparing the game's height to the window's height,
-    // and centering the game in (kind of) the middle of the window.
-    // old line:
-    //const offset = (1 + this.parent.height / this.sizer.height) / 2;
-    // new line:
-    const offset = this.parent.height / this.sizer.height;
+    // too far down
+    if (this.textContainer.y >= 0 && this.scrollPos > this.textContainer.y) {
+      this.scrollPos = this.textContainer.y;
+    }
 
-    if (!camera) return;
+    // too far up
+    const bottom = this.textContainer.last.getBottomCenter(undefined, true).y;
+    if (bottom <= 0 && this.scrollPos < this.textContainer.y) {
+      this.scrollPos = this.textContainer.y;
+    }
 
-    camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
-    camera.setZoom(Math.max(scaleX, scaleY));
-    camera.centerOn(camera.midPoint.x, camera.midPoint.y);
+    // move text based on scrollPos
+    if (!this.transition) {
+      this.textContainer.y = Phaser.Math.Linear(
+        this.textContainer.y,
+        this.scrollPos,
+        0.25
+      );
+    }
+
+    // crop text if over the top
+    this.textContainer.each((t) => {
+      t.setCrop(
+        0,
+        this.hUnit * 2 - t.getTopCenter(undefined, true).y,
+        this.w,
+        t.getBottomCenter(undefined, true).y
+      );
+    });
   }
 }
 
@@ -824,11 +959,6 @@ class HUD extends Phaser.Scene {
 
   create(data) {
     this.createResolution();
-
-    // show bounds of game while in dev
-    this.bounds = this.add
-      .rectangle(gameW / 2, gameH / 2, gameW, gameH)
-      .setStrokeStyle(4, 0xffffff, 0.6);
 
     WebFont.load({
       google: {
@@ -2232,7 +2362,7 @@ const config = {
     height: gameH,
   },
   // pixelArt: true,
-  scene: [Background, HUD, Game, Station],
+  scene: [Background, Stars, HUD, Game, Station],
   physics: {
     default: "arcade",
     arcade: {
