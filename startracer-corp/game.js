@@ -64,7 +64,7 @@ class Game extends Phaser.Scene {
   spaceEvents; // physic group containing obstacles/events... in space!
   roadY = gameH * 0.9; // for placing everything down consistently at the bottom
   gameLength; // integer. measured in gameW, so total is gameW * gameLength
-  endStation; // ending station of level
+  end; // ending planet of level
 
   constructor() {
     super("Game");
@@ -76,15 +76,19 @@ class Game extends Phaser.Scene {
       this.load.image(`planet${i}`, `planet0${i}.png`);
 
     this.load.setPath("./assets/kenney_simple-space/PNG/Retina/");
-    this.load.image("ship", "ship_sidesA.png");
+    this.load.image("ship", "ship_F.png");
+
+    this.load.image("station", "station_B.png");
+
+    this.load.setPath("./assets/kenney_simple-space/PNG/Default/");
+    for (let i = 1; i < 5; i++) this.load.image(`star${i}`, `star${i}.png`);
   }
 
-  create(data) {
+  create() {
     this.gameLength = 6;
 
     this.createResolution();
 
-    this.createTextures();
     this.createStars();
 
     this.createPlayer();
@@ -122,110 +126,51 @@ class Game extends Phaser.Scene {
     this.scale.on("resize", this.resize, this);
   }
 
-  createTextures() {
-    const graphics = this.make.graphics(); // disposable graphics obj
-
-    const lineColor = Phaser.Display.Color.ValueToColor(0xffffff);
-    const fillColor = lineColor.clone().darken(80);
-
-    // triangle ship
-    const shipW = 60;
-    const shipH = 36;
-
-    graphics
-      .lineStyle(5, lineColor.color, 1)
-      .fillStyle(fillColor.color, 1)
-      .fillTriangle(0, 0, 0, shipH, shipW, shipH / 2)
-      .strokeTriangle(0, 0, 0, shipH, shipW, shipH / 2)
-      .generateTexture("ship1", shipW, shipH)
-      .clear();
-
-    // hexagon for outpost
-
-    graphics
-      .lineStyle(12, lineColor.color, 1)
-      .fillStyle(fillColor.color, 1)
-      .beginPath();
-
-    let r = 50;
-    let w = r + 6; // extended by stroke / 2, so stroke edges aren't cut off
-    for (let index = 1; index < 7; index++) {
-      graphics.lineTo(
-        r * Math.cos((index * Math.PI) / 3) + w,
-        r * Math.sin((index * Math.PI) / 3) + w
-      );
-    }
-
-    graphics
-      .closePath()
-      .strokePath()
-      .fillPath()
-      .generateTexture("hexagon", w * 2, w * 2)
-      .clear();
-
-    // small square for star
-    w = 16;
-    graphics
-      .fillStyle(lineColor.color, 1)
-      .fillRect(0, 0, w, w)
-      .generateTexture("square", w, w)
-      .clear();
-
-    graphics.destroy();
-  }
-
   createLayout() {
-    // road
+    // start planet
     this.add
-      .rectangle(
-        gameW * this.gameLength * 0.5,
-        this.roadY,
-        gameW * (this.gameLength + 1),
-        60
+      .image(gameW * 0.5, this.roadY, "planet0")
+      .setScale(0.18)
+      .setAlpha(1)
+      .setDepth(1);
+
+    // end planet
+    this.end = this.physics.add
+      .staticImage(gameW * this.gameLength, this.roadY, "planet1")
+      .setDepth(1)
+      .setScale(0.18);
+
+    this.end.body
+      .setSize(
+        this.end.width * this.end.scale,
+        this.end.height * this.end.scale
       )
-      .setStrokeStyle(4, COLORS.white, 1)
-      .setFillStyle(COLORS.black, 1);
-
-    // departing station
-    this.add
-      .image(gameW * 0.5, this.roadY, "hexagon")
-      .setTint(COLORS.stationColor)
-      .setName("hex")
-      // .setDepth(1)
-      .setScale(1.2);
-
-    // arriving station
-    this.endStation = this.physics.add
-      .staticImage(gameW * this.gameLength, this.roadY, "hexagon")
-      .setTint(COLORS.stationColor)
-      .setName("hex")
-      //.setDepth(1)
-      .setScale(1.2);
-
-    this.add.image(gameW * 0.5, this.roadY, "planet0").setScale(0.18);
+      .reset();
   }
 
   createStars() {
     this.stars = this.add.group({
-      key: "square",
-      quantity: this.gameLength * 300,
+      key: ["star1", "star2", "star3", "star4"],
+      quantity: this.gameLength * 25,
       setAlpha: { value: 0.8 },
+      setScale: { x: 0.6, y: 0.6 },
     });
 
     Phaser.Actions.RandomRectangle(
       this.stars.getChildren(),
       new Phaser.Geom.Rectangle(
         -gameW,
-        gameH * 0.01,
+        gameH * 0.02,
         gameW * this.gameLength,
-        gameH * 0.98
+        gameH * 0.96
       )
     );
 
     Phaser.Actions.Call(this.stars.getChildren(), (star) => {
-      star.setScale(Phaser.Math.FloatBetween(0.05, 0.6));
-
-      star.setScrollFactor(star.scale);
+      const size = star.texture.key.slice(4); // "star2" --> 2, etc.
+      const random = Phaser.Math.Between(-20, 20) * 0.001; // [-0.02, 0.02]
+      star.setScrollFactor(size * 0.025 + random);
+      star.setTint(Phaser.Utils.Array.GetRandom(COLORS.shipColors));
 
       this.tweens.add({
         targets: star,
@@ -246,8 +191,8 @@ class Game extends Phaser.Scene {
       console.log("activated");
     });
 
-    this.physics.add.overlap(this.player, this.endStation, () => {
-      this.endStation.disableBody(); // so it only runs once
+    this.physics.add.overlap(this.player, this.end, () => {
+      this.end.disableBody(); // so it only runs once
       this.endGame();
     });
   }
@@ -260,7 +205,7 @@ class Game extends Phaser.Scene {
     const num = 5;
 
     this.spaceEvents = this.physics.add.staticGroup({
-      key: "hexagon",
+      key: "station",
       quantity: num,
       setScale: { x: 0.75, y: 0.75 },
     });
@@ -294,7 +239,7 @@ class Game extends Phaser.Scene {
       .setDepth(1)
       .setMaxVelocity(400, 0)
       .setAngle(90)
-      .setScale(0.8);
+      .setScale(0.6);
   }
 
   startGame() {
@@ -304,8 +249,8 @@ class Game extends Phaser.Scene {
       .startFollow(this.player, false, 0.01, 1)
       .setFollowOffset(0, this.roadY - gameH * 0.5);
 
-    this.time.delayedCall(1500, () => {
-      //  this.player.setAccelerationX(100);
+    this.time.delayedCall(200, () => {
+      this.player.setAccelerationX(100);
 
       this.tweens.add({
         targets: this.cameras.main.lerp,
@@ -323,8 +268,8 @@ class Game extends Phaser.Scene {
   endGame() {
     console.log(Phaser.Math.RoundTo(this.time.now / 1000, -1) + " seconds");
     this.cameras.main.pan(
-      this.endStation.x,
-      this.endStation.y,
+      this.end.x,
+      this.end.y,
       1500,
       Phaser.Math.Easing.Sine.InOut
     );
@@ -363,7 +308,7 @@ class Game extends Phaser.Scene {
 
   createRoadblock() {
     const hex = this.physics.add
-      .image(gameW * 1.1, this.roadY - 100, "hexagon")
+      .image(gameW * 1.1, this.roadY - 100, "station")
       .setName("hex");
 
     hex.activated = false;
