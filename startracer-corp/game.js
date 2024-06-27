@@ -1,6 +1,6 @@
 const VERSION = "Startracer Corp v0.1";
 
-const DEV_MODE = true; // turns on physics debug mode
+const DEV_MODE = false; // turns on physics debug mode
 
 const gameW = 1920;
 const gameH = 1080;
@@ -61,16 +61,20 @@ class Background extends Phaser.Scene {
 class Game extends Phaser.Scene {
   player;
   keysDown;
-  spaceEvents; // physic group containing obstacles/events... in space!
+  encounters; // physic group containing obstacles/events... in space!
   roadY = gameH * 0.9; // for placing everything down consistently at the bottom
   gameLength; // integer. measured in gameW, so total is gameW * gameLength
   end; // ending planet of level
+  gameOver; // level is over or player died, stop running game events
 
   constructor() {
     super("Game");
   }
 
   preload() {
+    // I don't like putting actual game stuff in preload() but we load too much
+    this.cameras.main.fadeIn();
+
     this.load.setPath("./assets/kenney_planets/Planets/");
     for (let i = 0; i < 10; i++)
       this.load.image(`planet${i}`, `planet0${i}.png`);
@@ -85,7 +89,9 @@ class Game extends Phaser.Scene {
   }
 
   create() {
+    // gameLength = 6 corresponds to 30 seconds a level
     this.gameLength = 6;
+    this.gameOver = false;
 
     this.createResolution();
 
@@ -93,7 +99,7 @@ class Game extends Phaser.Scene {
 
     this.createPlayer();
     this.createLayout();
-    this.createSpaceEvents();
+    this.createEncounters();
 
     this.createPhysics();
 
@@ -136,16 +142,14 @@ class Game extends Phaser.Scene {
 
     // end planet
     this.end = this.physics.add
-      .staticImage(gameW * this.gameLength, this.roadY, "planet1")
+      .image(gameW * this.gameLength, this.roadY, "planet1")
       .setDepth(1)
       .setScale(0.18);
 
-    this.end.body
-      .setSize(
-        this.end.width * this.end.scale,
-        this.end.height * this.end.scale
-      )
-      .reset();
+    this.end.body.setSize(
+      this.end.width * this.end.scale,
+      this.end.height * this.end.scale
+    );
   }
 
   createStars() {
@@ -158,18 +162,13 @@ class Game extends Phaser.Scene {
 
     Phaser.Actions.RandomRectangle(
       this.stars.getChildren(),
-      new Phaser.Geom.Rectangle(
-        -gameW,
-        gameH * 0.02,
-        gameW * this.gameLength,
-        gameH * 0.96
-      )
+      new Phaser.Geom.Rectangle(-gameW, -2000, gameW * this.gameLength, 4000)
     );
 
     Phaser.Actions.Call(this.stars.getChildren(), (star) => {
       const size = star.texture.key.slice(4); // "star2" --> 2, etc.
       const random = Phaser.Math.Between(-20, 20) * 0.001; // [-0.02, 0.02]
-      star.setScrollFactor(size * 0.025 + random);
+      star.setScrollFactor(size * 0.025 + random, 1);
       star.setTint(Phaser.Utils.Array.GetRandom(COLORS.shipColors));
 
       this.tweens.add({
@@ -184,10 +183,9 @@ class Game extends Phaser.Scene {
   }
 
   createPhysics() {
-    this.physics.add.overlap(this.player, this.spaceEvents, (p, r) => {
-      if (r.activated) return;
+    this.physics.add.overlap(this.player, this.encounters, (p, en) => {
+      en.disableBody();
 
-      r.activated = true;
       console.log("activated");
     });
 
@@ -197,38 +195,41 @@ class Game extends Phaser.Scene {
     });
   }
 
-  createSpaceEvents() {
-    /*const num = Phaser.Math.Between(
-      Math.round(this.gameLength / 3),
-      Math.round((2 * this.gameLength) / 3)
-    );*/
-    const num = 5;
+  createEncounters() {
+    if (!this.encounters) this.encounters = this.physics.add.group();
 
-    this.spaceEvents = this.physics.add.staticGroup({
-      key: "station",
-      quantity: num,
-      setScale: { x: 0.75, y: 0.75 },
+    this.time.addEvent({
+      delay: Phaser.Math.Between(10 * 1000, 20 * 1000),
+      callback: () => {
+        if (this.gameOver) return;
+
+        // if player is within game screen of end, stop spawning
+        const dist = gameW * this.gameLength - (this.player.x + gameW * 0.5);
+        if (dist / gameW <= 1) return;
+
+        this.createEncounter(); // spawn event
+        this.createEncounters(); // loop back so we can keep it going
+      },
     });
+  }
 
-    const boundLine = new Phaser.Geom.Line(
-      gameW * 1.5,
-      this.roadY,
-      gameW * (this.gameLength - 0.5),
-      this.roadY
-    );
+  createEncounter() {
+    const en = this.physics.add
+      .image(this.player.x + gameW * 0.6, this.roadY, "station")
+      .setDepth(1)
+      .setTint(Phaser.Utils.Array.GetRandom(COLORS.shipColors));
 
-    Phaser.Actions.PlaceOnLine(this.spaceEvents.getChildren(), boundLine);
+    this.encounters.add(en);
 
-    const length = Phaser.Geom.Line.Length(boundLine);
-    console.log(length / num);
+    en.body.setSize(en.width * 2, en.height * 2);
 
-    for (const spaceEvent of this.spaceEvents.getChildren()) {
-      spaceEvent.body.setSize(200, 200);
-      let randomOffset = Phaser.Math.Between(-length / num, length / num);
-      spaceEvent.x += randomOffset / 3;
-    }
-
-    this.spaceEvents.refresh();
+    en.setAngle(Phaser.Math.Between(0, 59));
+    this.add.tween({
+      targets: en,
+      angle: "+=360",
+      duration: 10000,
+      loop: -1,
+    });
   }
 
   createPlayer() {
@@ -243,8 +244,6 @@ class Game extends Phaser.Scene {
   }
 
   startGame() {
-    //this.cameras.main.fadeIn();
-
     this.cameras.main
       .startFollow(this.player, false, 0.01, 1)
       .setFollowOffset(0, this.roadY - gameH * 0.5);
@@ -260,13 +259,11 @@ class Game extends Phaser.Scene {
         ease: "sine.in",
       });
     });
-
-    //this.cameras.main.setScroll((gameW * this.gameLength) / 2, gameH * 0.5);
-    //this.cameras.main.setZoom(0.13);
   }
 
   endGame() {
     console.log(Phaser.Math.RoundTo(this.time.now / 1000, -1) + " seconds");
+
     this.cameras.main.pan(
       this.end.x,
       this.end.y,
@@ -289,44 +286,8 @@ class Game extends Phaser.Scene {
         then stop Game right after. 
         not sure why this happens... I know it's weird */
         this.scene.launch("Station");
-        this.time.delayedCall(0, () => {
-          this.scene.stop();
-        });
+        this.time.delayedCall(0, () => this.scene.stop());
       });
-    });
-  }
-
-  createRoadblocks() {
-    this.time.addEvent({
-      delay: Phaser.Math.Between(1000, 2000),
-      callback: () => {
-        this.createRoadblock();
-        //this.createRoadblocks(); // loop back so we can keep it going
-      },
-    });
-  }
-
-  createRoadblock() {
-    const hex = this.physics.add
-      .image(gameW * 1.1, this.roadY - 100, "station")
-      .setName("hex");
-
-    hex.activated = false;
-
-    this.spaceEvents.add(hex);
-
-    hex.body.onWorldBounds = true;
-    hex.setCollideWorldBounds(true);
-
-    hex.setVelocityX(-200);
-    hex.body.setSize(200, (gameH - hex.y) * 2); // make sure player hits it
-
-    hex.setAngle(Phaser.Math.Between(0, 59));
-    this.add.tween({
-      targets: hex,
-      angle: "+=360",
-      duration: 10000,
-      loop: -1,
     });
   }
 
