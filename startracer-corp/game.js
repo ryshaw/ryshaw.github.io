@@ -27,6 +27,20 @@ class Background extends Phaser.Scene {
     super("Background");
   }
 
+  // preload everything for the game
+  preload() {
+    this.load.setPath("./assets/kenney_planets/Planets/");
+    for (let i = 0; i < 10; i++)
+      this.load.image(`planet${i}`, `planet0${i}.png`);
+
+    this.load.setPath("./assets/kenney_simple-space/Spritesheet/");
+    this.load.atlasXML({
+      key: "space",
+      atlasURL: "simpleSpace_sheet@2.xml",
+      textureURL: "simpleSpace_sheet@2.png",
+    });
+  }
+
   create() {
     this.graphics = this.add.graphics();
 
@@ -75,14 +89,7 @@ class Game extends Phaser.Scene {
     // I don't like putting actual game stuff in preload() but we load too much
     this.cameras.main.fadeIn();
 
-    this.load.setPath("./assets/kenney_planets/Planets/");
-    for (let i = 0; i < 10; i++)
-      this.load.image(`planet${i}`, `planet0${i}.png`);
-
     this.load.setPath("./assets/kenney_simple-space/PNG/Retina/");
-    this.load.image("ship", "ship_F.png");
-    this.load.image("station", "station_B.png");
-    this.load.image("effect", "effect_purple.png");
 
     for (let i = 1; i < 5; i++) this.load.image(`star${i}`, `star${i}.png`);
   }
@@ -151,7 +158,13 @@ class Game extends Phaser.Scene {
 
   createStars() {
     this.stars = this.add.group({
-      key: ["star1", "star2", "star3", "star4"],
+      key: "space",
+      frame: [
+        "star_large.png",
+        "star_medium.png",
+        "star_small.png",
+        "star_tiny.png",
+      ],
       quantity: this.gameLength * 25,
       setAlpha: { value: 0.8 },
       setScale: { x: 0.3, y: 0.3 },
@@ -163,7 +176,25 @@ class Game extends Phaser.Scene {
     );
 
     Phaser.Actions.Call(this.stars.getChildren(), (star) => {
-      const size = star.texture.key.slice(4); // "star2" --> 2, etc.
+      let size;
+      switch (star.frame.name) {
+        case "star_large.png":
+          size = 4;
+          break;
+        case "star_medium.png":
+          size = 3;
+          break;
+        case "star_small.png":
+          size = 2;
+          break;
+        case "star_tiny.png":
+          size = 1;
+          break;
+        default:
+          size = 1;
+          break;
+      }
+      star.setCrop(2, 0, star.width, star.height);
       const random = Phaser.Math.Between(-20, 20) * 0.001; // [-0.02, 0.02]
       star.setScrollFactor(size * 0.025 + random, 1);
       star.setTint(Phaser.Utils.Array.GetRandom(COLORS.shipColors));
@@ -210,7 +241,7 @@ class Game extends Phaser.Scene {
 
   createEncounter() {
     const en = this.physics.add
-      .image(this.player.x + gameW * 0.6, this.roadY, "station")
+      .image(this.player.x + gameW * 0.6, this.roadY, "space", "station_B.png")
       .setDepth(1)
       .setTint(Phaser.Utils.Array.GetRandom(COLORS.shipColors));
 
@@ -229,7 +260,7 @@ class Game extends Phaser.Scene {
 
   createPlayer() {
     this.player = this.physics.add
-      .image(gameW * 0.5, this.roadY, "ship") // ship1
+      .image(gameW * 0.5, this.roadY, "space", "ship_F.png") // ship1
       .setTint(Phaser.Utils.Array.GetRandom(COLORS.shipColors))
       .setName("player")
       .setDepth(1)
@@ -242,7 +273,7 @@ class Game extends Phaser.Scene {
       but the physics locomotion is so simple I could just
       duplicate it without fidgeting w/ containers. */
     this.effect = this.physics.add
-      .image(0, this.roadY, "effect")
+      .image(0, this.roadY, "space", "effect_purple.png")
       .setMaxVelocity(400, 0)
       .setAngle(90)
       .setOrigin(0.5, 0) // because it's rotated, gotta change y instead of x
@@ -469,6 +500,8 @@ class Station extends Phaser.Scene {
     });
 
     this.cameras.main.fadeIn();
+
+    this.add.image(100, 100, "planet0");
   }
 
   createResolution() {
