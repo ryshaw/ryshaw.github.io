@@ -81,10 +81,9 @@ class Game extends Phaser.Scene {
 
     this.load.setPath("./assets/kenney_simple-space/PNG/Retina/");
     this.load.image("ship", "ship_F.png");
-
     this.load.image("station", "station_B.png");
+    this.load.image("effect", "effect_purple.png");
 
-    this.load.setPath("./assets/kenney_simple-space/PNG/Default/");
     for (let i = 1; i < 5; i++) this.load.image(`star${i}`, `star${i}.png`);
   }
 
@@ -92,6 +91,7 @@ class Game extends Phaser.Scene {
     // gameLength = 6 corresponds to 30 seconds a level
     this.gameLength = 6;
     this.gameOver = false;
+    this.encounters = this.physics.add.group();
 
     this.createResolution();
 
@@ -146,10 +146,7 @@ class Game extends Phaser.Scene {
       .setDepth(1)
       .setScale(0.18);
 
-    this.end.body.setSize(
-      this.end.width * this.end.scale,
-      this.end.height * this.end.scale
-    );
+    this.end.body.setSize(this.end.width * 1.2, this.end.height * 1.2);
   }
 
   createStars() {
@@ -157,7 +154,7 @@ class Game extends Phaser.Scene {
       key: ["star1", "star2", "star3", "star4"],
       quantity: this.gameLength * 25,
       setAlpha: { value: 0.8 },
-      setScale: { x: 0.6, y: 0.6 },
+      setScale: { x: 0.3, y: 0.3 },
     });
 
     Phaser.Actions.RandomRectangle(
@@ -196,8 +193,6 @@ class Game extends Phaser.Scene {
   }
 
   createEncounters() {
-    if (!this.encounters) this.encounters = this.physics.add.group();
-
     this.time.addEvent({
       delay: Phaser.Math.Between(10 * 1000, 20 * 1000),
       callback: () => {
@@ -241,6 +236,27 @@ class Game extends Phaser.Scene {
       .setMaxVelocity(400, 0)
       .setAngle(90)
       .setScale(0.6);
+
+    /* normally I would throw the player sprite
+    and effect sprite in a container to keep it all together,
+      but the physics locomotion is so simple I could just
+      duplicate it without fidgeting w/ containers. */
+    this.effect = this.physics.add
+      .image(0, this.roadY, "effect")
+      .setMaxVelocity(400, 0)
+      .setAngle(90)
+      .setOrigin(0.5, 0) // because it's rotated, gotta change y instead of x
+      .setScale(0.6, 0.1); // same as above ^
+
+    // offset effect correctly
+    this.effect.setX(
+      this.player.x -
+        this.player.width * this.player.scaleX +
+        this.effect.width / 2
+    );
+
+    // cuts off a purple artifacting line at the end of the sprite
+    this.effect.setCrop(0, 0, this.effect.width, this.effect.height - 2);
   }
 
   startGame() {
@@ -250,6 +266,15 @@ class Game extends Phaser.Scene {
 
     this.time.delayedCall(200, () => {
       this.player.setAccelerationX(100);
+
+      this.effect.setAccelerationX(100);
+      this.tweens.add({
+        targets: this.effect,
+        duration: 1800,
+        delay: 1800,
+        ease: "quartic.inout",
+        scaleY: 1.6,
+      });
 
       this.tweens.add({
         targets: this.cameras.main.lerp,
@@ -275,7 +300,13 @@ class Game extends Phaser.Scene {
     this.tweens.add({
       targets: this.player,
       alpha: 0,
-      duration: 300,
+      duration: 500,
+    });
+
+    this.tweens.add({
+      targets: this.effect,
+      duration: 500,
+      scaleY: 0,
     });
 
     this.time.delayedCall(2500, () => {
