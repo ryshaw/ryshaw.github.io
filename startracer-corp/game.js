@@ -670,7 +670,7 @@ class Station extends Phaser.Scene {
   }
 
   createLayout() {
-    this.add.image(gameW, gameH * 0.5, "planet0");
+    this.add.image(gameW, gameH * 0.5, "planet0").setScrollFactor(0.75, 1);
   }
 
   createStars() {
@@ -710,6 +710,45 @@ class Station extends Phaser.Scene {
   }
 
   createMenus() {
+    const menuColor = Phaser.Display.Color.HexStringToColor("#abc4ff");
+
+    const shop = this.add
+      .container(gameW * 0.35, gameH * 0.5)
+      .setSize(gameW * 0.65, gameH * 0.9);
+
+    shop.add([
+      this.add.rectangle(0, 0, shop.width, shop.height, "0xabc4ff", 0.9),
+      new GameText(this, shop.x * 0.9, shop.y * 0.9, ">>>", 8, () => {
+        this.cameras.main.pan(
+          gameW * 1.25,
+          gameH * 0.5,
+          800,
+          Phaser.Math.Easing.Sine.InOut
+        );
+      })
+        .setOrigin(1, 1)
+        .setPadding(shop.x * 0.01)
+        .setLineSpacing(0),
+    ]);
+    /*
+    const shopNext = new GameText(
+      this,
+      gameW * 0.5,
+      gameH * 0.94,
+      ">",
+      7,
+      () => {
+        this.cameras.main.pan(
+          gameW * 1.25,
+          gameH * 0.5,
+          800,
+          Phaser.Math.Easing.Sine.InOut
+        );
+      }
+    )
+      .setBackgroundColor("#abc4ff")
+      .setPadding(gameW * 0.125, 0, gameW * 0.125, 0);
+    /*
     const menu1 = this.add.container(gameW * 0.17, gameH * 0.35).add([
       this.add
         .image(0, 0, "menuBig")
@@ -751,7 +790,7 @@ class Station extends Phaser.Scene {
         .setAlpha(0.8),
       new GameText(this, 0, 0, "next", 4, () => {
         this.cameras.main.pan(
-          gameW * 1.5,
+          gameW * 1.25,
           gameH * 0.5,
           800,
           Phaser.Math.Easing.Sine.InOut
@@ -802,7 +841,7 @@ class Station extends Phaser.Scene {
           Phaser.Math.Easing.Sine.InOut
         );
       }),
-    ]);
+    ]);*/
   }
 
   endScene() {
