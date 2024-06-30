@@ -1,3 +1,5 @@
+import content from "./content.js";
+
 const VERSION = "Startracer Corp v0.1";
 
 const DEV_MODE = false; // turns on physics debug mode
@@ -5,12 +7,19 @@ const DEV_MODE = false; // turns on physics debug mode
 const gameW = 1920;
 const gameH = 1080;
 
-const FONTS = ["PT Sans"];
+const FONTS = [
+  "PT Sans",
+  "Ubuntu Mono",
+  "Space Mono",
+  "JetBrains Mono",
+  "Share Tech Mono",
+  "VT323",
+];
 
 const COLORS = {
   topGradient: 0x0c1821, // for background
   bottomGradient: 0x000000, // for background
-  fillColor: 0xedf2fb, // colors UI
+  //fillColor: 0xedf2fb, // colors UI
   highlightColor: 0xfbf8cc, // for highlighting text
   clickColor: 0xbfbdc1, // when text is clicked
   buttonColor: 0xe0fbfc, // for coloring buttons and the title
@@ -18,6 +27,8 @@ const COLORS = {
   black: 0x000000,
   shipColors: [0xcdb4db, 0xffc8dd, 0xffafcc, 0xbde0fe, 0xa2d2ff, 0x8affc1],
   stationColor: 0x98f5e1,
+  fillColor: 0x14213d,
+  strokeColor: 0x6bbaec,
 };
 
 class Background extends Phaser.Scene {
@@ -25,6 +36,21 @@ class Background extends Phaser.Scene {
 
   constructor() {
     super("Background");
+  }
+
+  // initiate all custom objects
+  init() {
+    Phaser.GameObjects.GameObjectFactory.register(
+      "gameText",
+      function (x, y, text, size, width, callback) {
+        let t = new GameText(this.scene, x, y, text, size, width, callback);
+
+        this.displayList.add(t);
+        this.updateList.add(t);
+
+        return t;
+      }
+    );
   }
 
   // preload everything for the game
@@ -548,11 +574,21 @@ class Game extends Phaser.Scene {
 }
 
 class Station extends Phaser.Scene {
+  station;
+  shop;
+  ship;
+  contract;
+  transitioning;
+  transitionTime;
+
   constructor() {
     super("Station");
   }
 
   create() {
+    this.transitioning = false;
+    this.transitionTime = 800;
+
     this.createResolution();
     this.createTextures();
     this.createStars();
@@ -670,7 +706,7 @@ class Station extends Phaser.Scene {
   }
 
   createLayout() {
-    this.add.image(gameW, gameH * 0.5, "planet0").setScrollFactor(0.66, 1);
+    this.add.image(gameW, gameH * 0.5, "planet0");
   }
 
   createStars() {
@@ -710,8 +746,10 @@ class Station extends Phaser.Scene {
   }
 
   createMenus() {
-    const menuColor = Phaser.Display.Color.HexStringToColor("#abc4ff");
+    this.createStationMenu();
+    this.createShopMenu();
 
+    /*
     const shop = this.add
       .container(gameW * 0.35, gameH * 0.5)
       .setSize(gameW * 0.65, gameH * 0.9);
@@ -932,7 +970,143 @@ class Station extends Phaser.Scene {
     ]);*/
   }
 
-  endScene() {
+  createStationMenu() {
+    this.station = this.add
+      .container(gameW * 0.36, gameH * 0.55)
+      .setSize(gameW * 0.65, gameH * 0.86);
+
+    this.station.add([
+      this.add
+        .rectangle(
+          0,
+          0,
+          this.station.width,
+          this.station.height,
+          COLORS.fillColor,
+          0.85
+        )
+        .setStrokeStyle(10, COLORS.strokeColor),
+    ]);
+
+    const dialog = this.add.gameText(
+      -this.station.width * 0.46,
+      -this.station.height * 0.46,
+      content.shop.dialog,
+      3,
+      this.station.width * 0.9
+    );
+
+    let bottom = dialog.getBottomLeft();
+    bottom.x += this.station.width * 0.06;
+    bottom.y += this.station.height * 0.03;
+
+    this.station.add(dialog);
+
+    content.shop.actions.forEach((action) => {
+      let x = bottom.x;
+      let y = bottom.y + this.station.height * 0.04;
+
+      const choice = this.add.gameText(
+        x,
+        y,
+        action.text,
+        3,
+        this.station.width * 0.9,
+        action.action(this)
+      );
+
+      this.station.add(choice);
+      bottom = choice.getBottomLeft();
+    });
+  }
+
+  createShopMenu() {
+    this.shop = this.add
+      .container(gameW * 1.36, gameH * 0.55)
+      .setSize(gameW * 0.65, gameH * 0.86);
+
+    this.shop.add([
+      this.add
+        .rectangle(
+          0,
+          0,
+          this.shop.width,
+          this.shop.height,
+          COLORS.fillColor,
+          0.85
+        )
+        .setStrokeStyle(10, COLORS.strokeColor),
+    ]);
+
+    const title = this.add
+      .gameText(0, -this.shop.height * 0.48, "Shop", 6)
+      .setOrigin(0.5, 0);
+
+    const buy = this.add.gameText(
+      -this.shop.width * 0.46,
+      -this.shop.height * 0.38,
+      "Buy",
+      4
+    );
+
+    const sell = this.add
+      .gameText(0, -this.shop.height * 0.38, "Sell", 4)
+      .setOrigin(0, 0);
+
+    const desc = this.add
+      .gameText(
+        -this.shop.width * 0.46,
+        this.shop.height * 0.05,
+        "Description",
+        4
+      )
+      .setOrigin(0, 0);
+
+    const exit = this.add
+      .gameText(
+        this.shop.width * 0.49,
+        -this.shop.height * 0.51,
+        "x",
+        10,
+        null,
+        this.closeShopMenu
+      )
+      .setOrigin(1, 0);
+
+    this.shop.add([title, buy, sell, desc, exit]);
+  }
+
+  openShopMenu() {
+    this.add.tween({
+      targets: [this.station, this.shop],
+      x: `-=${gameW}`,
+      duration: this.transitionTime,
+      ease: "cubic.out",
+      onStart: () => (this.transition = true),
+      onComplete: () => (this.transition = false),
+    });
+  }
+
+  closeShopMenu() {
+    this.add.tween({
+      targets: [this.station, this.shop],
+      x: `+=${gameW}`,
+      duration: this.transitionTime,
+      ease: "cubic.out",
+      onStart: () => (this.transition = true),
+      onComplete: () => (this.transition = false),
+    });
+  }
+
+  openShipMenu() {
+    console.log("ship");
+  }
+
+  openContractMenu() {
+    console.log("contract");
+  }
+
+  depart() {
     this.cameras.main.fade();
     this.time.delayedCall(1000, () => {
       this.scene.start("Game");
@@ -986,7 +1160,7 @@ class HUD extends Phaser.Scene {
     // show bounds of game while in dev
     this.bounds = this.add
       .rectangle(gameW / 2, gameH / 2, gameW, gameH)
-      .setStrokeStyle(4, 0xffffff, 0.6);
+      .setStrokeStyle(4, 0xffffff, 0.3);
 
     WebFont.load({
       google: {
@@ -999,19 +1173,9 @@ class HUD extends Phaser.Scene {
   }
 
   createText() {
-    const version = new GameText(this, gameW, gameH, VERSION, 0)
-      .setOrigin(1, 1)
-      .setPadding(5);
+    this.add.gameText(gameW, gameH, VERSION).setOrigin(1, 1);
 
-    const fpsText = new GameText(
-      this,
-      0,
-      gameH,
-      `${Math.round(this.sys.game.loop.actualFps)}`,
-      0
-    )
-      .setOrigin(0, 1)
-      .setPadding(5);
+    const fpsText = this.add.gameText(0, gameH).setOrigin(0, 1);
 
     this.time.addEvent({
       delay: 500,
@@ -2411,29 +2575,35 @@ class GameText extends Phaser.GameObjects.Text {
     scene, // always "this" in the scene class
     x,
     y,
-    text,
-    size = 3, // s, m, l, or g for small, medium, large, or giant
+    text = "",
+    size = 0,
+    width = null,
     callback = null // provided only for buttons
   ) {
-    super(scene);
+    super(scene, x, y, text, {
+      font: `${size * 8 + 24}px`,
+      padding: gameW * 0.005,
+      lineSpacing: 32,
+      fill: "#fff",
+      align: "left",
+      wordWrap: { width: width ? width : gameW, useAdvancedWrap: true },
+      shadow: {
+        offsetX: 0,
+        offsetY: 0,
+        color: "#00a8e8",
+        blur: 0,
+        stroke: false,
+        fill: true,
+      },
+    });
 
-    // isn't this just creating two text objects...?
-    const cT = scene.add
-      .text(x, y, text, {
-        font: `${size * 12 + 24}px`,
-        fill: "#fff",
-        align: "center",
-      })
-      .setFontFamily("PT Sans")
-      .setOrigin(0.5, 0.5)
-      .setShadow(0, 1, "#00a8e8", 3, false, true)
-      .setLineSpacing(8);
+    this.setOrigin(0, 0).setFontFamily("Ubuntu Mono");
 
     // if callback is given, assume it's a button and add callback.
     // fine-tuned this code so button only clicks if player
     // emits both pointerdown and pointerup events on it
     if (callback) {
-      cT.setInteractive({ useHandCursor: true })
+      this.setInteractive({ useHandCursor: true })
         .on("pointerover", function (pointer) {
           this.setTint(COLORS.highlightColor);
         })
@@ -2454,9 +2624,9 @@ class GameText extends Phaser.GameObjects.Text {
           // this.setShadow(0, 0, "#fcf5c7", 4, false, true);
         });
     }
-
-    return cT;
   }
+
+  preUpdate(delta, time) {}
 }
 
 class GameButton extends Phaser.GameObjects.Image {
