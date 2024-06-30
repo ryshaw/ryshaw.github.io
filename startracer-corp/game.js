@@ -670,7 +670,7 @@ class Station extends Phaser.Scene {
   }
 
   createLayout() {
-    this.add.image(gameW, gameH * 0.5, "planet0").setScrollFactor(0.75, 1);
+    this.add.image(gameW, gameH * 0.5, "planet0").setScrollFactor(0.66, 1);
   }
 
   createStars() {
@@ -718,16 +718,104 @@ class Station extends Phaser.Scene {
 
     shop.add([
       this.add.rectangle(0, 0, shop.width, shop.height, "0xabc4ff", 0.9),
-      new GameText(this, shop.x * 0.9, shop.y * 0.9, ">>>", 8, () => {
-        this.cameras.main.pan(
-          gameW * 1.25,
-          gameH * 0.5,
-          800,
-          Phaser.Math.Easing.Sine.InOut
-        );
-      })
+      new GameText(
+        this,
+        shop.width * 0.5,
+        shop.height * 0.5,
+        "to ship >",
+        5,
+        () => {
+          this.cameras.main.pan(
+            gameW * 1.35,
+            gameH * 0.5,
+            800,
+            Phaser.Math.Easing.Sine.InOut
+          );
+        }
+      )
         .setOrigin(1, 1)
-        .setPadding(shop.x * 0.01)
+        .setPadding(shop.width * 0.02)
+        .setLineSpacing(0),
+    ]);
+
+    const ship = this.add
+      .container(gameW * 1.35, gameH * 0.5)
+      .setSize(gameW * 0.65, gameH * 0.9);
+
+    ship.add([
+      this.add.rectangle(0, 0, ship.width, ship.height, "0xabc4ff", 0.9),
+      new GameText(
+        this,
+        ship.width * 0.5,
+        ship.height * 0.5,
+        "to map >",
+        5,
+        () => {
+          this.cameras.main.pan(
+            gameW * 2.2,
+            gameH * 0.5,
+            800,
+            Phaser.Math.Easing.Sine.InOut
+          );
+        }
+      )
+        .setOrigin(1, 1)
+        .setPadding(ship.width * 0.02)
+        .setLineSpacing(0),
+      new GameText(
+        this,
+        -ship.width * 0.5,
+        ship.height * 0.5,
+        "< to shop",
+        5,
+        () => {
+          this.cameras.main.pan(
+            gameW * 0.5,
+            gameH * 0.5,
+            800,
+            Phaser.Math.Easing.Sine.InOut
+          );
+        }
+      )
+        .setOrigin(0, 1)
+        .setPadding(ship.width * 0.02)
+        .setLineSpacing(0),
+    ]);
+
+    const map = this.add
+      .container(gameW * 2.35, gameH * 0.5)
+      .setSize(gameW * 0.65, gameH * 0.9);
+
+    map.add([
+      this.add.rectangle(0, 0, map.width, map.height, "0xabc4ff", 0.9),
+      new GameText(
+        this,
+        map.width * 0.5,
+        map.height * 0.5,
+        "DEPART",
+        5,
+        this.endScene
+      )
+        .setOrigin(1, 1)
+        .setPadding(map.width * 0.02)
+        .setLineSpacing(0),
+      new GameText(
+        this,
+        -map.width * 0.5,
+        map.height * 0.5,
+        "< to ship",
+        5,
+        () => {
+          this.cameras.main.pan(
+            gameW * 1.35,
+            gameH * 0.5,
+            800,
+            Phaser.Math.Easing.Sine.InOut
+          );
+        }
+      )
+        .setOrigin(0, 1)
+        .setPadding(ship.width * 0.02)
         .setLineSpacing(0),
     ]);
     /*
