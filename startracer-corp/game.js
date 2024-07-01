@@ -61,11 +61,26 @@ class Background extends Phaser.Scene {
       "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
     );
 
+    this.loadPlanets();
+
     this.load.setPath("./assets/kenney_planets/Planets/");
     for (let i = 0; i < 10; i++)
       this.load.image(`planet${i}`, `planet0${i}.png`);
 
     this.loadSpritesheet();
+  }
+
+  loadPlanets() {
+    this.load.setPath("./assets/kenney_planets/Parts/");
+
+    for (let i = 0; i < 11; i++) this.load.image(`light${i}`, `light${i}.png`);
+
+    for (let i = 0; i < 28; i++) {
+      if (i < 10) this.load.image(`noise${i}`, `noise0${i}.png`);
+      else this.load.image(`noise${i}`, `noise${i}.png`);
+    }
+
+    for (let i = 0; i < 3; i++) this.load.image(`sphere${i}`, `sphere${i}.png`);
   }
 
   loadSpritesheet() {
@@ -601,10 +616,11 @@ class Station extends Phaser.Scene {
       },
       active: () => {
         this.createMenus();
+        this.openContractsMenu();
       },
     });
 
-    this.scene.get("HUD").cameras.main.fadeIn();
+    //this.scene.get("HUD").cameras.main.fadeIn();
   }
 
   createResolution() {
@@ -1209,25 +1225,73 @@ class Station extends Phaser.Scene {
       .gameText(0, -this.contracts.height * 0.48, "Open Contracts", 6)
       .setOrigin(0.5, 0);
 
-    const contract1 = this.add.gameText(
-      -this.contracts.width * 0.46,
-      -this.contracts.height * 0.38,
-      "Contract #1",
-      4
-    );
+    for (let i = 0; i < 3; i++) {
+      let difficulty;
+      let reward;
 
-    const contract2 = this.add
-      .gameText(0, -this.contracts.height * 0.38, "Contract #2", 4)
-      .setOrigin(0, 0);
+      switch (i) {
+        case 0:
+        default:
+          difficulty = "Easy";
+          reward = Phaser.Math.Between(5, 8) * 10;
+          break;
+        case 1:
+          difficulty = "Medium";
+          reward = Phaser.Math.Between(9, 12) * 10;
+          break;
+        case 2:
+          difficulty = "Hard";
+          reward = Phaser.Math.Between(13, 16) * 10;
+          break;
+      }
 
-    const contract3 = this.add
-      .gameText(
-        -this.contracts.width * 0.46,
-        this.contracts.height * 0.05,
-        "Contract #3",
-        4
-      )
-      .setOrigin(0, 0);
+      const planet = this.generatePlanet().setScale(0.2);
+
+      const text =
+        `Deliver cargo to Planet ${planet.name}.` +
+        `\nDifficulty: ${difficulty}\nReward: ${reward}`;
+
+      const contract = this.add
+        .container(
+          -this.contracts.width * 0.33,
+          -this.contracts.height * 0.22 + i * this.contracts.height * 0.28
+        )
+        .add([
+          planet,
+          this.add.gameText(
+            this.contracts.width * 0.12,
+            -this.contracts.height * 0.125,
+            text,
+            3
+          ),
+        ]);
+
+      const bounds = contract.getBounds();
+      const rect = this.add
+        .rectangle(
+          bounds.centerX,
+          bounds.centerY,
+          bounds.width,
+          bounds.height,
+          COLORS.strokeColor
+        )
+        .setAlpha(0.3)
+        .setScale(1.05)
+        .setInteractive({ useHandCursor: true })
+        .on("pointerover", () => {
+          rect.setAlpha(0.7);
+        })
+        .on("pointerout", () => {
+          rect.setAlpha(0.3);
+        })
+        .on("pointerdown", () => {
+          rect.setStrokeStyle(15, 0xd0f4de, 1);
+        });
+
+      this.contracts.add(rect);
+
+      this.contracts.add(contract);
+    }
 
     const exit = this.add
       .gameText(
@@ -1240,7 +1304,7 @@ class Station extends Phaser.Scene {
       )
       .setOrigin(1, 0);
 
-    this.contracts.add([title, contract1, contract2, contract3, exit]);
+    this.contracts.add([title, exit]);
   }
 
   openContractsMenu() {
@@ -1267,6 +1331,53 @@ class Station extends Phaser.Scene {
       onStart: () => (this.transition = true),
       onComplete: () => (this.transition = false),
     });
+  }
+
+  generatePlanet() {
+    // generate name
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const letter = alphabet[Phaser.Math.Between(0, 25)];
+    const num = Phaser.Math.Between(1, 999);
+    let name;
+
+    if (num < 10) name = letter + "-00" + num;
+    else if (num < 100) name = letter + "-0" + num;
+    else name = letter + "-" + num;
+
+    // generate sprite
+    const colorWheel = Phaser.Display.Color.HSVColorWheel(0.7, 0.7);
+
+    const l = Phaser.Math.Between(0, 10); // light
+    const n = Phaser.Math.Between(0, 27); // noise 1
+    const s = Phaser.Math.Between(0, 2); // sphere
+    const n2 = Phaser.Math.Between(0, 27); // noise 2
+
+    const c1 = Phaser.Math.Between(0, 359); // color of sphere
+    const c2 = Phaser.Math.Between(0, 359); // color of noise 1
+
+    const sphere = this.add
+      .image(0, 0, `sphere${s}`)
+      .setTintFill(colorWheel[c1].color);
+
+    const noise1 = this.add
+      .image(0, 0, `noise${n}`)
+      .setAlpha(0.8)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setTint(colorWheel[c2].color);
+
+    const noise2 = this.add
+      .image(0, 0, `noise${n2}`)
+      .setAlpha(0.2)
+      .setBlendMode(Phaser.BlendModes.SCREEN);
+
+    const light = this.add
+      .image(0, 0, `light${l}`)
+      .setAlpha(0.4)
+      .setBlendMode(Phaser.BlendModes.SCREEN);
+
+    return this.add
+      .container(0, 0, [sphere, noise1, noise2, light])
+      .setName(name);
   }
 
   depart() {
@@ -1429,7 +1540,9 @@ class HUD extends Phaser.Scene {
     displayText.text = `S ${this.shield.x}/${this.shield.y}`;
   }
 
-  checkBits(value) {}
+  checkValidBits(value) {
+    return this.bits + change >= 0;
+  }
 
   updateBits(change) {
     if (this.bits + change <= 0) return;
