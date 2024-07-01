@@ -391,7 +391,7 @@ class Game extends Phaser.Scene {
   }
 
   startGame() {
-    this.cameras.main.fadeIn();
+    this.scene.get("HUD").cameras.main.fadeIn();
 
     this.cameras.main
       .startFollow(this.player, false, 0.01, 1)
@@ -443,7 +443,8 @@ class Game extends Phaser.Scene {
     });
 
     this.time.delayedCall(2500, () => {
-      this.cameras.main.fade();
+      this.scene.get("HUD").cameras.main.fade();
+
       this.time.delayedCall(1000, () => {
         /* this.scene.start("Station") causes
         a visual glitch, so instead I do launch Station and 
@@ -578,7 +579,7 @@ class Station extends Phaser.Scene {
   shop;
   ship;
   contract;
-  transitioning;
+  transition;
   transitionTime;
 
   constructor() {
@@ -586,7 +587,7 @@ class Station extends Phaser.Scene {
   }
 
   create() {
-    this.transitioning = false;
+    this.transition = false;
     this.transitionTime = 800;
 
     this.createResolution();
@@ -603,7 +604,7 @@ class Station extends Phaser.Scene {
       },
     });
 
-    //this.cameras.main.fadeIn();
+    this.scene.get("HUD").cameras.main.fadeIn();
   }
 
   createResolution() {
@@ -748,6 +749,8 @@ class Station extends Phaser.Scene {
   createMenus() {
     this.createStationMenu();
     this.createShopMenu();
+    this.createShipMenu();
+    this.createContractsMenu();
 
     /*
     const shop = this.add
@@ -1077,6 +1080,8 @@ class Station extends Phaser.Scene {
   }
 
   openShopMenu() {
+    if (this.transition) return;
+
     this.add.tween({
       targets: [this.station, this.shop],
       x: `-=${gameW}`,
@@ -1088,6 +1093,8 @@ class Station extends Phaser.Scene {
   }
 
   closeShopMenu() {
+    if (this.transition) return;
+
     this.add.tween({
       targets: [this.station, this.shop],
       x: `+=${gameW}`,
@@ -1098,16 +1105,176 @@ class Station extends Phaser.Scene {
     });
   }
 
-  openShipMenu() {
-    console.log("ship");
+  createShipMenu() {
+    this.ship = this.add
+      .container(gameW * 1.36, gameH * 0.55)
+      .setSize(gameW * 0.65, gameH * 0.86);
+
+    this.ship.add([
+      this.add
+        .rectangle(
+          0,
+          0,
+          this.ship.width,
+          this.ship.height,
+          COLORS.fillColor,
+          0.85
+        )
+        .setStrokeStyle(10, COLORS.strokeColor),
+    ]);
+
+    const title = this.add
+      .gameText(0, -this.ship.height * 0.48, "Shipyard", 6)
+      .setOrigin(0.5, 0);
+
+    const weapons = this.add.gameText(
+      -this.ship.width * 0.46,
+      -this.ship.height * 0.38,
+      "Weapons",
+      4
+    );
+
+    const augments = this.add
+      .gameText(0, -this.ship.height * 0.38, "Augments", 4)
+      .setOrigin(0, 0);
+
+    const inv = this.add
+      .gameText(
+        -this.ship.width * 0.46,
+        this.ship.height * 0.05,
+        "Inventory",
+        4
+      )
+      .setOrigin(0, 0);
+
+    const exit = this.add
+      .gameText(
+        this.ship.width * 0.49,
+        -this.ship.height * 0.51,
+        "x",
+        10,
+        null,
+        this.closeShipMenu
+      )
+      .setOrigin(1, 0);
+
+    this.ship.add([title, weapons, augments, inv, exit]);
   }
 
-  openContractMenu() {
-    console.log("contract");
+  openShipMenu() {
+    if (this.transition) return;
+
+    this.add.tween({
+      targets: [this.station, this.ship],
+      x: `-=${gameW}`,
+      duration: this.transitionTime,
+      ease: "cubic.out",
+      onStart: () => (this.transition = true),
+      onComplete: () => (this.transition = false),
+    });
+  }
+
+  closeShipMenu() {
+    if (this.transition) return;
+
+    this.add.tween({
+      targets: [this.station, this.ship],
+      x: `+=${gameW}`,
+      duration: this.transitionTime,
+      ease: "cubic.out",
+      onStart: () => (this.transition = true),
+      onComplete: () => (this.transition = false),
+    });
+  }
+
+  createContractsMenu() {
+    this.contracts = this.add
+      .container(gameW * 1.36, gameH * 0.55)
+      .setSize(gameW * 0.65, gameH * 0.86);
+
+    this.contracts.add([
+      this.add
+        .rectangle(
+          0,
+          0,
+          this.contracts.width,
+          this.contracts.height,
+          COLORS.fillColor,
+          0.85
+        )
+        .setStrokeStyle(10, COLORS.strokeColor),
+    ]);
+
+    const title = this.add
+      .gameText(0, -this.contracts.height * 0.48, "Open Contracts", 6)
+      .setOrigin(0.5, 0);
+
+    const contract1 = this.add.gameText(
+      -this.contracts.width * 0.46,
+      -this.contracts.height * 0.38,
+      "Contract #1",
+      4
+    );
+
+    const contract2 = this.add
+      .gameText(0, -this.contracts.height * 0.38, "Contract #2", 4)
+      .setOrigin(0, 0);
+
+    const contract3 = this.add
+      .gameText(
+        -this.contracts.width * 0.46,
+        this.contracts.height * 0.05,
+        "Contract #3",
+        4
+      )
+      .setOrigin(0, 0);
+
+    const exit = this.add
+      .gameText(
+        this.contracts.width * 0.49,
+        -this.contracts.height * 0.51,
+        "x",
+        10,
+        null,
+        this.closeContractsMenu
+      )
+      .setOrigin(1, 0);
+
+    this.contracts.add([title, contract1, contract2, contract3, exit]);
+  }
+
+  openContractsMenu() {
+    if (this.transition) return;
+
+    this.add.tween({
+      targets: [this.station, this.contracts],
+      x: `-=${gameW}`,
+      duration: this.transitionTime,
+      ease: "cubic.out",
+      onStart: () => (this.transition = true),
+      onComplete: () => (this.transition = false),
+    });
+  }
+
+  closeContractsMenu() {
+    if (this.transition) return;
+
+    this.add.tween({
+      targets: [this.station, this.contracts],
+      x: `+=${gameW}`,
+      duration: this.transitionTime,
+      ease: "cubic.out",
+      onStart: () => (this.transition = true),
+      onComplete: () => (this.transition = false),
+    });
   }
 
   depart() {
-    this.cameras.main.fade();
+    if (this.transition) return;
+
+    this.transition = true;
+
+    this.scene.get("HUD").cameras.main.fade();
     this.time.delayedCall(1000, () => {
       this.scene.start("Game");
     });
@@ -1141,6 +1308,11 @@ class Station extends Phaser.Scene {
 
 class HUD extends Phaser.Scene {
   bounds;
+  armor; // armor.x is current armor, armor.y is total
+  shield; // shield.x is current armor, shield.y is total
+  bits;
+  displayBits; // lags behind actual bits so we can tween up and down
+  display;
 
   constructor() {
     super("HUD");
@@ -1154,13 +1326,18 @@ class HUD extends Phaser.Scene {
     );
   }
 
-  create(data) {
+  create() {
+    this.armor = new Phaser.Math.Vector2(10, 10);
+    this.shield = new Phaser.Math.Vector2(5, 5);
+    this.bits = 100;
+    this.displayBits = this.bits;
+
     this.createResolution();
 
     // show bounds of game while in dev
     this.bounds = this.add
       .rectangle(gameW / 2, gameH / 2, gameW, gameH)
-      .setStrokeStyle(4, 0xffffff, 0.3);
+      .setStrokeStyle(4, 0xffffff, 0);
 
     WebFont.load({
       google: {
@@ -1168,6 +1345,16 @@ class HUD extends Phaser.Scene {
       },
       active: () => {
         this.createText();
+
+        this.time.addEvent({
+          loop: true,
+          delay: 2000,
+          callback: () => {
+            this.updateArmor(-1);
+            this.updateShield(-1);
+            this.updateBits(Phaser.Math.Between(-20, 20));
+          },
+        });
       },
     });
   }
@@ -1183,6 +1370,85 @@ class HUD extends Phaser.Scene {
       callbackScope: this,
       callback: () => {
         fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`);
+      },
+    });
+
+    const displayFontFamily = "Share Tech Mono";
+
+    this.display = this.add.container(0, 0).add([
+      this.add
+        .rectangle(
+          gameW * 0.5,
+          gameH * 0.04,
+          gameW * 1.1,
+          gameH * 0.08,
+          COLORS.fillColor,
+          0.5
+        )
+        .setStrokeStyle(4, COLORS.strokeColor, 0.5),
+      this.add
+        .gameText(0, 0, `A ${this.armor.x}/${this.armor.y}`, 6)
+        .setPadding(gameW * 0.01, gameH * 0.01)
+        .setFontFamily(displayFontFamily)
+        .setName("armor"),
+      this.add
+        .gameText(gameW * 0.24, 0, `S ${this.shield.x}/${this.shield.y}`, 6)
+        .setPadding(gameW * 0.01, gameH * 0.01)
+        .setFontFamily(displayFontFamily)
+        .setName("shield"),
+      this.add
+        .gameText(gameW * 0.45, 0, `B ${this.displayBits}`, 6)
+        .setPadding(gameW * 0.01, gameH * 0.01)
+        .setFontFamily(displayFontFamily)
+        .setName("bits"),
+      this.add
+        .gameText(gameW, 0, `Options`, 6, null, () => {
+          console.log("hi");
+        })
+        .setPadding(gameW * 0.01, gameH * 0.01)
+        .setOrigin(1, 0)
+        .setFontFamily(displayFontFamily)
+        .setName("options"),
+    ]);
+  }
+
+  updateArmor(change) {
+    if (this.armor.x <= 0) return;
+    this.armor.x += change;
+
+    const displayText = this.display.getByName("armor");
+    displayText.text = `A ${this.armor.x}/${this.armor.y}`;
+  }
+
+  updateShield(change) {
+    if (this.shield.x <= 0) return;
+
+    this.shield.x += change;
+
+    const displayText = this.display.getByName("shield");
+    displayText.text = `S ${this.shield.x}/${this.shield.y}`;
+  }
+
+  checkBits(value) {}
+
+  updateBits(change) {
+    if (this.bits + change <= 0) return;
+
+    this.bits += change;
+
+    const displayText = this.display.getByName("bits");
+
+    // takes one second to count 50 bits
+    // 10 seconds to count 500 bits
+    const diff = 20 * Math.abs(this.bits - this.displayBits);
+
+    const tween = this.tweens.addCounter({
+      from: this.displayBits,
+      to: this.bits,
+      duration: diff,
+      onUpdate: () => {
+        displayText.text = `B ${Math.round(tween.getValue())}`;
+        this.displayBits = Math.round(tween.getValue());
       },
     });
   }
@@ -2554,7 +2820,7 @@ const config = {
     height: gameH,
   },
   // pixelArt: true,
-  scene: [Background, HUD, Game, Station],
+  scene: [Background, Game, Station, HUD],
   physics: {
     default: "arcade",
     arcade: {
