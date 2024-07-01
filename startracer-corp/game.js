@@ -20,11 +20,12 @@ const COLORS = {
   topGradient: 0x0c1821, // for background
   bottomGradient: 0x000000, // for background
   //fillColor: 0xedf2fb, // colors UI
-  highlightColor: 0xfbf8cc, // for highlighting text
+  highlightColor: 0xffef9f, // for highlighting text
   clickColor: 0xbfbdc1, // when text is clicked
   buttonColor: 0xe0fbfc, // for coloring buttons and the title
   white: 0xffffff,
   black: 0x000000,
+  gray: 0xd2d2cf,
   shipColors: [0xcdb4db, 0xffc8dd, 0xffafcc, 0xbde0fe, 0xa2d2ff, 0x8affc1],
   stationColor: 0x98f5e1,
   fillColor: 0x14213d,
@@ -232,7 +233,7 @@ class Game extends Phaser.Scene {
 
   create() {
     // gameLength = 6 corresponds to 30 seconds a level
-    this.gameLength = 12;
+    this.gameLength = 3;
     this.gameOver = false;
     this.encounters = this.physics.add.group();
 
@@ -593,20 +594,25 @@ class Station extends Phaser.Scene {
   station;
   shop;
   ship;
-  contract;
+  contracts;
   transition;
   transitionTime;
+  playerData;
+  oldContract;
+  newContract;
 
   constructor() {
     super("Station");
   }
 
   create() {
+    this.oldContract = JSON.parse(localStorage.getItem("oldContract"));
+    this.newContract = JSON.parse(localStorage.getItem("newContract"));
+
     this.transition = false;
     this.transitionTime = 800;
 
     this.createResolution();
-    this.createTextures();
     this.createStars();
     this.createLayout();
 
@@ -616,11 +622,10 @@ class Station extends Phaser.Scene {
       },
       active: () => {
         this.createMenus();
-        this.openContractsMenu();
       },
     });
 
-    //this.scene.get("HUD").cameras.main.fadeIn();
+    this.scene.get("HUD").cameras.main.fadeIn();
   }
 
   createResolution() {
@@ -647,83 +652,16 @@ class Station extends Phaser.Scene {
     this.scale.on("resize", this.resize, this);
   }
 
-  createTextures() {
-    const graphics = this.make.graphics(); // disposable graphics obj
-
-    const lineColor = Phaser.Display.Color.ValueToColor(0xffffff);
-    const fillColor = lineColor.clone().darken(80);
-
-    // triangle ship
-    const shipW = 60;
-    const shipH = 36;
-
-    graphics
-      .lineStyle(5, lineColor.color, 1)
-      .fillStyle(fillColor.color, 1)
-      .fillTriangle(0, 0, 0, shipH, shipW, shipH / 2)
-      .strokeTriangle(0, 0, 0, shipH, shipW, shipH / 2)
-      .generateTexture("ship1", shipW, shipH)
-      .clear();
-
-    // big hexagon
-
-    const stroke = 108;
-    graphics
-      .lineStyle(stroke, lineColor.color, 1)
-      .fillStyle(fillColor.color, 1)
-      .beginPath();
-
-    let r = 450;
-    let w = r + stroke; // extended by stroke / 2, so stroke edges aren't cut off
-    for (let index = 1; index < 7; index++) {
-      graphics.lineTo(
-        r * Math.cos((index * Math.PI) / 3) + w,
-        r * Math.sin((index * Math.PI) / 3) + w
-      );
+  createLayout() {
+    if (!this.oldContract) {
+      this.add.image(gameW, gameH * 0.5, "planet0");
+      return;
     }
 
-    graphics
-      .closePath()
-      .strokePath()
-      .fillPath()
-      .generateTexture("bigHexagon", w * 2, w * 2)
-      .clear();
-
-    // small square for star
-    w = 16;
-    graphics
-      .fillStyle(lineColor.color, 1)
-      .fillRect(0, 0, w, w)
-      .generateTexture("square", w, w)
-      .clear();
-
-    // big menu rectangle
-    let size = gameW;
-
-    graphics
-      .lineStyle(size * 0.04, lineColor.color, 1)
-      .fillStyle(fillColor.color, 1)
-      .fillRect(0, 0, size, size)
-      .strokeRect(0, 0, size, size)
-      .generateTexture("menuBig", size, size)
-      .clear();
-
-    // small menu rectangle
-    size = gameW * 0.2;
-
-    graphics
-      .lineStyle(size * 0.1, lineColor.color, 1)
-      .fillStyle(fillColor.color, 1)
-      .fillRect(0, 0, size, size)
-      .strokeRect(0, 0, size, size)
-      .generateTexture("menuSmall", size, size)
-      .clear();
-
-    graphics.destroy();
-  }
-
-  createLayout() {
-    this.add.image(gameW, gameH * 0.5, "planet0");
+    // the planet in localStorage comes in its four overlaid
+    // images, so we must reassemble it.
+    // and yes, the color of each part is the name of the part.
+    this.loadPlanet(this.oldContract.planet).setPosition(gameW, gameH * 0.5);
   }
 
   createStars() {
@@ -1007,10 +945,16 @@ class Station extends Phaser.Scene {
         .setStrokeStyle(10, COLORS.strokeColor),
     ]);
 
+    let planetName;
+    if (!this.oldContract) planetName = "A-111";
+    else planetName = this.oldContract.name;
+
+    let text = content.shop.dialog.replace("#name", planetName);
+
     const dialog = this.add.gameText(
       -this.station.width * 0.46,
       -this.station.height * 0.46,
-      content.shop.dialog,
+      text,
       3,
       this.station.width * 0.9
     );
@@ -1021,22 +965,29 @@ class Station extends Phaser.Scene {
 
     this.station.add(dialog);
 
-    content.shop.actions.forEach((action) => {
+    for (let i = 0; i < content.shop.actions.length; i++) {
+      const action = content.shop.actions[i];
       let x = bottom.x;
       let y = bottom.y + this.station.height * 0.04;
 
-      const choice = this.add.gameText(
-        x,
-        y,
-        action.text,
-        3,
-        this.station.width * 0.9,
-        action.action(this)
-      );
+      const choice = this.add
+        .gameText(
+          x,
+          y,
+          `${i + 1}. ` + action.text,
+          3,
+          this.station.width * 0.9,
+          action.action(this)
+        )
+        .setName(`choice${i}`);
+
+      // change depart text before contract is selected
+      if (i == 3)
+        choice.setColor("#6c757d").setFontStyle("italic").disableInteractive();
 
       this.station.add(choice);
       bottom = choice.getBottomLeft();
-    });
+    }
   }
 
   createShopMenu() {
@@ -1225,30 +1176,47 @@ class Station extends Phaser.Scene {
       .gameText(0, -this.contracts.height * 0.48, "Open Contracts", 6)
       .setOrigin(0.5, 0);
 
+    // saves the list of contracts over restarts and loads
+    let contractsList = JSON.parse(localStorage.getItem("contractsList"));
+
     for (let i = 0; i < 3; i++) {
       let difficulty;
       let reward;
+      let planet;
+      let planetName;
 
-      switch (i) {
-        case 0:
-        default:
-          difficulty = "Easy";
-          reward = Phaser.Math.Between(5, 8) * 10;
-          break;
-        case 1:
-          difficulty = "Medium";
-          reward = Phaser.Math.Between(9, 12) * 10;
-          break;
-        case 2:
-          difficulty = "Hard";
-          reward = Phaser.Math.Between(13, 16) * 10;
-          break;
+      if (!contractsList) {
+        // if no saved list, generate new one
+        switch (i) {
+          case 0:
+          default:
+            difficulty = "Easy";
+            reward = Phaser.Math.Between(5, 8) * 10;
+            break;
+          case 1:
+            difficulty = "Medium";
+            reward = Phaser.Math.Between(9, 12) * 10;
+            break;
+          case 2:
+            difficulty = "Hard";
+            reward = Phaser.Math.Between(13, 16) * 10;
+            break;
+        }
+
+        planet = this.generatePlanet().setScale(0.2);
+        planetName = planet.name;
+      } else {
+        // load the current generated list
+        difficulty = contractsList[i].difficulty;
+        reward = contractsList[i].reward;
+        planetName = contractsList[i].name;
+
+        // reassemble planet image
+        planet = this.loadPlanet(contractsList[i].planet).setScale(0.2);
       }
 
-      const planet = this.generatePlanet().setScale(0.2);
-
       const text =
-        `Deliver cargo to Planet ${planet.name}.` +
+        `Deliver cargo to Planet ${planetName}.` +
         `\nDifficulty: ${difficulty}\nReward: ${reward}`;
 
       const contract = this.add
@@ -1264,31 +1232,35 @@ class Station extends Phaser.Scene {
             text,
             3
           ),
-        ]);
+        ])
+        .setName(`contract${i}`)
+        .setData({
+          name: planetName,
+          index: i, // index in this list specifically so we can save it
+          planet: planet.getAll(), // must export images, not container
+          difficulty: difficulty,
+          reward: reward,
+        });
 
       const bounds = contract.getBounds();
       const rect = this.add
         .rectangle(
-          bounds.centerX,
-          bounds.centerY,
+          this.contracts.width * 0.32,
+          0,
           bounds.width,
           bounds.height,
           COLORS.strokeColor
         )
+        .setName("rect")
         .setAlpha(0.3)
-        .setScale(1.05)
-        .setInteractive({ useHandCursor: true })
-        .on("pointerover", () => {
-          rect.setAlpha(0.7);
-        })
-        .on("pointerout", () => {
-          rect.setAlpha(0.3);
-        })
-        .on("pointerdown", () => {
-          rect.setStrokeStyle(15, 0xd0f4de, 1);
-        });
+        .setScale(1.08)
+        .setInteractive()
+        .on("pointerover", () => rect.setAlpha(0.5))
+        .on("pointerout", () => rect.setAlpha(0.3))
+        .on("pointerdown", () => this.selectContract(i));
 
-      this.contracts.add(rect);
+      contract.add(rect);
+      contract.sendToBack(rect);
 
       this.contracts.add(contract);
     }
@@ -1305,6 +1277,42 @@ class Station extends Phaser.Scene {
       .setOrigin(1, 0);
 
     this.contracts.add([title, exit]);
+
+    // if we generated new contracts, save them
+    if (!contractsList) {
+      contractsList = [];
+      for (let i = 0; i < 3; i++) {
+        const contract = this.contracts.getByName(`contract${i}`);
+        contractsList.push(contract.data.list);
+      }
+
+      localStorage.setItem("contractsList", JSON.stringify(contractsList));
+    }
+
+    // and if we've selected a contract already, keep it selected
+    if (this.newContract) this.selectContract(this.newContract.index);
+  }
+
+  selectContract(index) {
+    for (let i = 0; i < 3; i++) {
+      const contract = this.contracts.getByName(`contract${i}`);
+      const rect = contract.getByName("rect");
+
+      if (i == index) {
+        rect.setStrokeStyle(12, 0xd6e2e9, 1).setAlpha(0.7).disableInteractive();
+        this.newContract = contract.data.list;
+        localStorage.setItem("newContract", JSON.stringify(this.newContract));
+      } else rect.setStrokeStyle().setAlpha(0.3).setInteractive();
+    }
+
+    // contract was selected, so now allowed to depart
+    // we can't "unselect" a contract so we don't need to check if selected
+    this.station
+      .getByName("choice3")
+      .setText("4. Depart")
+      .setFontStyle()
+      .setColor("#fff")
+      .setInteractive();
   }
 
   openContractsMenu() {
@@ -1359,25 +1367,65 @@ class Station extends Phaser.Scene {
       .image(0, 0, `sphere${s}`)
       .setTintFill(colorWheel[c1].color);
 
+    sphere.name = sphere.tintTopLeft; // so we can import the colors too
+
     const noise1 = this.add
       .image(0, 0, `noise${n}`)
       .setAlpha(0.8)
       .setBlendMode(Phaser.BlendModes.ADD)
       .setTint(colorWheel[c2].color);
 
+    noise1.name = noise1.tintTopLeft; // see above
+
     const noise2 = this.add
       .image(0, 0, `noise${n2}`)
       .setAlpha(0.2)
       .setBlendMode(Phaser.BlendModes.SCREEN);
+
+    noise2.name = noise2.tintTopLeft;
 
     const light = this.add
       .image(0, 0, `light${l}`)
       .setAlpha(0.4)
       .setBlendMode(Phaser.BlendModes.SCREEN);
 
+    light.name = light.tintTopLeft;
+
     return this.add
       .container(0, 0, [sphere, noise1, noise2, light])
       .setName(name);
+  }
+
+  loadPlanet(parts) {
+    const sphere = this.add
+      .image(0, 0, parts[0].textureKey)
+      .setTintFill(parts[0].name);
+
+    sphere.name = sphere.tintTopLeft; // so we can import the colors too
+
+    const noise1 = this.add
+      .image(0, 0, parts[1].textureKey)
+      .setAlpha(0.8)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setTint(parts[1].name);
+
+    noise1.name = noise1.tintTopLeft; // see above
+
+    const noise2 = this.add
+      .image(0, 0, parts[2].textureKey)
+      .setAlpha(0.2)
+      .setBlendMode(Phaser.BlendModes.SCREEN);
+
+    noise2.name = noise2.tintTopLeft;
+
+    const light = this.add
+      .image(0, 0, parts[3].textureKey)
+      .setAlpha(0.4)
+      .setBlendMode(Phaser.BlendModes.SCREEN);
+
+    light.name = light.tintTopLeft;
+
+    return this.add.container(0, 0, [sphere, noise1, noise2, light]);
   }
 
   depart() {
@@ -1387,6 +1435,13 @@ class Station extends Phaser.Scene {
 
     this.scene.get("HUD").cameras.main.fade();
     this.time.delayedCall(1000, () => {
+      this.oldContract = this.newContract;
+      localStorage.setItem("oldContract", JSON.stringify(this.oldContract));
+      localStorage.setItem("newContract", null); // new is now old
+
+      // going to new station with new contracts
+      localStorage.setItem("contractsList", null);
+
       this.scene.start("Game");
     });
   }
@@ -2982,14 +3037,13 @@ class GameText extends Phaser.GameObjects.Text {
     // fine-tuned this code so button only clicks if player
     // emits both pointerdown and pointerup events on it
     if (callback) {
-      this.setInteractive({ useHandCursor: true })
+      this.setInteractive()
         .on("pointerover", function (pointer) {
           this.setTint(COLORS.highlightColor);
         })
         .on("pointerout", function (pointer) {
           this.setTint(COLORS.white);
           //this.setShadow(0, 0, "#99c1de", 0, true, true);
-
           this.off("pointerup", callback, scene);
         })
         .on("pointerdown", function () {
