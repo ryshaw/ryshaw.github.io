@@ -5,16 +5,7 @@ const DEV_MODE = true; // turns on physics debug mode
 const gameW = 800;
 const gameH = 960;
 
-const FONTS = [
-  "PT Sans",
-  "Ubuntu Mono",
-  "Space Mono",
-  "JetBrains Mono",
-  "Share Tech Mono",
-  "VT323",
-  "Red Hat Display",
-  "Josefin Sans",
-];
+const FONTS = ["Red Hat Display", "Josefin Sans"];
 
 const COLORS = {
   topGradient: 0x9bf6ff, // for background//
@@ -96,6 +87,8 @@ class Background extends Phaser.Scene {
 
 class Game extends Phaser.Scene {
   player;
+  keysDown;
+  arrow;
 
   constructor() {
     super("Game");
@@ -112,6 +105,7 @@ class Game extends Phaser.Scene {
     this.createPhysics();
 
     this.createKeyboardControls();
+    this.createMouseControls();
 
     this.startGame();
   }
@@ -146,41 +140,122 @@ class Game extends Phaser.Scene {
       .fillStyle(0x031d44)
       .fillRoundedRect(0, 0, 50, 50, 12)
       .fillStyle(0xee4266)
-      .fillRoundedRect(4, 4, 42, 42, 8)
+      .fillRoundedRect(3.6, 3.6, 42, 42, 8)
       .generateTexture("rect", 50, 50)
       .clear()
       .fillStyle(0x3da35d)
-      .fillRoundedRect(0, 0, gameW, gameH * 0.2)
-      .generateTexture("ground", gameW, gameH * 0.2)
+      .fillRoundedRect(0, 0, gameW, gameH * 0.4)
+      .generateTexture("ground", gameW, gameH * 0.4)
       .destroy();
   }
 
   createLayout() {
-    this.ground = this.physics.add.staticImage(
+    this.ground = this.matter.add.image(
       gameW * 0.5,
-      gameH * 0.9,
-      "ground"
+      gameH * 0.8,
+      "ground",
+      null,
+      { isStatic: true }
     );
   }
 
   createPhysics() {
-    this.physics.add.collider(this.player, this.ground);
-    this.physics.add.collider(this.player, this.player);
+    this.matter.world.setBounds(
+      0,
+      0,
+      gameW,
+      gameH,
+      64,
+      true,
+      true,
+      false,
+      false
+    );
   }
 
   createPlayer() {
-    this.player = this.physics.add.group({
-      key: "rect",
-      setXY: { x: gameW * 0.5, y: -gameH * 0.5, stepX: 15, stepY: 150 },
-      quantity: 8,
-      bounceX: 0.2,
-      bounceY: 0.2,
+    this.player = this.matter.add.image(
+      gameW * 0.5,
+      gameH * 0.52,
+      "rect",
+      null,
+      { restitution: 0.9, chamfer: { radius: 10 } }
+    );
+  }
+
+  createMouseControls() {
+    this.input.on("pointerdown", (p) => {
+      const d =
+        Phaser.Math.Distance.Between(
+          this.player.x,
+          this.player.y,
+          p.worldX,
+          p.worldY
+        ) * 0.4;
+
+      const a = Phaser.Math.Angle.Between(
+        this.player.x,
+        this.player.y,
+        p.worldX,
+        p.worldY
+      );
+
+      this.arrow = this.add
+        .rectangle(
+          this.player.x + 40 * Math.cos(a),
+          this.player.y + 40 * Math.sin(a),
+          20,
+          5,
+          0x004e98,
+          1
+        )
+        .setRotation(a)
+        .setOrigin(0, 0.5);
+
+      this.tweens.add({
+        targets: this.arrow,
+        scale: 5,
+        duration: 2000,
+      });
     });
 
-    /*
-    this.player = this.physics.add
-      .image(gameW * 0.5, gameH * 0.5, "rect")
-      .setBounce(0.2, 0.2);*/
+    this.input.on("pointermove", (p) => {
+      if (!this.arrow) return;
+
+      const a = Phaser.Math.Angle.Between(
+        this.player.x,
+        this.player.y,
+        p.worldX,
+        p.worldY
+      );
+
+      this.arrow
+        .setPosition(
+          this.player.x + 40 * Math.cos(a),
+          this.player.y + 40 * Math.sin(a)
+        )
+        .setRotation(a);
+    });
+
+    this.input.on("pointerup", (p) => {
+      if (this.arrow) {
+        const a = Phaser.Math.Angle.Between(
+          this.player.x,
+          this.player.y,
+          p.worldX,
+          p.worldY
+        );
+
+        const force = new Phaser.Math.Vector2(Math.cos(a), Math.sin(a)).scale(
+          this.arrow.scale * 0.04
+        );
+
+        this.player.applyForce(force);
+
+        this.arrow.destroy();
+        this.arrow = null;
+      }
+    });
   }
 
   startGame() {
@@ -406,14 +481,13 @@ const config = {
     width: gameW,
     height: gameH,
   },
-  // pixelArt: true,
   scene: [Background, Game, HUD],
   physics: {
-    default: "arcade",
-    arcade: {
+    default: "matter",
+    matter: {
       gravity: {
         x: 0,
-        y: 300,
+        y: 1,
       },
       debug: DEV_MODE,
       fps: 300,
