@@ -1,6 +1,6 @@
 const VERSION = "Infiniclimb v0.1";
 
-const DEV_MODE = true; // turns on physics debug mode
+const DEV_MODE = false; // turns on physics debug mode
 
 const gameW = 800;
 const gameH = 960;
@@ -137,14 +137,16 @@ class Game extends Phaser.Scene {
   createTextures() {
     this.make
       .graphics()
-      .fillStyle(0x031d44)
+      .fillStyle(0x000000)
       .fillRoundedRect(0, 0, 50, 50, 12)
       .fillStyle(0xee4266)
       .fillRoundedRect(3.6, 3.6, 42, 42, 8)
       .generateTexture("rect", 50, 50)
       .clear()
+      .fillStyle(0x000000)
+      .fillRoundedRect(0, 0, gameW, gameH * 0.4, 20)
       .fillStyle(0x3da35d)
-      .fillRoundedRect(0, 0, gameW, gameH * 0.4)
+      .fillRoundedRect(6, 4, gameW - 16, gameH * 0.4 - 16, 12)
       .generateTexture("ground", gameW, gameH * 0.4)
       .destroy();
   }
@@ -160,17 +162,7 @@ class Game extends Phaser.Scene {
   }
 
   createPhysics() {
-    this.matter.world.setBounds(
-      0,
-      0,
-      gameW,
-      gameH,
-      64,
-      true,
-      true,
-      false,
-      false
-    );
+    this.matter.world.setBounds(0, 0, gameW, gameH, 64, true, true, true, true);
   }
 
   createPlayer() {
@@ -179,8 +171,40 @@ class Game extends Phaser.Scene {
       gameH * 0.52,
       "rect",
       null,
-      { restitution: 0.9, chamfer: { radius: 10 } }
+      {
+        restitution: 0.5,
+        chamfer: { radius: 10 },
+        density: 0.005,
+        friction: 0.2,
+      }
     );
+
+    const arrowScale = 16;
+
+    const arrowPoints = [
+      [0, 6],
+      [10, 6],
+      [9, 10],
+      [22, 3],
+      [9, -4],
+      [10, 0],
+      [0, 0],
+    ];
+
+    // scale up the arrow (too lazy to hardcode it)
+    arrowPoints.forEach((coord) => {
+      coord[0] *= arrowScale;
+      coord[1] *= arrowScale;
+    });
+
+    this.arrow = this.add
+      .polygon(0, 0, arrowPoints, 0xcebeff, 0.8)
+      .setOrigin(0, 0.5)
+      .setDepth(1)
+      .setDisplayOrigin(0, 3 * arrowScale) // align polygon shape
+      .setScale(0.1) // scaleY is [0.1, 0.2]
+      .setStrokeStyle(20, 0x000000)
+      .setVisible(false);
   }
 
   createMouseControls() {
@@ -200,28 +224,15 @@ class Game extends Phaser.Scene {
         p.worldY
       );
 
-      this.arrow = this.add
-        .rectangle(
-          this.player.x + 40 * Math.cos(a),
-          this.player.y + 40 * Math.sin(a),
-          20,
-          5,
-          0x004e98,
-          1
-        )
-        .setRotation(a)
-        .setOrigin(0, 0.5);
-
       this.tweens.add({
-        targets: this.arrow,
-        scale: 5,
-        duration: 2000,
+        targets: this.arrow.setVisible(true), // bruh
+        scaleY: 0.2,
+        scaleX: 0.25,
+        duration: 1800,
       });
     });
 
-    this.input.on("pointermove", (p) => {
-      if (!this.arrow) return;
-
+    this.input.on("pointerup", (p) => {
       const a = Phaser.Math.Angle.Between(
         this.player.x,
         this.player.y,
@@ -229,37 +240,41 @@ class Game extends Phaser.Scene {
         p.worldY
       );
 
-      this.arrow
-        .setPosition(
-          this.player.x + 40 * Math.cos(a),
-          this.player.y + 40 * Math.sin(a)
-        )
-        .setRotation(a);
-    });
+      const force = new Phaser.Math.Vector2(Math.cos(a), Math.sin(a));
 
-    this.input.on("pointerup", (p) => {
-      if (this.arrow) {
-        const a = Phaser.Math.Angle.Between(
-          this.player.x,
-          this.player.y,
-          p.worldX,
-          p.worldY
-        );
+      // calculate how far we are through the player holding down
+      // convert scaleY to t; t is an interval from 0 to 1
+      const t = this.arrow.scaleY * 10 - 1;
 
-        const force = new Phaser.Math.Vector2(Math.cos(a), Math.sin(a)).scale(
-          this.arrow.scale * 0.04
-        );
+      this.player.applyForce(force.scale(t));
 
-        this.player.applyForce(force);
-
-        this.arrow.destroy();
-        this.arrow = null;
-      }
+      this.tweens.killTweensOf(this.arrow);
+      this.arrow.setScale(0.1).setVisible(false);
     });
   }
 
   startGame() {
     //this.scene.get("HUD").cameras.main.fadeIn();
+  }
+
+  update() {
+    if (!this.arrow.visible) return;
+
+    const p = this.input.activePointer.updateWorldPoint(this.cameras.main);
+
+    const a = Phaser.Math.Angle.Between(
+      this.player.x,
+      this.player.y,
+      p.worldX,
+      p.worldY
+    );
+
+    this.arrow
+      .setPosition(
+        this.player.x + 40 * Math.cos(a),
+        this.player.y + 40 * Math.sin(a)
+      )
+      .setRotation(a);
   }
 
   createKeyboardControls() {
@@ -490,7 +505,7 @@ const config = {
         y: 1,
       },
       debug: DEV_MODE,
-      fps: 300,
+      //fps: 300,
     },
   },
   title: VERSION,
