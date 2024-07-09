@@ -198,7 +198,7 @@ class Game extends Phaser.Scene {
     });
 
     this.arrow = this.add
-      .polygon(0, 0, arrowPoints, 0xcebeff, 0.8)
+      .polygon(0, 0, arrowPoints, 0x83b0e1, 0.8)
       .setOrigin(0, 0.5)
       .setDepth(1)
       .setDisplayOrigin(0, 3 * arrowScale) // align polygon shape
