@@ -179,6 +179,8 @@ class Game extends Phaser.Scene {
       }
     );
 
+    this.cameras.main.startFollow(this.player, false, 0.1, 0.1);
+
     const arrowScale = 16;
 
     const arrowPoints = [
@@ -208,48 +210,37 @@ class Game extends Phaser.Scene {
   }
 
   createMouseControls() {
+    this.circle = this.add
+      .circle(0, 0, 12, 0xa5ffd6, 0.4)
+      .setStrokeStyle(4, 0x000000, 1);
+
     this.input.on("pointerdown", (p) => {
-      const d =
-        Phaser.Math.Distance.Between(
-          this.player.x,
-          this.player.y,
-          p.worldX,
-          p.worldY
-        ) * 0.4;
+      this.circle.setPosition(p.worldX, p.worldY);
+    });
 
-      const a = Phaser.Math.Angle.Between(
-        this.player.x,
-        this.player.y,
-        p.worldX,
-        p.worldY
-      );
+    this.input.on("pointermove", (p) => {
+      if (!p.leftButtonDown()) return;
 
-      this.tweens.add({
-        targets: this.arrow.setVisible(true), // bruh
-        scaleY: 0.2,
-        scaleX: 0.25,
-        duration: 1800,
-      });
+      if (p.getDistance() >= this.circle.radius * 1.2) {
+        this.arrow.setVisible(true);
+      } else {
+        this.arrow.setVisible(false);
+      }
     });
 
     this.input.on("pointerup", (p) => {
-      const a = Phaser.Math.Angle.Between(
-        this.player.x,
-        this.player.y,
-        p.worldX,
-        p.worldY
-      );
+      if (!this.arrow.visible) return;
+
+      const a = p.getAngle() + Math.PI;
+      const d = Math.min(1, p.getDistance() / (gameW * 0.5));
 
       const force = new Phaser.Math.Vector2(Math.cos(a), Math.sin(a));
 
-      // calculate how far we are through the player holding down
-      // convert scaleY to t; t is an interval from 0 to 1
-      const t = this.arrow.scaleY * 10 - 1;
-
-      this.player.applyForce(force.scale(t));
+      this.player.applyForce(force.scale(d));
 
       this.tweens.killTweensOf(this.arrow);
-      this.arrow.setScale(0.1).setVisible(false);
+
+      this.arrow.setVisible(false);
     });
   }
 
@@ -258,22 +249,21 @@ class Game extends Phaser.Scene {
   }
 
   update() {
-    if (!this.arrow.visible) return;
-
     const p = this.input.activePointer.updateWorldPoint(this.cameras.main);
 
-    const a = Phaser.Math.Angle.Between(
-      this.player.x,
-      this.player.y,
-      p.worldX,
-      p.worldY
-    );
+    if (!p.leftButtonDown()) this.circle.setPosition(p.worldX, p.worldY);
+
+    if (!this.arrow.visible) return;
+
+    const d = Math.min(1, p.getDistance() / (gameW * 0.5));
+    const a = p.getAngle() + Math.PI;
 
     this.arrow
       .setPosition(
         this.player.x + 40 * Math.cos(a),
         this.player.y + 40 * Math.sin(a)
       )
+      .setScale(d * 0.15 + 0.05)
       .setRotation(a);
   }
 
