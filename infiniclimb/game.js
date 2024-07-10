@@ -89,12 +89,16 @@ class Game extends Phaser.Scene {
   player;
   keysDown;
   arrow;
+  canJump;
+  circle;
 
   constructor() {
     super("Game");
   }
 
   create() {
+    this.canJump = true;
+
     this.createResolution();
 
     this.createTextures();
@@ -162,7 +166,7 @@ class Game extends Phaser.Scene {
   }
 
   createPhysics() {
-    this.matter.world.setBounds(0, 0, gameW, gameH, 64, true, true, true, true);
+    this.matter.world.setBounds(0, 0, gameW, gameH, 64, true, true, false);
   }
 
   createPlayer() {
@@ -179,7 +183,13 @@ class Game extends Phaser.Scene {
       }
     );
 
-    this.cameras.main.startFollow(this.player, false, 0.1, 0.1);
+    this.circle = this.add
+      .arc(this.player.x, this.player.y, 12, 0, 360, false)
+      .setStrokeStyle(8, 0xffb3c6, 1)
+      .setClosePath(false)
+      .setAngle(270);
+
+    this.cameras.main.startFollow(this.player, false, 0.05, 0.05);
 
     const arrowScale = 16;
 
@@ -210,26 +220,20 @@ class Game extends Phaser.Scene {
   }
 
   createMouseControls() {
-    this.circle = this.add
-      .circle(0, 0, 12, 0xa5ffd6, 0.4)
-      .setStrokeStyle(4, 0x000000, 1);
-
     this.input.on("pointerdown", (p) => {
-      this.circle.setPosition(p.worldX, p.worldY);
-    });
-
-    this.input.on("pointermove", (p) => {
-      if (!p.leftButtonDown()) return;
-
-      if (p.getDistance() >= this.circle.radius * 1.2) {
-        this.arrow.setVisible(true);
-      } else {
-        this.arrow.setVisible(false);
+      // if we can jump, add a listener to draw the jump arrow
+      if (this.canJump && this.input.listenerCount("pointermove") == 0) {
+        this.input.on("pointermove", (p) => {
+          if (p.getDistance() >= 10) this.arrow.setVisible(true);
+          else this.arrow.setVisible(false);
+        });
       }
     });
 
     this.input.on("pointerup", (p) => {
       if (!this.arrow.visible) return;
+
+      this.arrow.setVisible(false);
 
       const a = p.getAngle() + Math.PI;
       const d = Math.min(1, p.getDistance() / (gameW * 0.5));
@@ -238,9 +242,22 @@ class Game extends Phaser.Scene {
 
       this.player.applyForce(force.scale(d));
 
-      this.tweens.killTweensOf(this.arrow);
+      this.canJump = false;
+      const timer = 1500;
 
-      this.arrow.setVisible(false);
+      this.time.delayedCall(timer, () => (this.canJump = true));
+
+      this.circle.setEndAngle(0);
+
+      this.tweens.add({
+        targets: this.circle,
+        endAngle: 360,
+        duration: timer,
+      });
+
+      // remove the jump arrow listener, so we can't jump, until
+      // until 1) canJump is true and 2) player emits pointerdown
+      this.input.removeListener("pointermove");
     });
   }
 
@@ -249,14 +266,14 @@ class Game extends Phaser.Scene {
   }
 
   update() {
-    const p = this.input.activePointer.updateWorldPoint(this.cameras.main);
-
-    if (!p.leftButtonDown()) this.circle.setPosition(p.worldX, p.worldY);
+    this.circle.setPosition(this.player.x, this.player.y);
 
     if (!this.arrow.visible) return;
 
-    const d = Math.min(1, p.getDistance() / (gameW * 0.5));
+    const p = this.input.activePointer.updateWorldPoint(this.cameras.main);
+
     const a = p.getAngle() + Math.PI;
+    const d = Math.min(1, p.getDistance() / (gameW * 0.5));
 
     this.arrow
       .setPosition(
@@ -407,6 +424,21 @@ class HUD extends Phaser.Scene {
       active: () => {
         this.createText();
       },
+    });
+
+    this.circle = this.add
+      .rectangle(0, 0, 8, 8, 0x83b0e1, 0.7)
+      .setStrokeStyle(2, 0x000000, 0.7)
+      .setVisible(false);
+
+    this.input.on("pointerdown", (p) => {
+      if (!this.scene.get("Game").canJump) return;
+
+      this.circle.setPosition(p.worldX, p.worldY).setVisible(true);
+    });
+
+    this.input.on("pointerup", (p) => {
+      this.circle.setVisible(false);
     });
   }
 
