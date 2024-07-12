@@ -1,6 +1,6 @@
 const VERSION = "Infiniclimb v0.1";
 
-const DEV_MODE = false; // turns on physics debug mode
+const DEV_MODE = true; // turns on physics debug mode
 
 const gameW = 800;
 const gameH = 960;
@@ -91,6 +91,8 @@ class Game extends Phaser.Scene {
   arrow;
   canJump;
   circle;
+  arrowVector; // updates angle and distance of arrow every frame
+  bounds; // dictates the area the player can move
 
   constructor() {
     super("Game");
@@ -98,15 +100,17 @@ class Game extends Phaser.Scene {
 
   create() {
     this.canJump = true;
+    this.arrowVector = new Phaser.Math.Vector2(0, 0);
+    this.bounds = new Phaser.Math.Vector2(gameW * 3, gameH * 3);
 
     //this.createResolution();
 
     this.createTextures();
 
-    this.createPlayer();
     this.createLayout();
+    this.createPlayer();
 
-    // this.createPhysics();
+    this.createPhysics();
 
     this.createKeyboardControls();
     this.createMouseControls();
@@ -148,40 +152,59 @@ class Game extends Phaser.Scene {
       .generateTexture("rect", 50, 50)
       .clear()
       .fillStyle(0x000000)
-      .fillRoundedRect(0, 0, gameW, gameH * 0.4, 20)
+      .fillRoundedRect(0, 0, gameW * 2, gameH * 0.5, 20)
       .fillStyle(0x3da35d)
-      .fillRoundedRect(6, 4, gameW - 16, gameH * 0.4 - 16, 12)
-      .generateTexture("ground", gameW, gameH * 0.4)
+      .fillRoundedRect(6, 4, gameW * 2 - 16, gameH * 0.5 - 16, 12)
+      .generateTexture("ground", gameW * 2, gameH * 0.5)
+      .clear()
+      .fillStyle(0x000000)
+      .fillCircle(16, 16, 16)
+      .fillStyle(0xccc5b9)
+      .fillCircle(14.5, 14.5, 12)
+      .generateTexture("ball", 32, 32)
       .destroy();
   }
 
   createLayout() {
-    this.ground = this.matter.add.image(
-      gameW * 0.5,
-      gameH * 0.8,
-      "ground",
-      null,
-      { isStatic: true }
+    this.ground = this.matter.add
+      .image(0, gameH * 0.8, "ground", null, {
+        isStatic: true,
+        chamfer: { radius: 20 },
+        label: "ground",
+      })
+      .setName("ground");
+
+    const balls = [];
+
+    for (let i = 0; i < 200; i++) {
+      const ball = this.matter.add
+        .image(0, gameH * 0.3, "ball", null, {
+          isStatic: true,
+          circleRadius: 16,
+          isSensor: true,
+          label: "ball",
+        })
+        .setName("ball");
+
+      balls.push(ball);
+    }
+
+    Phaser.Actions.RandomRectangle(
+      balls,
+      new Phaser.Geom.Rectangle(-gameW / 2, -gameH * 0.5, gameW, gameH * 0.8)
     );
   }
 
-  createPhysics() {
-    this.matter.world.setBounds(0, 0, gameW, gameH, 64, true, true, false);
-  }
-
   createPlayer() {
-    this.player = this.matter.add.image(
-      gameW * 0.5,
-      gameH * 0.52,
-      "rect",
-      null,
-      {
+    this.player = this.matter.add
+      .image(0, gameH * 0.52, "rect", null, {
         restitution: 0.5,
         chamfer: { radius: 10 },
         density: 0.005,
         friction: 0.2,
-      }
-    );
+        label: "player",
+      })
+      .setName("player");
 
     this.circle = this.add
       .arc(this.player.x, this.player.y, 12, 0, 360, false)
@@ -217,6 +240,33 @@ class Game extends Phaser.Scene {
       .setVisible(false);
   }
 
+  createPhysics() {
+    this.matter.world.on("collisionstart", (event, a, b) => {
+      // assume player is one, and other object is other
+      let other;
+
+      if (a.label != "player") {
+        other = a;
+      } else if (b.label != "player") {
+        other = b;
+      } else return; // no player involved, just return
+
+      if (other.label != "ball") return;
+
+      if (this.constraint) {
+        this.matter.world.removeConstraint(this.constraint);
+        this.constraint = null;
+      }
+
+      this.constraint = this.matter.add.constraint(
+        this.player.body,
+        other,
+        0,
+        0.04
+      );
+    });
+  }
+
   createMouseControls() {
     this.input.on("pointerdown", (p) => {
       if (!p.leftButtonDown()) return;
@@ -230,59 +280,85 @@ class Game extends Phaser.Scene {
       }
     });
 
-    this.input.on("pointerup", (p) => {
-      if (!this.arrow.visible) return;
+    this.input.on("pointerup", () => this.pointerUp());
 
-      this.arrow.setVisible(false);
+    // same as pointerup but if player moves cursor outside canvas
+    this.input.on("pointerupoutside", () => this.pointerUp());
+  }
 
-      const a = p.getAngle() + Math.PI;
-      const d = Math.min(1, p.getDistance() / (gameW * 0.5));
+  pointerUp() {
+    if (!this.arrow.visible) return;
 
-      const force = new Phaser.Math.Vector2(Math.cos(a), Math.sin(a));
+    if (this.constraint) {
+      this.matter.world.removeConstraint(this.constraint);
+      this.constraint = null;
+    }
 
-      this.player.applyForce(force.scale(d));
+    this.arrow.setVisible(false);
 
-      this.canJump = false;
-      const timer = 1500;
+    const d = this.arrowVector.x;
+    const a = this.arrowVector.y;
 
-      this.time.delayedCall(timer, () => (this.canJump = true));
+    const force = new Phaser.Math.Vector2(Math.cos(a), Math.sin(a));
 
-      this.circle.setEndAngle(0);
+    this.player.applyForce(force.scale(d));
 
-      this.tweens.add({
-        targets: this.circle,
-        endAngle: 360,
-        duration: timer,
-      });
+    this.canJump = false;
+    const timer = 200; //1500;
 
-      // remove the jump arrow listener, so we can't jump, until
-      // until 1) canJump is true and 2) player emits pointerdown
-      this.input.removeListener("pointermove");
+    this.time.delayedCall(timer, () => (this.canJump = true));
+
+    this.circle.setEndAngle(0);
+
+    this.tweens.add({
+      targets: this.circle,
+      endAngle: 360,
+      duration: timer,
     });
+
+    // remove the jump arrow listener, so we can't jump, until
+    // until 1) canJump is true and 2) player emits pointerdown
+    this.input.removeListener("pointermove");
   }
 
   startGame() {
     //this.scene.get("HUD").cameras.main.fadeIn();
-    this.cameras.main.startFollow(this.player, false, 0.05, 0.05);
+    this.cameras.main.startFollow(this.player, false, 0.08, 0.08);
   }
 
   update() {
+    this.checkIfInBounds();
+
     this.circle.setPosition(this.player.x, this.player.y);
 
     if (!this.arrow.visible) return;
 
     const p = this.input.activePointer.updateWorldPoint(this.cameras.main);
 
-    const a = p.getAngle() + Math.PI;
-    const d = Math.min(1, p.getDistance() / (gameW * 0.5));
+    this.arrowVector.x = Math.min(1, p.getDistance() / (gameW * 0.5));
+    this.arrowVector.y = p.getAngle() + Math.PI;
 
     this.arrow
       .setPosition(
-        this.player.x + 40 * Math.cos(a),
-        this.player.y + 40 * Math.sin(a)
+        this.player.x + 40 * Math.cos(this.arrowVector.y),
+        this.player.y + 40 * Math.sin(this.arrowVector.y)
       )
-      .setScale(d * 0.15 + 0.05)
-      .setRotation(a);
+      .setScale(this.arrowVector.x * 0.15 + 0.05)
+      .setRotation(this.arrowVector.y);
+  }
+
+  checkIfInBounds() {
+    if (this.player.y > gameH) {
+      this.player.setPosition(0, gameH * 0.52);
+      this.player.setVelocity(0, 0);
+    }
+    if (this.player.x < -gameW * 100) {
+      this.player.setPosition(0, gameH * 0.52);
+      this.player.setVelocity(0, 0);
+    } else if (this.player.x > gameW * 100) {
+      this.player.setPosition(0, gameH * 0.52);
+      this.player.setVelocity(0, 0);
+    }
   }
 
   createKeyboardControls() {
@@ -444,6 +520,10 @@ class HUD extends Phaser.Scene {
     this.input.on("pointerup", (p) => {
       this.circle.setVisible(false);
     });
+
+    this.input.on("pointerupoutside", (p) => {
+      this.circle.setVisible(false);
+    });
   }
 
   createText() {
@@ -506,7 +586,7 @@ class HUD extends Phaser.Scene {
     const scaleY = this.sizer.height / gameH;
 
     if (!camera) return;
-    camera.setViewport(x, y, this.sizer.width, this.parent.height);
+    // camera.setViewport(x, y, this.sizer.width, this.parent.height);
     //camera.setViewport(0, 0, window.innerWidth, window.innerHeight);
     camera.setZoom(Math.max(scaleX, scaleY));
     camera.centerOn(camera.midPoint.x, camera.midPoint.y);
