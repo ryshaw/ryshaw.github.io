@@ -162,6 +162,12 @@ class Game extends Phaser.Scene {
       .fillStyle(0xccc5b9)
       .fillCircle(14.5, 14.5, 12)
       .generateTexture("ball", 32, 32)
+      .clear()
+      .fillStyle(0x000000)
+      .fillRect(0, 0, 128, 16)
+      .fillStyle(0xccc5b9)
+      .fillRect(2, 2, 120, 10)
+      .generateTexture("line", 128, 16)
       .destroy();
   }
 
@@ -174,9 +180,10 @@ class Game extends Phaser.Scene {
       })
       .setName("ground");
 
+    /*
     const balls = [];
 
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 1; i++) {
       const ball = this.matter.add
         .image(0, gameH * 0.3, "ball", null, {
           isStatic: true,
@@ -189,10 +196,42 @@ class Game extends Phaser.Scene {
       balls.push(ball);
     }
 
+    this.matter.add
+      .image(0, gameH * 0.3, "line", null, {
+        isStatic: true,
+        isSensor: true,
+        label: "line",
+      })
+      .setName("line");*/
+
+    const line = this.add.image(0, 0, "line").setName("line");
+    const ball1 = this.add
+      .image(line.getLeftCenter().x, 0, "ball")
+      .setName("ball1");
+    const ball2 = this.add
+      .image(line.getRightCenter().x, 0, "ball")
+      .setName("ball2");
+
+    const c = this.add.container(0, 0, [line, ball1, ball2]);
+
+    const b = c.getBounds();
+
+    const rect = this.matter.bodies.rectangle(0, 0, b.width, b.height, {
+      isStatic: true,
+      isSensor: true,
+      chamfer: { radius: 16 },
+      label: "grabbable",
+    });
+
+    this.matter.add.gameObject(c, rect, true);
+
+    c.setPosition(0, gameH * 0.3);
+
+    /*
     Phaser.Actions.RandomRectangle(
       balls,
       new Phaser.Geom.Rectangle(-gameW / 2, -gameH * 0.5, gameW, gameH * 0.8)
-    );
+    );*/
   }
 
   createPlayer() {
@@ -251,32 +290,65 @@ class Game extends Phaser.Scene {
         other = b;
       } else return; // no player involved, just return
 
-      if (other.label != "ball") return;
+      if (other.label != "grabbable") return;
 
       if (this.constraint) {
         this.matter.world.removeConstraint(this.constraint);
         this.constraint = null;
       }
 
+      const bounds = other.gameObject.getBounds();
+
+      let x = this.player.x - other.gameObject.x;
+
+      const ball = other.gameObject.getByName("ball1");
+
+      x = Phaser.Math.Clamp(
+        x,
+        -bounds.width / 2 + ball.width / 2,
+        bounds.width / 2 - ball.width / 2
+      );
+
       this.constraint = this.matter.add.constraint(
         this.player.body,
         other,
         0,
-        0.04
+        0.05,
+        {
+          pointB: new Phaser.Math.Vector2(x, 0),
+        }
       );
     });
   }
 
   createMouseControls() {
-    this.input.on("pointerdown", (p) => {
-      if (!p.leftButtonDown()) return;
+    this.input.mouse.disableContextMenu();
 
-      // if we can jump, add a listener to draw the jump arrow
-      if (this.canJump && this.input.listenerCount("pointermove") == 0) {
-        this.input.on("pointermove", (p) => {
-          if (p.getDistance() >= 10) this.arrow.setVisible(true);
-          else this.arrow.setVisible(false);
-        });
+    this.input.on("pointerdown", (p) => {
+      if (p.leftButtonDown()) {
+        // if we can jump, add a listener to draw the jump arrow
+        if (this.canJump && this.input.listenerCount("pointermove") == 0) {
+          this.input.on("pointermove", (p) => {
+            if (p.getDistance() >= 10) this.arrow.setVisible(true);
+            else this.arrow.setVisible(false);
+          });
+        }
+      } else {
+        // right button down
+        if (!this.constraint) return;
+
+        const grabbable = this.constraint.bodyB.gameObject;
+        const bounds = grabbable.getBounds();
+        const ball = grabbable.getByName("ball1");
+        let x;
+
+        if (p.worldX < this.player.x) {
+          x = -bounds.width / 2 + ball.width / 2;
+        } else {
+          x = bounds.width / 2 - ball.width / 2;
+        }
+
+        this.constraint.pointB.x = x;
       }
     });
 
