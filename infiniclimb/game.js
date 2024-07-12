@@ -99,14 +99,14 @@ class Game extends Phaser.Scene {
   create() {
     this.canJump = true;
 
-    this.createResolution();
+    //this.createResolution();
 
     this.createTextures();
 
     this.createPlayer();
     this.createLayout();
 
-    this.createPhysics();
+    // this.createPhysics();
 
     this.createKeyboardControls();
     this.createMouseControls();
@@ -189,8 +189,6 @@ class Game extends Phaser.Scene {
       .setClosePath(false)
       .setAngle(270);
 
-    this.cameras.main.startFollow(this.player, false, 0.05, 0.05);
-
     const arrowScale = 16;
 
     const arrowPoints = [
@@ -221,6 +219,8 @@ class Game extends Phaser.Scene {
 
   createMouseControls() {
     this.input.on("pointerdown", (p) => {
+      if (!p.leftButtonDown()) return;
+
       // if we can jump, add a listener to draw the jump arrow
       if (this.canJump && this.input.listenerCount("pointermove") == 0) {
         this.input.on("pointermove", (p) => {
@@ -263,6 +263,7 @@ class Game extends Phaser.Scene {
 
   startGame() {
     //this.scene.get("HUD").cameras.main.fadeIn();
+    this.cameras.main.startFollow(this.player, false, 0.05, 0.05);
   }
 
   update() {
@@ -433,8 +434,11 @@ class HUD extends Phaser.Scene {
 
     this.input.on("pointerdown", (p) => {
       if (!this.scene.get("Game").canJump) return;
+      if (!p.leftButtonDown()) return;
 
+      //this.circle.setPosition(-2, 100).setVisible(true);
       this.circle.setPosition(p.worldX, p.worldY).setVisible(true);
+      // console.log(p);
     });
 
     this.input.on("pointerup", (p) => {
@@ -503,6 +507,7 @@ class HUD extends Phaser.Scene {
 
     if (!camera) return;
     camera.setViewport(x, y, this.sizer.width, this.parent.height);
+    //camera.setViewport(0, 0, window.innerWidth, window.innerHeight);
     camera.setZoom(Math.max(scaleX, scaleY));
     camera.centerOn(camera.midPoint.x, camera.midPoint.y);
   }
