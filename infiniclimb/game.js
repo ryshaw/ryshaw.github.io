@@ -337,6 +337,7 @@ class Game extends Phaser.Scene {
         // right button down
         if (!this.constraint) return;
 
+        // start moving the player to the edge of the grabbable
         const grabbable = this.constraint.bodyB.gameObject;
         const bounds = grabbable.getBounds();
         const ball = grabbable.getByName("ball1");
@@ -348,49 +349,66 @@ class Game extends Phaser.Scene {
           x = bounds.width / 2 - ball.width / 2;
         }
 
-        this.constraint.pointB.x = x;
+        const dist = Math.abs(this.constraint.pointB.x - x);
+
+        // normalizes the duration to the edge
+        // a distance of 160 units translates to 1 second
+        const duration = (dist / 160) * 1000;
+
+        this.tweens.add({
+          targets: this.constraint.pointB,
+          x: x,
+          duration: duration,
+        });
       }
     });
 
-    this.input.on("pointerup", () => this.pointerUp());
+    this.input.on("pointerup", (p) => this.pointerUp(p));
 
     // same as pointerup but if player moves cursor outside canvas
-    this.input.on("pointerupoutside", () => this.pointerUp());
+    this.input.on("pointerupoutside", (p) => this.pointerUp(p));
   }
 
-  pointerUp() {
-    if (!this.arrow.visible) return;
+  pointerUp(p) {
+    if (p.leftButtonReleased()) {
+      if (!this.arrow.visible) return;
 
-    if (this.constraint) {
-      this.matter.world.removeConstraint(this.constraint);
-      this.constraint = null;
+      if (this.constraint) {
+        this.matter.world.removeConstraint(this.constraint);
+        this.constraint = null;
+      }
+
+      this.arrow.setVisible(false);
+
+      const d = this.arrowVector.x;
+      const a = this.arrowVector.y;
+
+      const force = new Phaser.Math.Vector2(Math.cos(a), Math.sin(a));
+
+      this.player.applyForce(force.scale(d));
+
+      this.canJump = false;
+      const timer = 200; //1500;
+
+      this.time.delayedCall(timer, () => (this.canJump = true));
+
+      this.circle.setEndAngle(0);
+
+      this.tweens.add({
+        targets: this.circle,
+        endAngle: 360,
+        duration: timer,
+      });
+
+      // remove the jump arrow listener, so we can't jump, until
+      // until 1) canJump is true and 2) player emits pointerdown
+      this.input.removeListener("pointermove");
+    } else {
+      if (!this.constraint) return;
+
+      //console.log(this.tweens.getTweensOf(this.constraint.pointB));
+      this.tweens.killTweensOf(this.constraint.pointB);
     }
-
-    this.arrow.setVisible(false);
-
-    const d = this.arrowVector.x;
-    const a = this.arrowVector.y;
-
-    const force = new Phaser.Math.Vector2(Math.cos(a), Math.sin(a));
-
-    this.player.applyForce(force.scale(d));
-
-    this.canJump = false;
-    const timer = 200; //1500;
-
-    this.time.delayedCall(timer, () => (this.canJump = true));
-
-    this.circle.setEndAngle(0);
-
-    this.tweens.add({
-      targets: this.circle,
-      endAngle: 360,
-      duration: timer,
-    });
-
-    // remove the jump arrow listener, so we can't jump, until
-    // until 1) canJump is true and 2) player emits pointerdown
-    this.input.removeListener("pointermove");
   }
 
   startGame() {
