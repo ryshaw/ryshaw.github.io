@@ -182,9 +182,17 @@ class Game extends Phaser.Scene {
 
     // create grabbables
     const grabbables = [];
+    const bounds = new Phaser.Geom.Rectangle(
+      -gameW,
+      -gameH * 0.5,
+      gameW * 2,
+      gameH * 0.9
+    );
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 8; i++) {
       const line = this.add.image(0, 0, "line").setName("line");
+      const scale = 1 + Math.random();
+      line.setScale(scale, 1);
       const ball1 = this.add
         .image(line.getLeftCenter().x, 0, "ball")
         .setName("ball1");
@@ -205,27 +213,43 @@ class Game extends Phaser.Scene {
 
       this.matter.add.gameObject(c, rect, true);
 
-      c.setPosition(gameW * 0.15 * i, gameH * 0.15 + i * gameH * 0.15);
+      // find spot away from other grabbables algorithm
+      let iterations = 100; // loop 10 times before giving up
+      let intersectsCircle = true;
+      let p = bounds.getRandomPoint();
+      let radius = b.width * 0.7;
+      let circle = new Phaser.Geom.Circle(p.x, p.y, radius);
 
-      if (i % 3 == 1) {
-        c.setAngle(90);
-        c.iterate((obj) => {
-          obj.setFlipY(true);
+      while (intersectsCircle && iterations > 0) {
+        intersectsCircle = false;
+
+        grabbables.forEach((grabbable) => {
+          if (
+            Phaser.Geom.Intersects.CircleToCircle(
+              circle,
+              grabbable.getData("circleBounds")
+            )
+          ) {
+            intersectsCircle = true;
+          }
         });
-      } else if (i % 3 == 2) {
-        c.setAngle(45);
-        c.iterate((obj) => {
-          obj.setFlipY(true);
-        });
+
+        if (intersectsCircle) {
+          p = bounds.getRandomPoint();
+          circle = new Phaser.Geom.Circle(p.x, p.y, radius);
+        }
+
+        iterations -= 1;
       }
+
+      c.setPosition(p.x, p.y).setAngle(Math.random() * 360);
+      c.setData("circleBounds", circle);
+      //this.add.graphics().fillStyle(0xff0000, 0.2).fillCircleShape(circle);
+
       grabbables.push(c);
     }
 
-    /*
-    Phaser.Actions.RandomRectangle(
-      balls,
-      new Phaser.Geom.Rectangle(-gameW / 2, -gameH * 0.5, gameW, gameH * 0.8)
-    );*/
+    //this.cameras.main.setZoom(0.35);
   }
 
   createPlayer() {
