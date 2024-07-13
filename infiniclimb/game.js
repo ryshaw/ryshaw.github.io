@@ -180,52 +180,46 @@ class Game extends Phaser.Scene {
       })
       .setName("ground");
 
-    /*
-    const balls = [];
+    // create grabbables
+    const grabbables = [];
 
-    for (let i = 0; i < 1; i++) {
-      const ball = this.matter.add
-        .image(0, gameH * 0.3, "ball", null, {
-          isStatic: true,
-          circleRadius: 16,
-          isSensor: true,
-          label: "ball",
-        })
-        .setName("ball");
+    for (let i = 0; i < 3; i++) {
+      const line = this.add.image(0, 0, "line").setName("line");
+      const ball1 = this.add
+        .image(line.getLeftCenter().x, 0, "ball")
+        .setName("ball1");
+      const ball2 = this.add
+        .image(line.getRightCenter().x, 0, "ball")
+        .setName("ball2");
 
-      balls.push(ball);
-    }
+      const c = this.add.container(0, 0, [line, ball1, ball2]);
 
-    this.matter.add
-      .image(0, gameH * 0.3, "line", null, {
+      const b = c.getBounds();
+
+      const rect = this.matter.bodies.rectangle(0, 0, b.width, b.height, {
         isStatic: true,
         isSensor: true,
-        label: "line",
-      })
-      .setName("line");*/
+        chamfer: { radius: 16 },
+        label: "grabbable",
+      });
 
-    const line = this.add.image(0, 0, "line").setName("line");
-    const ball1 = this.add
-      .image(line.getLeftCenter().x, 0, "ball")
-      .setName("ball1");
-    const ball2 = this.add
-      .image(line.getRightCenter().x, 0, "ball")
-      .setName("ball2");
+      this.matter.add.gameObject(c, rect, true);
 
-    const c = this.add.container(0, 0, [line, ball1, ball2]);
+      c.setPosition(gameW * 0.15 * i, gameH * 0.15 + i * gameH * 0.15);
 
-    const b = c.getBounds();
-
-    const rect = this.matter.bodies.rectangle(0, 0, b.width, b.height, {
-      isStatic: true,
-      isSensor: true,
-      chamfer: { radius: 16 },
-      label: "grabbable",
-    });
-
-    this.matter.add.gameObject(c, rect, true);
-
-    c.setPosition(0, gameH * 0.3);
+      if (i % 3 == 1) {
+        c.setAngle(90);
+        c.iterate((obj) => {
+          obj.setFlipY(true);
+        });
+      } else if (i % 3 == 2) {
+        c.setAngle(45);
+        c.iterate((obj) => {
+          obj.setFlipY(true);
+        });
+      }
+      grabbables.push(c);
+    }
 
     /*
     Phaser.Actions.RandomRectangle(
@@ -297,9 +291,17 @@ class Game extends Phaser.Scene {
         this.constraint = null;
       }
 
-      const bounds = other.gameObject.getBounds();
+      // this is a stroke of genius and I hope I can understand this later
+
+      const bounds = new Phaser.Geom.Rectangle(
+        Math.round(other.bounds.min.x),
+        Math.round(other.bounds.min.y),
+        Math.round(other.bounds.max.x - other.bounds.min.x),
+        Math.round(other.bounds.max.y - other.bounds.min.y)
+      );
 
       let x = this.player.x - other.gameObject.x;
+      let y = this.player.y - other.gameObject.y;
 
       const ball = other.gameObject.getByName("ball1");
 
@@ -309,15 +311,29 @@ class Game extends Phaser.Scene {
         bounds.width / 2 - ball.width / 2
       );
 
+      y = Phaser.Math.Clamp(
+        y,
+        -bounds.height / 2 + ball.width / 2,
+        bounds.height / 2 - ball.width / 2
+      );
+
+      const r = other.gameObject.rotation;
+
+      const z = x * Math.cos(r) + y * Math.sin(r);
+
+      const v = new Phaser.Math.Vector2(z * Math.cos(r), z * Math.sin(r));
+
       this.constraint = this.matter.add.constraint(
         this.player.body,
         other,
         0,
         0.05,
         {
-          pointB: new Phaser.Math.Vector2(x, 0),
+          pointB: v,
         }
       );
+
+      this.player.setVelocity(0, 0);
     });
   }
 
@@ -325,7 +341,7 @@ class Game extends Phaser.Scene {
     this.input.mouse.disableContextMenu();
 
     this.input.on("pointerdown", (p) => {
-      if (p.leftButtonDown()) {
+      if (p.button == 0) {
         // if we can jump, add a listener to draw the jump arrow
         if (this.canJump && this.input.listenerCount("pointermove") == 0) {
           this.input.on("pointermove", (p) => {
@@ -333,15 +349,24 @@ class Game extends Phaser.Scene {
             else this.arrow.setVisible(false);
           });
         }
-      } else {
+      } else if (p.button == 2) {
         // right button down
         if (!this.constraint) return;
 
+        // this is a stroke of genius and I hope I can understand this later
+
         // start moving the player to the edge of the grabbable
         const grabbable = this.constraint.bodyB.gameObject;
-        const bounds = grabbable.getBounds();
+        const other = this.constraint.bodyB;
+        const bounds = new Phaser.Geom.Rectangle(
+          Math.round(other.bounds.min.x),
+          Math.round(other.bounds.min.y),
+          Math.round(other.bounds.max.x - other.bounds.min.x),
+          Math.round(other.bounds.max.y - other.bounds.min.y)
+        );
         const ball = grabbable.getByName("ball1");
         let x;
+        let y;
 
         if (p.worldX < this.player.x) {
           x = -bounds.width / 2 + ball.width / 2;
@@ -349,16 +374,36 @@ class Game extends Phaser.Scene {
           x = bounds.width / 2 - ball.width / 2;
         }
 
-        const dist = Math.abs(this.constraint.pointB.x - x);
+        if (p.worldY < this.player.y) {
+          y = -bounds.height / 2 + ball.width / 2;
+        } else {
+          y = bounds.height / 2 - ball.width / 2;
+        }
+
+        const r = grabbable.rotation;
+
+        const distX = Math.abs(this.constraint.pointB.x - x);
+        const distY = Math.abs(this.constraint.pointB.y - y);
+
+        const v = new Phaser.Math.Vector2(
+          distX * Math.cos(r),
+          distY * Math.sin(r)
+        );
 
         // normalizes the duration to the edge
         // a distance of 160 units translates to 1 second
-        const duration = (dist / 160) * 1000;
+        const duration = (v.length() / 160) * 1000;
+
+        const z = x * Math.cos(r) + y * Math.sin(r);
 
         this.tweens.add({
           targets: this.constraint.pointB,
-          x: x,
+          x: z * Math.cos(r),
+          y: z * Math.sin(r),
           duration: duration,
+          onComplete: () => {
+            this.player.setVelocity(0, 0);
+          },
         });
       }
     });
@@ -370,7 +415,14 @@ class Game extends Phaser.Scene {
   }
 
   pointerUp(p) {
-    if (p.leftButtonReleased()) {
+    if (p.button == 0) {
+      // remove this listener no matter what,
+      // even if you didn't jump
+      // remove the jump arrow listener, so we can't jump, until
+      // until 1) canJump is true and 2) player emits pointerdown
+      if (this.input.listenerCount("pointermove") > 0)
+        this.input.removeListener("pointermove");
+
       if (!this.arrow.visible) return;
 
       if (this.constraint) {
@@ -399,15 +451,11 @@ class Game extends Phaser.Scene {
         endAngle: 360,
         duration: timer,
       });
-
-      // remove the jump arrow listener, so we can't jump, until
-      // until 1) canJump is true and 2) player emits pointerdown
-      this.input.removeListener("pointermove");
-    } else {
+    } else if (p.button == 2) {
       if (!this.constraint) return;
 
-      //console.log(this.tweens.getTweensOf(this.constraint.pointB));
       this.tweens.killTweensOf(this.constraint.pointB);
+      this.player.setVelocity(0, 0);
     }
   }
 
@@ -599,19 +647,23 @@ class HUD extends Phaser.Scene {
       .setVisible(false);
 
     this.input.on("pointerdown", (p) => {
-      if (!this.scene.get("Game").canJump) return;
-      if (!p.leftButtonDown()) return;
+      // button = 0 is left click, button = 2 is right click
+      if (p.button == 2) return;
 
-      //this.circle.setPosition(-2, 100).setVisible(true);
+      if (!this.scene.get("Game").canJump) return;
+
       this.circle.setPosition(p.worldX, p.worldY).setVisible(true);
-      // console.log(p);
     });
 
     this.input.on("pointerup", (p) => {
+      if (p.button == 2) return;
+
       this.circle.setVisible(false);
     });
 
     this.input.on("pointerupoutside", (p) => {
+      if (p.button == 2) return;
+
       this.circle.setVisible(false);
     });
   }
