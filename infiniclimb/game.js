@@ -1,6 +1,6 @@
 const VERSION = "Infiniclimb v0.1";
 
-const DEV_MODE = true; // turns on physics debug mode
+const DEV_MODE = false; // turns on physics debug mode
 
 const gameW = 800;
 const gameH = 960;
@@ -166,7 +166,7 @@ class Game extends Phaser.Scene {
       .fillStyle(0x000000)
       .fillRect(0, 0, 128, 16)
       .fillStyle(0xccc5b9)
-      .fillRect(2, 2, 120, 10)
+      .fillRect(2, 2, 124, 10)
       .generateTexture("line", 128, 16)
       .destroy();
   }
@@ -189,9 +189,9 @@ class Game extends Phaser.Scene {
       gameH * 0.9
     );
 
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 3; i++) {
       const line = this.add.image(0, 0, "line").setName("line");
-      const scale = 1 + Math.random();
+      const scale = 3; //2 + Math.random();
       line.setScale(scale, 1);
       const ball1 = this.add
         .image(line.getLeftCenter().x, 0, "ball")
@@ -251,6 +251,41 @@ class Game extends Phaser.Scene {
         angle: "+=360",
         duration: 20000,
         loop: -1,
+        onUpdate: () => {
+          if (this.constraint?.bodyB == c.body) {
+            // adjust player position while rotating
+            // this is adapted from the right mouse button code
+            const r = c.rotation;
+            const dist = this.constraint.pointB.length();
+
+            // current player position, adjusted to match the container's position
+            const pPos = new Phaser.Math.Vector2(
+              this.player.x - c.x,
+              this.player.y - c.y
+            );
+
+            // calculate both far end positions of the grabbable
+            const p1 = new Phaser.Math.Vector2(
+              dist * Math.cos(r),
+              dist * Math.sin(r)
+            );
+            const p2 = new Phaser.Math.Vector2(
+              -dist * Math.cos(r),
+              -dist * Math.sin(r)
+            );
+            let moveTo; // we'll actually move to moveTo
+
+            // is the mouse closer to p1 or p2? which far end?
+            pPos.distance(p1) < pPos.distance(p2)
+              ? (moveTo = p1)
+              : (moveTo = p2);
+
+            // stroke of genius here, I don't really know why this is correct
+            const z = moveTo.x * Math.cos(r) + moveTo.y * Math.sin(r);
+            this.constraint.pointB.x = z * Math.cos(r);
+            this.constraint.pointB.y = z * Math.sin(r);
+          }
+        },
       });
 
       grabbables.push(c);
@@ -387,7 +422,7 @@ class Game extends Phaser.Scene {
 
         // start moving the player to the edge of the grabbable
         const grabbable = this.constraint.bodyB.gameObject;
-        const r = grabbable.rotation;
+        let r = grabbable.rotation;
 
         const line = grabbable.getByName("line");
         const w = (line.width * line.scaleX) / 2;
@@ -421,15 +456,19 @@ class Game extends Phaser.Scene {
         const duration = (v.length() / 160) * 1000;
 
         // stroke of genius here, I don't really know why this is correct
-        const z = moveTo.x * Math.cos(r) + moveTo.y * Math.sin(r);
+        let z = moveTo.x * Math.cos(r) + moveTo.y * Math.sin(r);
 
-        this.tweens.add({
+        const t = this.tweens.add({
           targets: this.constraint.pointB,
           x: z * Math.cos(r), // again, don't really know about z but it works
           y: z * Math.sin(r),
           duration: duration,
           onComplete: () => {
             this.player.setVelocity(0, 0); // no weird bouncy movement
+          },
+          onUpdate: () => {
+            t.data[0].end = z * Math.cos(grabbable.rotation);
+            t.data[1].end = z * Math.sin(grabbable.rotation);
           },
         });
       }
