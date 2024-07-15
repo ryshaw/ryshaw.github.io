@@ -464,11 +464,38 @@ class Game extends Phaser.Scene {
           y: z * Math.sin(r),
           duration: duration,
           onComplete: () => {
-            this.player.setVelocity(0, 0); // no weird bouncy movement
+            //this.player.setVelocity(0, 0); // no weird bouncy movement
           },
           onUpdate: () => {
-            t.data[0].end = z * Math.cos(grabbable.rotation);
-            t.data[1].end = z * Math.sin(grabbable.rotation);
+            //r = grabbable.rotation; //Phaser.Math.Linear(r, grabbable.rotation, t.progress * 0.04);
+
+            const distance = Phaser.Math.Distance.BetweenPoints(
+              this.constraint.pointB,
+              moveTo
+            );
+
+            const q = distance / (w * 2);
+
+            let linear = (1 - q) * 0.05;
+
+            if (distance > w) {
+              linear = 0;
+            } else {
+              linear = 0.04;
+            }
+
+            t.data[0].end = Phaser.Math.Linear(
+              t.data[0].end,
+              z * Math.cos(grabbable.rotation),
+              linear
+            );
+            t.data[1].end = Phaser.Math.Linear(
+              t.data[1].end,
+              z * Math.sin(grabbable.rotation),
+              linear
+            );
+            //
+            //r = grabbable.rotation;
           },
         });
       }
