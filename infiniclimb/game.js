@@ -189,7 +189,7 @@ class Game extends Phaser.Scene {
       gameH * 0.9
     );
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 4; i++) {
       const line = this.add.image(0, 0, "line").setName("line");
       const scale = 3; //2 + Math.random();
       line.setScale(scale, 1);
@@ -246,47 +246,49 @@ class Game extends Phaser.Scene {
       c.setData("circleBounds", circle);
       //this.add.graphics().fillStyle(0xff0000, 0.2).fillCircleShape(circle);
 
-      this.add.tween({
-        targets: c,
-        angle: "+=360",
-        duration: 20000,
-        loop: -1,
-        onUpdate: () => {
-          if (this.constraint?.bodyB == c.body) {
-            // adjust player position while rotating
-            // this is adapted from the right mouse button code
-            const r = c.rotation;
-            const dist = this.constraint.pointB.length();
+      if (i == 5) {
+        this.add.tween({
+          targets: c,
+          angle: "+=360",
+          duration: 20000,
+          loop: -1,
+          onUpdate: () => {
+            if (this.constraint?.bodyB == c.body) {
+              // adjust player position while rotating
+              // this is adapted from the right mouse button code
+              const r = c.rotation;
+              const dist = this.constraint.pointB.length();
 
-            // current player position, adjusted to match the container's position
-            const pPos = new Phaser.Math.Vector2(
-              this.player.x - c.x,
-              this.player.y - c.y
-            );
+              // current player position, adjusted to match the container's position
+              const pPos = new Phaser.Math.Vector2(
+                this.player.x - c.x,
+                this.player.y - c.y
+              );
 
-            // calculate both far end positions of the grabbable
-            const p1 = new Phaser.Math.Vector2(
-              dist * Math.cos(r),
-              dist * Math.sin(r)
-            );
-            const p2 = new Phaser.Math.Vector2(
-              -dist * Math.cos(r),
-              -dist * Math.sin(r)
-            );
-            let moveTo; // we'll actually move to moveTo
+              // calculate both far end positions of the grabbable
+              const p1 = new Phaser.Math.Vector2(
+                dist * Math.cos(r),
+                dist * Math.sin(r)
+              );
+              const p2 = new Phaser.Math.Vector2(
+                -dist * Math.cos(r),
+                -dist * Math.sin(r)
+              );
+              let moveTo; // we'll actually move to moveTo
 
-            // is the mouse closer to p1 or p2? which far end?
-            pPos.distance(p1) < pPos.distance(p2)
-              ? (moveTo = p1)
-              : (moveTo = p2);
+              // is the mouse closer to p1 or p2? which far end?
+              pPos.distance(p1) < pPos.distance(p2)
+                ? (moveTo = p1)
+                : (moveTo = p2);
 
-            // stroke of genius here, I don't really know why this is correct
-            const z = moveTo.x * Math.cos(r) + moveTo.y * Math.sin(r);
-            this.constraint.pointB.x = z * Math.cos(r);
-            this.constraint.pointB.y = z * Math.sin(r);
-          }
-        },
-      });
+              // stroke of genius here, I don't really know why this is correct
+              const z = moveTo.x * Math.cos(r) + moveTo.y * Math.sin(r);
+              this.constraint.pointB.x = z * Math.cos(r);
+              this.constraint.pointB.y = z * Math.sin(r);
+            }
+          },
+        });
+      }
 
       grabbables.push(c);
     }
@@ -418,6 +420,7 @@ class Game extends Phaser.Scene {
         }
       } else if (p.button == 2) {
         // right button down
+        return;
         if (!this.constraint) return;
 
         // start moving the player to the edge of the grabbable
@@ -475,7 +478,42 @@ class Game extends Phaser.Scene {
             );
 
             const q = distance / (w * 2);
+            //console.log(Phaser.Math.RoundTo(q, -2));
 
+            // adjust player position while rotating
+            // this is adapted from the right mouse button code
+            //const r = c.rotation;
+            const dist = this.constraint.pointB.length();
+
+            r = grabbable.rotation;
+            // current player position, adjusted to match the container's position
+            const pPos = new Phaser.Math.Vector2(
+              this.player.x - grabbable.x,
+              this.player.y - grabbable.y
+            );
+
+            // calculate both far end positions of the grabbable
+            const p1 = new Phaser.Math.Vector2(
+              dist * Math.cos(r),
+              dist * Math.sin(r)
+            );
+            const p2 = new Phaser.Math.Vector2(
+              -dist * Math.cos(r),
+              -dist * Math.sin(r)
+            );
+            let moveTo2; // we'll actually move to moveTo
+
+            // is the mouse closer to p1 or p2? which far end?
+            pPos.distance(p1) < pPos.distance(p2)
+              ? (moveTo2 = p1)
+              : (moveTo2 = p2);
+
+            // stroke of genius here, I don't really know why this is correct
+            const z2 = moveTo2.x * Math.cos(r) + moveTo2.y * Math.sin(r);
+            this.constraint.pointB.x = z2 * Math.cos(r);
+            this.constraint.pointB.y = z2 * Math.sin(r);
+
+            /*
             let linear = (1 - q) * 0.05;
 
             if (distance > w) {
@@ -493,9 +531,7 @@ class Game extends Phaser.Scene {
               t.data[1].end,
               z * Math.sin(grabbable.rotation),
               linear
-            );
-            //
-            //r = grabbable.rotation;
+            );*/
           },
         });
       }
@@ -557,15 +593,19 @@ class Game extends Phaser.Scene {
     this.cameras.main.startFollow(this.player, false, 0.08, 0.08);
   }
 
-  update() {
+  update(time, delta) {
     this.checkIfInBounds();
 
     this.circle.setPosition(this.player.x, this.player.y);
 
-    if (!this.arrow.visible) return;
-
     const p = this.input.activePointer.updateWorldPoint(this.cameras.main);
 
+    if (this.arrow.visible) this.updateArrow(p);
+
+    if (this.constraint && p.rightButtonDown()) this.moveOnGrabbable(p, delta);
+  }
+
+  updateArrow(p) {
     this.arrowVector.x = Math.min(1, p.getDistance() / (gameW * 0.5));
     this.arrowVector.y = p.getAngle() + Math.PI;
 
@@ -576,6 +616,59 @@ class Game extends Phaser.Scene {
       )
       .setScale(this.arrowVector.x * 0.15 + 0.05)
       .setRotation(this.arrowVector.y);
+  }
+
+  moveOnGrabbable(p, delta) {
+    const c = this.constraint.bodyB.gameObject;
+    const end1 = c.getByName("ball1");
+    const end2 = c.getByName("ball2");
+    const v1 = new Phaser.Math.Vector2(end1.x, end1.y);
+    v1.setAngle(c.rotation + v1.angle());
+    const v2 = new Phaser.Math.Vector2(end2.x, end2.y);
+    v2.setAngle(c.rotation + v2.angle());
+
+    /*
+    this.add
+      .graphics()
+      .fillStyle(0xff0000, 0.02)
+      .fillCircle(v1.x + c.x, v1.y + c.y, 16)
+      .fillCircle(v2.x + c.x, v2.y + c.y, 16);*/
+
+    const v = new Phaser.Math.Vector2(
+      p.worldX - this.player.x,
+      p.worldY - this.player.y
+    );
+    //.add(c)
+    //.add(this.constraint.pointB);
+
+    const a = Math.abs(v1.angle() - v.angle());
+    let moveTo;
+    //console.log(a);
+    //console.log(Phaser.Math.RadToDeg(Math.abs(v1.angle() - v.angle())));
+
+    if (a < Math.PI / 2) {
+      moveTo = v1.clone().normalize().scale(10);
+    } else {
+      moveTo = v2.clone().normalize().scale(10);
+    }
+
+    this.constraint.pointB.x += moveTo.x / delta;
+    this.constraint.pointB.y += moveTo.y / delta;
+
+    //if (a > Math.PI / 2 + Math.PI / 4) {
+
+    this.constraint.pointB.x = Phaser.Math.Clamp(
+      this.constraint.pointB.x,
+      Math.min(v1.x, v2.x),
+      Math.max(v1.x, v2.x)
+    );
+
+    this.constraint.pointB.y = Phaser.Math.Clamp(
+      this.constraint.pointB.y,
+      Math.min(v1.y, v2.y),
+      Math.max(v1.y, v2.y)
+    );
+    //this.add.graphics().fillStyle(0xff0000, 0.02).fillCircle(v.x, v.y, 16);
   }
 
   checkIfInBounds() {
