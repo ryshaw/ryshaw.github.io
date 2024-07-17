@@ -263,35 +263,36 @@ class Game extends Phaser.Scene {
               const r = c.rotation;
               const dist = this.constraint.pointB.length();
 
-            // current player position, adjusted to match the container's position
-            const pPos = new Phaser.Math.Vector2(
-              this.player.x - c.x,
-              this.player.y - c.y
-            );
+              // current player position, adjusted to match the container's position
+              const pPos = new Phaser.Math.Vector2(
+                this.player.x - c.x,
+                this.player.y - c.y
+              );
 
-            // calculate both far end positions of the grabbable
-            const p1 = new Phaser.Math.Vector2(
-              dist * Math.cos(r),
-              dist * Math.sin(r)
-            );
-            const p2 = new Phaser.Math.Vector2(
-              -dist * Math.cos(r),
-              -dist * Math.sin(r)
-            );
-            let moveTo; // we'll actually move to moveTo
+              // calculate both far end positions of the grabbable
+              const p1 = new Phaser.Math.Vector2(
+                dist * Math.cos(r),
+                dist * Math.sin(r)
+              );
+              const p2 = new Phaser.Math.Vector2(
+                -dist * Math.cos(r),
+                -dist * Math.sin(r)
+              );
+              let moveTo; // we'll actually move to moveTo
 
-            // is the mouse closer to p1 or p2? which far end?
-            pPos.distance(p1) < pPos.distance(p2)
-              ? (moveTo = p1)
-              : (moveTo = p2);
+              // is the mouse closer to p1 or p2? which far end?
+              pPos.distance(p1) < pPos.distance(p2)
+                ? (moveTo = p1)
+                : (moveTo = p2);
 
-            // stroke of genius here, I don't really know why this is correct
-            const z = moveTo.x * Math.cos(r) + moveTo.y * Math.sin(r);
-            this.constraint.pointB.x = z * Math.cos(r);
-            this.constraint.pointB.y = z * Math.sin(r);
-          }
-        },
-      });
+              // stroke of genius here, I don't really know why this is correct
+              const z = moveTo.x * Math.cos(r) + moveTo.y * Math.sin(r);
+              this.constraint.pointB.x = z * Math.cos(r);
+              this.constraint.pointB.y = z * Math.sin(r);
+            }
+          },
+        });
+      }
 
       grabbables.push(c);
     }
@@ -514,6 +515,8 @@ class Game extends Phaser.Scene {
       p.worldX - this.player.x,
       p.worldY - this.player.y
     );
+
+    const a = Math.abs(v1.angle() - v.angle());
 
     let moveTo;
 
