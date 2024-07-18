@@ -95,6 +95,7 @@ class Game extends Phaser.Scene {
   bounds; // rectangle (maybe later an array) where objects will be placed
   reticle; // helps orient the camera between player and mouse
   timer; // how long to wait between jumps
+  structures; // all grabbables, ledges, platforms, jump pads, etc.
 
   constructor() {
     super("Game");
@@ -102,29 +103,36 @@ class Game extends Phaser.Scene {
 
   create() {
     this.canJump = true;
-    this.arrowVector = new Phaser.Math.Vector2(0, 0);
+    this.arrowVector = new Phaser.Math.Vector2();
+    this.timer = 200; //1500;
+
     this.bounds = new Phaser.Geom.Rectangle(
       -gameW * 1.5,
       -gameH * 8,
       gameW * 3,
       gameH * 8.2
     );
-    this.timer = 1500;
+    this.add.graphics().fillStyle(0x000000, 0.05).fillRectShape(this.bounds);
 
     //this.createResolution();
 
     this.createTextures();
 
     this.createLayout();
+
+    this.structures = [];
+    this.createGrabbables(30);
+
     this.createPlayer();
-    this.reticle = this.add.circle(this.player.x, this.player.y);
 
     this.createPhysics();
 
     this.createKeyboardControls();
     this.createMouseControls();
 
-    this.startGame();
+    this.reticle = this.add.circle(this.player.x, this.player.y);
+    this.cameras.main.startFollow(this.reticle, false, 0.05, 0.05);
+    this.cameras.main.setZoom(0.5); // mouse scroll wheel feature when!!
   }
 
   createResolution() {
@@ -181,20 +189,24 @@ class Game extends Phaser.Scene {
   }
 
   createLayout() {
-    this.ground = this.matter.add
+    this.matter.add
       .image(0, gameH * 0.8, "ground", null, {
         isStatic: true,
         chamfer: { radius: 20 },
         label: "ground",
       })
       .setName("ground");
+  }
 
-    // create grabbables
-    const grabbables = [];
-
-    for (let i = 0; i < 30; i++) {
+  createGrabbables(num) {
+    for (let i = 0; i < num; i++) {
       const line = this.add.image(0, 0, "line").setName("line");
-      const scale = 1 + Phaser.Math.FloatBetween(0, 4);
+
+      let scale;
+      if (i <= num * 0.25) scale = 1 + Phaser.Math.FloatBetween(2, 4);
+      else if (i <= num * 0.5) scale = 1 + Phaser.Math.FloatBetween(1, 3);
+      else scale = 1 + Phaser.Math.FloatBetween(0, 2);
+
       line.setScale(scale, 1);
       const ball1 = this.add
         .image(line.getLeftCenter().x, 0, "ball")
@@ -217,7 +229,7 @@ class Game extends Phaser.Scene {
       this.matter.add.gameObject(c, rect, true);
 
       // find spot away from other grabbables algorithm
-      let iterations = 100; // loop 10 times before giving up
+      let iterations = 100; // loop many times before giving up
       let intersectsCircle = true;
       let p = this.bounds.getRandomPoint();
       let radius = b.width * 0.6;
@@ -226,11 +238,11 @@ class Game extends Phaser.Scene {
       while (intersectsCircle && iterations > 0) {
         intersectsCircle = false;
 
-        grabbables.forEach((grabbable) => {
+        this.structures.forEach((structure) => {
           if (
             Phaser.Geom.Intersects.CircleToCircle(
               circle,
-              grabbable.getData("circleBounds")
+              structure.getData("circleBounds")
             )
           ) {
             intersectsCircle = true;
@@ -249,11 +261,11 @@ class Game extends Phaser.Scene {
       c.setData("circleBounds", circle);
       //this.add.graphics().fillStyle(0xff0000, 0.2).fillCircleShape(circle);
 
-      if (Math.random() > 0.6) {
+      if (Math.random() < 0.4) {
         this.add.tween({
           targets: c,
           angle: "+=360",
-          duration: 20000,
+          duration: Phaser.Math.Between(15, 25) * 1000,
           loop: -1,
           onUpdate: () => {
             if (this.constraint?.bodyB == c.body) {
@@ -293,7 +305,7 @@ class Game extends Phaser.Scene {
         });
       }
 
-      grabbables.push(c);
+      this.structures.push(c);
     }
   }
 
@@ -464,11 +476,6 @@ class Game extends Phaser.Scene {
         duration: this.timer,
       });
     }
-  }
-
-  startGame() {
-    this.cameras.main.startFollow(this.reticle, false, 0.05, 0.05);
-    this.cameras.main.setZoom(0.9);
   }
 
   update(time, delta) {
