@@ -1,6 +1,6 @@
 const VERSION = "Infiniclimb v0.1";
 
-const DEV_MODE = false; // turns on physics debug mode
+const DEV_MODE = true; // turns on physics debug mode
 
 const gameW = 800;
 const gameH = 960;
@@ -96,6 +96,7 @@ class Game extends Phaser.Scene {
   reticle; // helps orient the camera between player and mouse
   timer; // how long to wait between jumps
   structures; // all grabbables, ledges, platforms, jump pads, etc.
+  graphics; // for drawing bounds of the structures in debug mode
 
   constructor() {
     super("Game");
@@ -104,15 +105,20 @@ class Game extends Phaser.Scene {
   create() {
     this.canJump = true;
     this.arrowVector = new Phaser.Math.Vector2();
-    this.timer = 200; //1500;
+    this.timer = 1200;
+
+    this.graphics = this.add
+      .graphics()
+      .fillStyle(0xff0000, 0.1)
+      .lineStyle(10, 0x0000ff, 0.1);
 
     this.bounds = new Phaser.Geom.Rectangle(
-      -gameW * 1.5,
+      -gameW * 2,
       -gameH * 8,
-      gameW * 3,
-      gameH * 8.2
+      gameW * 4,
+      gameH * 8.25
     );
-    this.add.graphics().fillStyle(0x000000, 0.05).fillRectShape(this.bounds);
+    if (DEV_MODE) this.graphics.strokeRectShape(this.bounds);
 
     //this.createResolution();
 
@@ -121,7 +127,8 @@ class Game extends Phaser.Scene {
     this.createLayout();
 
     this.structures = [];
-    this.createGrabbables(30);
+    this.createPlatforms(10);
+    this.createGrabbables(40);
 
     this.createPlayer();
 
@@ -132,7 +139,7 @@ class Game extends Phaser.Scene {
 
     this.reticle = this.add.circle(this.player.x, this.player.y);
     this.cameras.main.startFollow(this.reticle, false, 0.05, 0.05);
-    this.cameras.main.setZoom(0.5); // mouse scroll wheel feature when!!
+    this.cameras.main.setZoom(0.6); // mouse scroll wheel feature when!!
   }
 
   createResolution() {
@@ -185,6 +192,12 @@ class Game extends Phaser.Scene {
       .fillStyle(0xccc5b9)
       .fillRect(2, 2, 124, 10)
       .generateTexture("line", 128, 16)
+      .clear()
+      .fillStyle(0x000000)
+      .fillRoundedRect(0, 0, 512, 64, 12)
+      .fillStyle(0xbc6c25)
+      .fillRoundedRect(4, 4, 500, 52, 8)
+      .generateTexture("platform", 512, 64)
       .destroy();
   }
 
@@ -232,7 +245,7 @@ class Game extends Phaser.Scene {
       let iterations = 100; // loop many times before giving up
       let intersectsCircle = true;
       let p = this.bounds.getRandomPoint();
-      let radius = b.width * 0.6;
+      let radius = b.width * 0.52;
       let circle = new Phaser.Geom.Circle(p.x, p.y, radius);
 
       while (intersectsCircle && iterations > 0) {
@@ -259,7 +272,7 @@ class Game extends Phaser.Scene {
 
       c.setPosition(p.x, p.y).setAngle(Math.random() * 360);
       c.setData("circleBounds", circle);
-      //this.add.graphics().fillStyle(0xff0000, 0.2).fillCircleShape(circle);
+      if (DEV_MODE) this.graphics.fillCircleShape(circle);
 
       if (Math.random() < 0.4) {
         this.add.tween({
@@ -306,6 +319,61 @@ class Game extends Phaser.Scene {
       }
 
       this.structures.push(c);
+    }
+  }
+
+  createPlatforms(num) {
+    for (let i = 0; i < num; i++) {
+      const platform = this.matter.add
+        .image(0, 0, "platform", null, {
+          isStatic: true,
+          chamfer: { radius: 16 },
+          label: "platform",
+        })
+        .setName("platform");
+
+      let scale;
+
+      if (i <= num * 0.2) scale = 0.4 + Phaser.Math.FloatBetween(0, 2);
+      else scale = 0.4 + Phaser.Math.FloatBetween(0, 1);
+
+      platform.setScale(scale);
+
+      // find spot away from other structures algorithm
+      let iterations = 100; // loop many times before giving up
+      let intersectsCircle = true;
+      let p = this.bounds.getRandomPoint();
+
+      let radius = platform.displayWidth * 0.52;
+      let circle = new Phaser.Geom.Circle(p.x, p.y, radius);
+
+      while (intersectsCircle && iterations > 0) {
+        intersectsCircle = false;
+
+        this.structures.forEach((structure) => {
+          if (
+            Phaser.Geom.Intersects.CircleToCircle(
+              circle,
+              structure.getData("circleBounds")
+            )
+          ) {
+            intersectsCircle = true;
+          }
+        });
+
+        if (intersectsCircle) {
+          p = this.bounds.getRandomPoint();
+          circle = new Phaser.Geom.Circle(p.x, p.y, radius);
+        }
+
+        iterations -= 1;
+      }
+
+      platform.setPosition(p.x, p.y);
+      platform.setData("circleBounds", circle);
+      if (DEV_MODE) this.graphics.fillCircleShape(circle);
+
+      this.structures.push(platform);
     }
   }
 
@@ -437,6 +505,13 @@ class Game extends Phaser.Scene {
 
     // same as pointerup but if player moves cursor outside canvas
     this.input.on("pointerupoutside", (p) => this.pointerUp(p));
+
+    this.input.on("wheel", (p, objects, dX, dY, dZ) => {
+      let z = this.cameras.main.zoom - dY * 0.001;
+      z = Phaser.Math.Clamp(z, 0.1, 1);
+
+      this.cameras.main.zoomTo(z, 50);
+    });
   }
 
   pointerUp(p) {
@@ -534,7 +609,7 @@ class Game extends Phaser.Scene {
     // how close the mouse is to the direction
     const scale = Math.abs((Math.abs(a - Math.PI) / Math.PI - 0.5) * 2);
 
-    moveTo.normalize().scale(25 * scale);
+    moveTo.normalize().scale(30 * scale);
 
     this.constraint.pointB.x += moveTo.x / delta;
     this.constraint.pointB.y += moveTo.y / delta;
@@ -748,6 +823,23 @@ class HUD extends Phaser.Scene {
       callbackScope: this,
       callback: () => {
         fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`);
+      },
+    });
+
+    const zoomText = this.add
+      .gameText(gameW * 0.5, gameH, "zoom")
+      .setOrigin(0.5, 1);
+
+    this.time.addEvent({
+      delay: 500,
+      loop: true,
+      callbackScope: this,
+      callback: () => {
+        const z = Phaser.Math.RoundTo(
+          this.scene.get("Game").cameras.main.zoom,
+          -1
+        );
+        zoomText.setText(`zoom: ${z}`);
       },
     });
   }
