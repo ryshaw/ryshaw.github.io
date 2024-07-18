@@ -92,8 +92,8 @@ class Game extends Phaser.Scene {
   canJump; // boolean
   circle; // shows the jump charging
   arrowVector; // updates angle and distance of arrow every frame
-  bounds; // dictates the area the player can move
-  reticle; // helps orient the camera b/w player and mouse
+  bounds; // rectangle (maybe later an array) where objects will be placed
+  reticle; // helps orient the camera between player and mouse
   timer; // how long to wait between jumps
 
   constructor() {
@@ -103,7 +103,12 @@ class Game extends Phaser.Scene {
   create() {
     this.canJump = true;
     this.arrowVector = new Phaser.Math.Vector2(0, 0);
-    this.bounds = new Phaser.Math.Vector2(gameW * 3, gameH * 3);
+    this.bounds = new Phaser.Geom.Rectangle(
+      -gameW * 1.5,
+      -gameH * 8,
+      gameW * 3,
+      gameH * 8.2
+    );
     this.timer = 1500;
 
     //this.createResolution();
@@ -186,12 +191,6 @@ class Game extends Phaser.Scene {
 
     // create grabbables
     const grabbables = [];
-    const bounds = new Phaser.Geom.Rectangle(
-      -gameW * 1.5,
-      -gameH * 8,
-      gameW * 3,
-      gameH * 8.2
-    );
 
     for (let i = 0; i < 30; i++) {
       const line = this.add.image(0, 0, "line").setName("line");
@@ -220,7 +219,7 @@ class Game extends Phaser.Scene {
       // find spot away from other grabbables algorithm
       let iterations = 100; // loop 10 times before giving up
       let intersectsCircle = true;
-      let p = bounds.getRandomPoint();
+      let p = this.bounds.getRandomPoint();
       let radius = b.width * 0.6;
       let circle = new Phaser.Geom.Circle(p.x, p.y, radius);
 
@@ -239,7 +238,7 @@ class Game extends Phaser.Scene {
         });
 
         if (intersectsCircle) {
-          p = bounds.getRandomPoint();
+          p = this.bounds.getRandomPoint();
           circle = new Phaser.Geom.Circle(p.x, p.y, radius);
         }
 
