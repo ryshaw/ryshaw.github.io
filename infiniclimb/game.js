@@ -127,7 +127,7 @@ class Game extends Phaser.Scene {
     this.createLayout();
 
     this.structures = [];
-    this.createPlatforms(10);
+    this.createPlatforms(20);
     this.createGrabbables(40);
 
     this.createPlayer();
@@ -139,7 +139,7 @@ class Game extends Phaser.Scene {
 
     this.reticle = this.add.circle(this.player.x, this.player.y);
     this.cameras.main.startFollow(this.reticle, false, 0.05, 0.05);
-    this.cameras.main.setZoom(0.6); // mouse scroll wheel feature when!!
+    this.cameras.main.setZoom(0.2); // mouse scroll wheel feature when!!
   }
 
   createResolution() {
@@ -330,7 +330,8 @@ class Game extends Phaser.Scene {
           chamfer: { radius: 16 },
           label: "platform",
         })
-        .setName("platform");
+        .setName("platform")
+        .setAngle(Phaser.Math.Between(-5, 5) * 2);
 
       let scale;
 
@@ -383,7 +384,7 @@ class Game extends Phaser.Scene {
         restitution: 0.5,
         chamfer: { radius: 10 },
         density: 0.005,
-        friction: 0.2,
+        friction: 0.4,
         label: "player",
       })
       .setName("player");
