@@ -109,14 +109,14 @@ class Game extends Phaser.Scene {
 
     this.graphics = this.add
       .graphics()
-      .fillStyle(0xff0000, 0.1)
-      .lineStyle(10, 0x0000ff, 0.1);
+      .fillStyle(0xff0000, 0.05)
+      .lineStyle(10, 0x0000ff, 0.05);
 
     this.bounds = new Phaser.Geom.Rectangle(
-      -gameW * 2,
-      -gameH * 8,
-      gameW * 4,
-      gameH * 8.25
+      -gameW * 3,
+      -gameH * 12,
+      gameW * 6,
+      gameH * 12.25
     );
     if (DEV_MODE) this.graphics.strokeRectShape(this.bounds);
 
@@ -127,8 +127,9 @@ class Game extends Phaser.Scene {
     this.createLayout();
 
     this.structures = [];
-    this.createPlatforms(20);
-    this.createGrabbables(40);
+    this.createMovingPlatforms(8);
+    this.createPlatforms(16);
+    this.createGrabbables(60);
 
     this.createPlayer();
 
@@ -139,7 +140,7 @@ class Game extends Phaser.Scene {
 
     this.reticle = this.add.circle(this.player.x, this.player.y);
     this.cameras.main.startFollow(this.reticle, false, 0.05, 0.05);
-    this.cameras.main.setZoom(0.2); // mouse scroll wheel feature when!!
+    this.cameras.main.setZoom(0.8);
   }
 
   createResolution() {
@@ -176,10 +177,10 @@ class Game extends Phaser.Scene {
       .generateTexture("rect", 50, 50)
       .clear()
       .fillStyle(0x000000)
-      .fillRoundedRect(0, 0, gameW * 2, gameH * 0.5, 20)
+      .fillRoundedRect(0, 0, gameW * 3, gameH * 0.5, 20)
       .fillStyle(0x3da35d)
-      .fillRoundedRect(6, 4, gameW * 2 - 16, gameH * 0.5 - 16, 12)
-      .generateTexture("ground", gameW * 2, gameH * 0.5)
+      .fillRoundedRect(8, 6, gameW * 3 - 24, gameH * 0.5 - 24, 12)
+      .generateTexture("ground", gameW * 3, gameH * 0.5)
       .clear()
       .fillStyle(0x000000)
       .fillCircle(16, 16, 16)
@@ -194,10 +195,10 @@ class Game extends Phaser.Scene {
       .generateTexture("line", 128, 16)
       .clear()
       .fillStyle(0x000000)
-      .fillRoundedRect(0, 0, 512, 64, 12)
-      .fillStyle(0xbc6c25)
-      .fillRoundedRect(4, 4, 500, 52, 8)
-      .generateTexture("platform", 512, 64)
+      .fillRoundedRect(0, 0, 512, 40, 12)
+      .fillStyle(0xffffff) // platform vs. moving platform is different
+      .fillRoundedRect(4, 4, 500, 28, 8)
+      .generateTexture("platform", 512, 40)
       .destroy();
   }
 
@@ -243,36 +244,41 @@ class Game extends Phaser.Scene {
 
       // find spot away from other grabbables algorithm
       let iterations = 100; // loop many times before giving up
-      let intersectsCircle = true;
+      let intersects = true;
       let p = this.bounds.getRandomPoint();
+
       let radius = b.width * 0.52;
-      let circle = new Phaser.Geom.Circle(p.x, p.y, radius);
+      let shape = new Phaser.Geom.Circle(p.x, p.y, radius);
 
-      while (intersectsCircle && iterations > 0) {
-        intersectsCircle = false;
+      while (intersects && iterations > 0) {
+        intersects = false;
 
-        this.structures.forEach((structure) => {
-          if (
-            Phaser.Geom.Intersects.CircleToCircle(
-              circle,
-              structure.getData("circleBounds")
-            )
-          ) {
-            intersectsCircle = true;
+        this.structures.forEach((s) => {
+          const other = s.getData("bounds");
+          if (other.type == Phaser.Geom.CIRCLE) {
+            if (Phaser.Geom.Intersects.CircleToCircle(other, shape)) {
+              intersects = true;
+            }
+          } else if (other.type == Phaser.Geom.RECTANGLE) {
+            if (Phaser.Geom.Intersects.CircleToRectangle(shape, other)) {
+              intersects = true;
+            }
           }
         });
 
-        if (intersectsCircle) {
+        if (intersects) {
           p = this.bounds.getRandomPoint();
-          circle = new Phaser.Geom.Circle(p.x, p.y, radius);
+          shape = new Phaser.Geom.Circle(p.x, p.y, radius);
         }
 
         iterations -= 1;
       }
 
+      if (iterations < 10) console.log(iterations);
+
       c.setPosition(p.x, p.y).setAngle(Math.random() * 360);
-      c.setData("circleBounds", circle);
-      if (DEV_MODE) this.graphics.fillCircleShape(circle);
+      c.setData("bounds", shape);
+      if (DEV_MODE) this.graphics.fillCircleShape(shape);
 
       if (Math.random() < 0.4) {
         this.add.tween({
@@ -322,6 +328,93 @@ class Game extends Phaser.Scene {
     }
   }
 
+  createMovingPlatforms(num) {
+    for (let i = 0; i < num; i++) {
+      const platform = this.matter.add
+        .image(0, 0, "platform", null, {
+          isStatic: true,
+          chamfer: { radius: 16 },
+          label: "platform",
+        })
+        .setName("platform")
+        .setTint(0xe0aaff); // moving platform color
+
+      platform.setScale(0.5 + Phaser.Math.FloatBetween(0, 1.5));
+
+      let span = Phaser.Math.Between(gameH * 0.8, gameH * 2);
+
+      // find spot away from other structures algorithm
+      let iterations = 100; // loop many times before giving up
+      let intersects = true; // true if intersects other structures
+      let p = this.bounds.getRandomPoint();
+      const w = platform.displayWidth;
+      const h = platform.displayHeight;
+
+      let shape = new Phaser.Geom.Rectangle(0, 0, w, h + span);
+
+      shape = Phaser.Geom.Rectangle.CenterOn(shape, p.x, p.y - span / 2);
+      shape = Phaser.Geom.Rectangle.Inflate(shape, w * 0.02, h * 1.5);
+
+      while (intersects && iterations > 0) {
+        intersects = false;
+
+        this.structures.forEach((s) => {
+          const other = s.getData("bounds");
+          if (other.type == Phaser.Geom.CIRCLE) {
+            if (Phaser.Geom.Intersects.CircleToRectangle(other, shape)) {
+              intersects = true;
+            }
+          } else if (other.type == Phaser.Geom.RECTANGLE) {
+            if (Phaser.Geom.Intersects.RectangleToRectangle(other, shape)) {
+              intersects = true;
+            }
+          }
+        });
+
+        if (intersects) {
+          p = this.bounds.getRandomPoint();
+          new Phaser.Geom.Rectangle(0, 0, w, h + span);
+          shape = Phaser.Geom.Rectangle.CenterOn(shape, p.x, p.y - span / 2);
+          shape = Phaser.Geom.Rectangle.Inflate(shape, w * 0.02, h * 1.5);
+        }
+
+        iterations -= 1;
+      }
+
+      if (iterations < 10) console.log(iterations);
+
+      platform.setPosition(p.x, p.y);
+      platform.setData("bounds", shape);
+      if (DEV_MODE) this.graphics.fillRectShape(shape);
+
+      // normalize so it covers platform's width in three seconds
+      const duration = 4000 * (span / w);
+      const ease = "sine.inout";
+
+      this.tweens.chain({
+        targets: platform,
+        tweens: [
+          {
+            y: `-=${span}`, // go up
+            delay: 3000,
+            duration: duration,
+            ease: ease,
+          },
+          {
+            y: `+=${span}`, // go down
+            delay: 3000,
+            duration: duration,
+            ease: ease,
+          },
+        ],
+        loop: -1,
+        delay: 5000 * Math.random(),
+      });
+
+      this.structures.push(platform);
+    }
+  }
+
   createPlatforms(num) {
     for (let i = 0; i < num; i++) {
       const platform = this.matter.add
@@ -331,48 +424,48 @@ class Game extends Phaser.Scene {
           label: "platform",
         })
         .setName("platform")
-        .setAngle(Phaser.Math.Between(-5, 5) * 2);
+        .setTint(0xbc6c25) // stationary platform color
+        .setAngle(Phaser.Math.Between(-4, 4) * 2);
 
-      let scale;
-
-      if (i <= num * 0.2) scale = 0.4 + Phaser.Math.FloatBetween(0, 2);
-      else scale = 0.4 + Phaser.Math.FloatBetween(0, 1);
-
-      platform.setScale(scale);
+      platform.setScale(0.8 + Phaser.Math.FloatBetween(0, 1.2));
 
       // find spot away from other structures algorithm
       let iterations = 100; // loop many times before giving up
-      let intersectsCircle = true;
+      let intersects = true;
       let p = this.bounds.getRandomPoint();
 
       let radius = platform.displayWidth * 0.52;
-      let circle = new Phaser.Geom.Circle(p.x, p.y, radius);
+      let shape = new Phaser.Geom.Circle(p.x, p.y, radius);
 
-      while (intersectsCircle && iterations > 0) {
-        intersectsCircle = false;
+      while (intersects && iterations > 0) {
+        intersects = false;
 
-        this.structures.forEach((structure) => {
-          if (
-            Phaser.Geom.Intersects.CircleToCircle(
-              circle,
-              structure.getData("circleBounds")
-            )
-          ) {
-            intersectsCircle = true;
+        this.structures.forEach((s) => {
+          const other = s.getData("bounds");
+          if (other.type == Phaser.Geom.CIRCLE) {
+            if (Phaser.Geom.Intersects.CircleToCircle(other, shape)) {
+              intersects = true;
+            }
+          } else if (other.type == Phaser.Geom.RECTANGLE) {
+            if (Phaser.Geom.Intersects.CircleToRectangle(shape, other)) {
+              intersects = true;
+            }
           }
         });
 
-        if (intersectsCircle) {
+        if (intersects) {
           p = this.bounds.getRandomPoint();
-          circle = new Phaser.Geom.Circle(p.x, p.y, radius);
+          shape = new Phaser.Geom.Circle(p.x, p.y, radius);
         }
 
         iterations -= 1;
       }
 
+      if (iterations < 10) console.log(iterations);
+
       platform.setPosition(p.x, p.y);
-      platform.setData("circleBounds", circle);
-      if (DEV_MODE) this.graphics.fillCircleShape(circle);
+      platform.setData("bounds", shape);
+      if (DEV_MODE) this.graphics.fillCircleShape(shape);
 
       this.structures.push(platform);
     }
@@ -385,6 +478,7 @@ class Game extends Phaser.Scene {
         chamfer: { radius: 10 },
         density: 0.005,
         friction: 0.4,
+        frictionStatic: 0.5,
         label: "player",
       })
       .setName("player");
