@@ -1,6 +1,6 @@
 const VERSION = "Infiniclimb v0.1";
 
-const DEV_MODE = true; // turns on physics debug mode
+const DEV_MODE = false; // turns on physics debug mode
 
 const gameW = 800;
 const gameH = 960;
@@ -112,12 +112,10 @@ class Game extends Phaser.Scene {
       .fillStyle(0xff0000, 0.05)
       .lineStyle(10, 0x0000ff, 0.05);
 
-    this.bounds = new Phaser.Geom.Rectangle(
-      -gameW * 3,
-      -gameH * 12,
-      gameW * 6,
-      gameH * 12.25
-    );
+    const w = gameW * 8;
+    const h = gameH * 14;
+
+    this.bounds = new Phaser.Geom.Rectangle(-w / 2, -h, w, h + gameH * 0.25);
     if (DEV_MODE) this.graphics.strokeRectShape(this.bounds);
 
     //this.createResolution();
@@ -127,9 +125,10 @@ class Game extends Phaser.Scene {
     this.createLayout();
 
     this.structures = [];
-    this.createMovingPlatforms(8);
+    this.createMovingPlatforms(10);
+    this.createJumpPads(10);
     this.createPlatforms(16);
-    this.createGrabbables(60);
+    this.createGrabbables(80);
 
     this.createPlayer();
 
@@ -268,7 +267,8 @@ class Game extends Phaser.Scene {
 
         if (intersects) {
           p = this.bounds.getRandomPoint();
-          shape = new Phaser.Geom.Circle(p.x, p.y, radius);
+          shape.x = p.x;
+          shape.y = p.y;
         }
 
         iterations -= 1;
@@ -373,9 +373,7 @@ class Game extends Phaser.Scene {
 
         if (intersects) {
           p = this.bounds.getRandomPoint();
-          new Phaser.Geom.Rectangle(0, 0, w, h + span);
           shape = Phaser.Geom.Rectangle.CenterOn(shape, p.x, p.y - span / 2);
-          shape = Phaser.Geom.Rectangle.Inflate(shape, w * 0.02, h * 1.5);
         }
 
         iterations -= 1;
@@ -455,7 +453,8 @@ class Game extends Phaser.Scene {
 
         if (intersects) {
           p = this.bounds.getRandomPoint();
-          shape = new Phaser.Geom.Circle(p.x, p.y, radius);
+          shape.x = p.x;
+          shape.y = p.y;
         }
 
         iterations -= 1;
@@ -468,6 +467,66 @@ class Game extends Phaser.Scene {
       if (DEV_MODE) this.graphics.fillCircleShape(shape);
 
       this.structures.push(platform);
+    }
+  }
+
+  createJumpPads(num) {
+    for (let i = 0; i < num; i++) {
+      const jumpPad = this.matter.add
+        .image(0, 0, "platform", null, {
+          isStatic: true,
+          chamfer: { radius: 16 },
+          label: "jumpPad",
+        })
+        .setName("jumpPad")
+        .setTint(0xfb8500) // orange
+        .setAngle(Phaser.Math.Between(-4, 4) * 2);
+
+      jumpPad.setScale(0.4 + Phaser.Math.FloatBetween(0, 0.2));
+
+      // find spot away from other structures algorithm
+      let iterations = 100; // loop many times before giving up
+      let intersects = true;
+      let p = this.bounds.getRandomPoint();
+      const w = jumpPad.displayWidth;
+      const h = jumpPad.displayHeight;
+
+      let shape = new Phaser.Geom.Rectangle(0, 0, w, h + gameH * 1.6);
+
+      shape = Phaser.Geom.Rectangle.CenterOn(shape, p.x, p.y - gameH * 0.8);
+      shape = Phaser.Geom.Rectangle.Inflate(shape, w * 0.02, h * 1.5);
+
+      while (intersects && iterations > 0) {
+        intersects = false;
+
+        this.structures.forEach((s) => {
+          const other = s.getData("bounds");
+          if (other.type == Phaser.Geom.CIRCLE) {
+            if (Phaser.Geom.Intersects.CircleToRectangle(other, shape)) {
+              intersects = true;
+            }
+          } else if (other.type == Phaser.Geom.RECTANGLE) {
+            if (Phaser.Geom.Intersects.RectangleToRectangle(other, shape)) {
+              intersects = true;
+            }
+          }
+        });
+
+        if (intersects) {
+          p = this.bounds.getRandomPoint();
+          shape = Phaser.Geom.Rectangle.CenterOn(shape, p.x, p.y - gameH * 0.8);
+        }
+
+        iterations -= 1;
+      }
+
+      if (iterations < 10) console.log(iterations);
+
+      jumpPad.setPosition(p.x, p.y);
+      jumpPad.setData("bounds", shape);
+      if (DEV_MODE) this.graphics.fillRectShape(shape);
+
+      this.structures.push(jumpPad);
     }
   }
 
@@ -521,64 +580,88 @@ class Game extends Phaser.Scene {
     this.matter.world.on("collisionstart", (event, a, b) => {
       // assume player is one, and other object is other
       let other;
+      if (a.label != "player") other = a;
+      else if (b.label != "player") other = b;
+      else return; // no player involved, just return
 
-      if (a.label != "player") {
-        other = a;
-      } else if (b.label != "player") {
-        other = b;
-      } else return; // no player involved, just return
-
-      if (other.label != "grabbable") return;
-
-      if (this.constraint) {
-        this.matter.world.removeConstraint(this.constraint);
-        this.constraint = null;
+      switch (other.label) {
+        case "grabbable":
+          this.createConstraint(other);
+          break;
+        case "jumpPad":
+          this.jumpForce(other);
+          break;
+        default:
+          return;
       }
-
-      // this is a stroke of genius and I hope I can understand this later
-
-      const bounds = new Phaser.Geom.Rectangle(
-        Math.round(other.bounds.min.x),
-        Math.round(other.bounds.min.y),
-        Math.round(other.bounds.max.x - other.bounds.min.x),
-        Math.round(other.bounds.max.y - other.bounds.min.y)
-      );
-
-      let x = this.player.x - other.gameObject.x;
-      let y = this.player.y - other.gameObject.y;
-
-      const ball = other.gameObject.getByName("ball1");
-
-      x = Phaser.Math.Clamp(
-        x,
-        -bounds.width / 2 + ball.width / 2,
-        bounds.width / 2 - ball.width / 2
-      );
-
-      y = Phaser.Math.Clamp(
-        y,
-        -bounds.height / 2 + ball.width / 2,
-        bounds.height / 2 - ball.width / 2
-      );
-
-      const r = other.gameObject.rotation;
-
-      const z = x * Math.cos(r) + y * Math.sin(r);
-
-      const v = new Phaser.Math.Vector2(z * Math.cos(r), z * Math.sin(r));
-
-      this.constraint = this.matter.add.constraint(
-        this.player.body,
-        other,
-        0,
-        0.05,
-        {
-          pointB: v,
-        }
-      );
-
-      this.player.setVelocity(0, 0);
     });
+  }
+
+  createConstraint(other) {
+    if (this.constraint) {
+      this.matter.world.removeConstraint(this.constraint);
+      this.constraint = null;
+    }
+
+    // this is a stroke of genius and I hope I can understand this later
+
+    const bounds = new Phaser.Geom.Rectangle(
+      Math.round(other.bounds.min.x),
+      Math.round(other.bounds.min.y),
+      Math.round(other.bounds.max.x - other.bounds.min.x),
+      Math.round(other.bounds.max.y - other.bounds.min.y)
+    );
+
+    let x = this.player.x - other.gameObject.x;
+    let y = this.player.y - other.gameObject.y;
+
+    const ball = other.gameObject.getByName("ball1");
+
+    x = Phaser.Math.Clamp(
+      x,
+      -bounds.width / 2 + ball.width / 2,
+      bounds.width / 2 - ball.width / 2
+    );
+
+    y = Phaser.Math.Clamp(
+      y,
+      -bounds.height / 2 + ball.width / 2,
+      bounds.height / 2 - ball.width / 2
+    );
+
+    const r = other.gameObject.rotation;
+
+    const z = x * Math.cos(r) + y * Math.sin(r);
+
+    const v = new Phaser.Math.Vector2(z * Math.cos(r), z * Math.sin(r));
+
+    this.constraint = this.matter.add.constraint(
+      this.player.body,
+      other,
+      0,
+      0.05,
+      {
+        pointB: v,
+      }
+    );
+
+    this.player.setVelocity(0, 0);
+  }
+
+  jumpForce(other) {
+    // only bounce on the jump pad if you're landing on the top surface.
+    // if the player's y velocity is positive,
+    // the player is moving downward,
+    // so I am assuming they landed on the top surface.
+    // otherwise, if the player's y velocity is negative,
+    // the player is moving upward,
+    // so they can only have hit the bottom surface.
+    // afaik, it's impossible to move upward and hit the top surface
+
+    if (this.player.body.velocity.y < 0) return;
+
+    const v = new Phaser.Math.Vector2(0, -45).rotate(other.gameObject.rotation);
+    this.player.setVelocity(v.x, v.y);
   }
 
   createMouseControls() {
