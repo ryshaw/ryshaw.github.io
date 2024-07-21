@@ -1,5 +1,3 @@
 - coins on platforms
 - checkpoints (on platforms or separate barrier)
 - restart at checkpoint button (costs coins)
-- jump pads
-- pads that slowly fall off like the hole platforms in mario

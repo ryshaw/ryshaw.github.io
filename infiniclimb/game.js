@@ -128,7 +128,8 @@ class Game extends Phaser.Scene {
     this.createMovingPlatforms(10);
     this.createJumpPads(10);
     this.createPlatforms(16);
-    this.createGrabbables(80);
+    this.createFallingGrabbables(70);
+    this.createGrabbables(70);
 
     this.createPlayer();
 
@@ -183,13 +184,13 @@ class Game extends Phaser.Scene {
       .clear()
       .fillStyle(0x000000)
       .fillCircle(16, 16, 16)
-      .fillStyle(0xccc5b9)
+      .fillStyle(0xffffff) // will be tinted
       .fillCircle(14.5, 14.5, 12)
       .generateTexture("ball", 32, 32)
       .clear()
       .fillStyle(0x000000)
       .fillRect(0, 0, 128, 16)
-      .fillStyle(0xccc5b9)
+      .fillStyle(0xffffff) // will be tinted
       .fillRect(2, 2, 124, 10)
       .generateTexture("line", 128, 16)
       .clear()
@@ -220,13 +221,15 @@ class Game extends Phaser.Scene {
       else if (i <= num * 0.5) scale = 1 + Phaser.Math.FloatBetween(1, 3);
       else scale = 1 + Phaser.Math.FloatBetween(0, 2);
 
-      line.setScale(scale, 1);
+      line.setScale(scale, 1).setTint(0xccc5b9);
       const ball1 = this.add
         .image(line.getLeftCenter().x, 0, "ball")
-        .setName("ball1");
+        .setName("ball1")
+        .setTint(0xccc5b9);
       const ball2 = this.add
         .image(line.getRightCenter().x, 0, "ball")
-        .setName("ball2");
+        .setName("ball2")
+        .setTint(0xccc5b9);
 
       const c = this.add.container(0, 0, [line, ball1, ball2]);
 
@@ -237,6 +240,129 @@ class Game extends Phaser.Scene {
         isSensor: true,
         chamfer: { radius: 16 },
         label: "grabbable",
+      });
+
+      this.matter.add.gameObject(c, rect, true);
+
+      // find spot away from other grabbables algorithm
+      let iterations = 100; // loop many times before giving up
+      let intersects = true;
+      let p = this.bounds.getRandomPoint();
+
+      let radius = b.width * 0.52;
+      let shape = new Phaser.Geom.Circle(p.x, p.y, radius);
+
+      while (intersects && iterations > 0) {
+        intersects = false;
+
+        this.structures.forEach((s) => {
+          const other = s.getData("bounds");
+          if (other.type == Phaser.Geom.CIRCLE) {
+            if (Phaser.Geom.Intersects.CircleToCircle(other, shape)) {
+              intersects = true;
+            }
+          } else if (other.type == Phaser.Geom.RECTANGLE) {
+            if (Phaser.Geom.Intersects.CircleToRectangle(shape, other)) {
+              intersects = true;
+            }
+          }
+        });
+
+        if (intersects) {
+          p = this.bounds.getRandomPoint();
+          shape.x = p.x;
+          shape.y = p.y;
+        }
+
+        iterations -= 1;
+      }
+
+      if (iterations < 10) console.log(iterations);
+
+      c.setPosition(p.x, p.y).setAngle(Math.random() * 360);
+      c.setData("bounds", shape);
+      if (DEV_MODE) this.graphics.fillCircleShape(shape);
+
+      if (Math.random() < 0.4) {
+        this.add.tween({
+          targets: c,
+          angle: "+=360",
+          duration: Phaser.Math.Between(15, 25) * 1000,
+          loop: -1,
+          onUpdate: () => {
+            if (this.constraint?.bodyB == c.body) {
+              // adjust player position while rotating
+              // this is adapted from the right mouse button code
+              const r = c.rotation;
+              const dist = this.constraint.pointB.length();
+
+              // current player position, adjusted to match the container's position
+              const pPos = new Phaser.Math.Vector2(
+                this.player.x - c.x,
+                this.player.y - c.y
+              );
+
+              // calculate both far end positions of the grabbable
+              const p1 = new Phaser.Math.Vector2(
+                dist * Math.cos(r),
+                dist * Math.sin(r)
+              );
+              const p2 = new Phaser.Math.Vector2(
+                -dist * Math.cos(r),
+                -dist * Math.sin(r)
+              );
+              let moveTo; // we'll actually move to moveTo
+
+              // is the mouse closer to p1 or p2? which far end?
+              pPos.distance(p1) < pPos.distance(p2)
+                ? (moveTo = p1)
+                : (moveTo = p2);
+
+              // stroke of genius here, I don't really know why this is correct
+              const z = moveTo.x * Math.cos(r) + moveTo.y * Math.sin(r);
+              this.constraint.pointB.x = z * Math.cos(r);
+              this.constraint.pointB.y = z * Math.sin(r);
+            }
+          },
+        });
+      }
+
+      this.structures.push(c);
+    }
+  }
+
+  createFallingGrabbables(num) {
+    // 06d6a0
+
+    for (let i = 0; i < num; i++) {
+      const line = this.add.image(0, 0, "line").setName("line");
+
+      let scale;
+      if (i <= num * 0.25) scale = 1 + Phaser.Math.FloatBetween(2, 4);
+      else if (i <= num * 0.5) scale = 1 + Phaser.Math.FloatBetween(1, 3);
+      else scale = 1 + Phaser.Math.FloatBetween(0, 2);
+
+      line.setScale(scale, 1).setTint(0x06d6a0);
+      const ball1 = this.add
+        .image(line.getLeftCenter().x, 0, "ball")
+        .setName("ball1")
+        .setTint(0x06d6a0);
+      const ball2 = this.add
+        .image(line.getRightCenter().x, 0, "ball")
+        .setName("ball2")
+        .setTint(0x06d6a0);
+
+      const c = this.add.container(0, 0, [line, ball1, ball2]);
+
+      const b = c.getBounds();
+
+      const rect = this.matter.bodies.rectangle(0, 0, b.width, b.height, {
+        isSensor: true,
+        ignoreGravity: true,
+        density: 0.05,
+        chamfer: { radius: 16 },
+        //frictionAir: 0,
+        label: "fallingGrabbable",
       });
 
       this.matter.add.gameObject(c, rect, true);
@@ -580,8 +706,8 @@ class Game extends Phaser.Scene {
     this.matter.world.on("collisionstart", (event, a, b) => {
       // assume player is one, and other object is other
       let other;
-      if (a.label != "player") other = a;
-      else if (b.label != "player") other = b;
+      if (a.label == "player") other = b;
+      else if (b.label == "player") other = a;
       else return; // no player involved, just return
 
       switch (other.label) {
@@ -589,9 +715,42 @@ class Game extends Phaser.Scene {
           this.createConstraint(other);
           break;
         case "jumpPad":
+          // remove constraint if hit platform
+          if (this.constraint) {
+            this.matter.world.removeConstraint(this.constraint);
+            this.constraint = null;
+          }
+
           this.jumpForce(other);
           break;
+        case "fallingGrabbable":
+          const o = other.gameObject;
+          const p = new Phaser.Math.Vector2(o.x, o.y);
+
+          // fixes bug where sometimes you grab them multiple times?
+          if (o.getData("falling")) return;
+
+          o.setData("falling", true);
+          this.createConstraint(other);
+          this.time.delayedCall(2000, () => o.setIgnoreGravity(false));
+          this.time.delayedCall(8000, () => {
+            // respawn this grabbable
+            if (this.constraint?.bodyB == other) {
+              this.matter.world.removeConstraint(this.constraint);
+              this.constraint = null;
+            }
+            o.setPosition(p.x, p.y);
+            o.setVelocity(0, 0);
+            o.setIgnoreGravity(true);
+            o.setData("falling", false);
+          });
+          break;
         default:
+          // remove constraint if hit platform
+          if (this.constraint) {
+            this.matter.world.removeConstraint(this.constraint);
+            this.constraint = null;
+          }
           return;
       }
     });
@@ -806,14 +965,11 @@ class Game extends Phaser.Scene {
   }
 
   checkIfInBounds() {
-    if (this.player.y > gameH) {
-      this.player.setPosition(0, gameH * 0.52);
-      this.player.setVelocity(0, 0);
-    }
-    if (this.player.x < -gameW * 100) {
-      this.player.setPosition(0, gameH * 0.52);
-      this.player.setVelocity(0, 0);
-    } else if (this.player.x > gameW * 100) {
+    if (this.player.y > gameH || Math.abs(this.player.x) > gameW * 100) {
+      if (this.constraint) {
+        this.matter.world.removeConstraint(this.constraint);
+        this.constraint = null;
+      }
       this.player.setPosition(0, gameH * 0.52);
       this.player.setVelocity(0, 0);
     }
