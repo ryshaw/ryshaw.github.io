@@ -1,6 +1,6 @@
 const VERSION = "Infiniclimb v0.1";
 
-const DEV_MODE = false; // turns on physics debug mode
+const DEV_MODE = true; // turns on physics debug mode
 
 const gameW = 800;
 const gameH = 960;
@@ -128,8 +128,9 @@ class Game extends Phaser.Scene {
     this.createMovingPlatforms(10);
     this.createJumpPads(10);
     this.createPlatforms(16);
-    this.createFallingGrabbables(70);
-    this.createGrabbables(70);
+    this.createMovingGrabbables(16);
+    this.createFallingGrabbables(40);
+    this.createGrabbables(40);
 
     this.createPlayer();
 
@@ -140,7 +141,7 @@ class Game extends Phaser.Scene {
 
     this.reticle = this.add.circle(this.player.x, this.player.y);
     this.cameras.main.startFollow(this.reticle, false, 0.05, 0.05);
-    this.cameras.main.setZoom(0.8);
+    this.cameras.main.setZoom(0.4);
   }
 
   createResolution() {
@@ -454,6 +455,158 @@ class Game extends Phaser.Scene {
     }
   }
 
+  createMovingGrabbables(num) {
+    for (let i = 0; i < num; i++) {
+      const line = this.add.image(0, 0, "line").setName("line");
+
+      let scale;
+      if (i <= num * 0.25) scale = 1 + Phaser.Math.FloatBetween(2, 4);
+      else if (i <= num * 0.5) scale = 1 + Phaser.Math.FloatBetween(1, 3);
+      else scale = 1 + Phaser.Math.FloatBetween(0, 2);
+
+      line.setScale(scale, 1).setTint(0x3a86ff);
+      const ball1 = this.add
+        .image(line.getLeftCenter().x, 0, "ball")
+        .setName("ball1")
+        .setTint(0x3a86ff);
+      const ball2 = this.add
+        .image(line.getRightCenter().x, 0, "ball")
+        .setName("ball2")
+        .setTint(0x3a86ff);
+
+      const c = this.add.container(0, 0, [line, ball1, ball2]);
+
+      const b = c.getBounds();
+
+      const rect = this.matter.bodies.rectangle(0, 0, b.width, b.height, {
+        isStatic: true,
+        isSensor: true,
+        chamfer: { radius: 16 },
+        label: "movingGrabbable",
+      });
+
+      this.matter.add.gameObject(c, rect, true);
+
+      let span = Phaser.Math.Between(gameW, gameW * 2.5);
+      let d = Math.random() > 0.5 ? 1 : -1; // going right or left
+
+      // find spot away from other grabbables algorithm
+      let iterations = 100; // loop many times before giving up
+      let intersects = true;
+      let p = this.bounds.getRandomPoint();
+      const w = b.width;
+
+      let shape = new Phaser.Geom.Rectangle(0, 0, w + span, w);
+
+      shape = Phaser.Geom.Rectangle.CenterOn(shape, p.x + (d * span) / 2, p.y);
+      shape = Phaser.Geom.Rectangle.Inflate(shape, w * 0.05, w * 0.05);
+
+      while (intersects && iterations > 0) {
+        intersects = false;
+
+        this.structures.forEach((s) => {
+          const other = s.getData("bounds");
+          if (other.type == Phaser.Geom.CIRCLE) {
+            if (Phaser.Geom.Intersects.CircleToRectangle(other, shape)) {
+              intersects = true;
+            }
+          } else if (other.type == Phaser.Geom.RECTANGLE) {
+            if (Phaser.Geom.Intersects.RectangleToRectangle(other, shape)) {
+              intersects = true;
+            }
+          }
+        });
+
+        if (intersects) {
+          p = this.bounds.getRandomPoint();
+          shape = Phaser.Geom.Rectangle.CenterOn(
+            shape,
+            p.x + (d * span) / 2,
+            p.y
+          );
+        }
+
+        iterations -= 1;
+      }
+
+      if (iterations < 10) console.log(iterations);
+
+      c.setPosition(p.x, p.y).setAngle(Math.random() * 360);
+      c.setData("bounds", shape);
+      if (DEV_MODE) this.graphics.fillRectShape(shape);
+
+      if (Math.random() < 0.4) {
+        this.add.tween({
+          targets: c,
+          angle: "+=360",
+          duration: Phaser.Math.Between(15, 25) * 1000,
+          loop: -1,
+          onUpdate: () => {
+            if (this.constraint?.bodyB == c.body) {
+              // adjust player position while rotating
+              // this is adapted from the right mouse button code
+              const r = c.rotation;
+              const dist = this.constraint.pointB.length();
+
+              // current player position, adjusted to match the container's position
+              const pPos = new Phaser.Math.Vector2(
+                this.player.x - c.x,
+                this.player.y - c.y
+              );
+
+              // calculate both far end positions of the grabbable
+              const p1 = new Phaser.Math.Vector2(
+                dist * Math.cos(r),
+                dist * Math.sin(r)
+              );
+              const p2 = new Phaser.Math.Vector2(
+                -dist * Math.cos(r),
+                -dist * Math.sin(r)
+              );
+              let moveTo; // we'll actually move to moveTo
+
+              // is the mouse closer to p1 or p2? which far end?
+              pPos.distance(p1) < pPos.distance(p2)
+                ? (moveTo = p1)
+                : (moveTo = p2);
+
+              // stroke of genius here, I don't really know why this is correct
+              const z = moveTo.x * Math.cos(r) + moveTo.y * Math.sin(r);
+              this.constraint.pointB.x = z * Math.cos(r);
+              this.constraint.pointB.y = z * Math.sin(r);
+            }
+          },
+        });
+      }
+
+      // normalize so it covers platform's width in four seconds
+      const duration = 1000 * (span / line.width);
+      const ease = "sine.inout";
+
+      this.tweens.chain({
+        targets: c,
+        tweens: [
+          {
+            x: `+=${d * span}`,
+            delay: 1000,
+            duration: duration,
+            ease: ease,
+          },
+          {
+            x: `-=${d * span}`,
+            delay: 1000,
+            duration: duration,
+            ease: ease,
+          },
+        ],
+        loop: -1,
+        delay: 8000 * Math.random(),
+      });
+
+      this.structures.push(c);
+    }
+  }
+
   createMovingPlatforms(num) {
     for (let i = 0; i < num; i++) {
       const platform = this.matter.add
@@ -520,13 +673,13 @@ class Game extends Phaser.Scene {
         tweens: [
           {
             y: `-=${span}`, // go up
-            delay: 3000,
+            delay: 1000,
             duration: duration,
             ease: ease,
           },
           {
             y: `+=${span}`, // go down
-            delay: 3000,
+            delay: 1000,
             duration: duration,
             ease: ease,
           },
@@ -712,6 +865,7 @@ class Game extends Phaser.Scene {
 
       switch (other.label) {
         case "grabbable":
+        case "movingGrabbable":
           this.createConstraint(other);
           break;
         case "jumpPad":
