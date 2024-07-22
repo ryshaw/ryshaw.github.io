@@ -1,6 +1,6 @@
 const VERSION = "Infiniclimb v0.1";
 
-const DEV_MODE = true; // turns on physics debug mode
+const DEV_MODE = false; // turns on physics debug mode
 
 const gameW = 800;
 const gameH = 960;
@@ -95,7 +95,7 @@ class Game extends Phaser.Scene {
   bounds; // rectangle (maybe later an array) where objects will be placed
   reticle; // helps orient the camera between player and mouse
   timer; // how long to wait between jumps
-  structures; // all grabbables, ledges, platforms, jump pads, etc.
+  structures; // all grabbables, platforms, jump pads, etc.
   graphics; // for drawing bounds of the structures in debug mode
 
   constructor() {
@@ -107,20 +107,14 @@ class Game extends Phaser.Scene {
     this.arrowVector = new Phaser.Math.Vector2();
     this.timer = 1200;
 
-    this.graphics = this.add
-      .graphics()
-      .fillStyle(0xff0000, 0.05)
-      .lineStyle(10, 0x0000ff, 0.05);
-
     const w = gameW * 8;
     const h = gameH * 14;
 
     this.bounds = new Phaser.Geom.Rectangle(-w / 2, -h, w, h + gameH * 0.25);
-    if (DEV_MODE) this.graphics.strokeRectShape(this.bounds);
 
     //this.createResolution();
 
-    this.createTextures();
+    this.createGraphics();
 
     this.createLayout();
 
@@ -131,6 +125,7 @@ class Game extends Phaser.Scene {
     this.createMovingGrabbables(16);
     this.createFallingGrabbables(40);
     this.createGrabbables(40);
+    this.createCoins();
 
     this.createPlayer();
 
@@ -141,7 +136,7 @@ class Game extends Phaser.Scene {
 
     this.reticle = this.add.circle(this.player.x, this.player.y);
     this.cameras.main.startFollow(this.reticle, false, 0.05, 0.05);
-    this.cameras.main.setZoom(0.4);
+    this.cameras.main.setZoom(0.8);
   }
 
   createResolution() {
@@ -168,8 +163,8 @@ class Game extends Phaser.Scene {
     this.scale.on("resize", this.resize, this);
   }
 
-  createTextures() {
-    this.make
+  createGraphics() {
+    this.graphics = this.add
       .graphics()
       .fillStyle(0x000000)
       .fillRoundedRect(0, 0, 50, 50, 12)
@@ -200,7 +195,65 @@ class Game extends Phaser.Scene {
       .fillStyle(0xffffff) // platform vs. moving platform is different
       .fillRoundedRect(4, 4, 500, 28, 8)
       .generateTexture("platform", 512, 40)
-      .destroy();
+      .clear();
+
+    this.drawStar(this.graphics, 36, 36, 5, 32, 32 / 2, 0x000000, 0x000000);
+    this.drawStar(
+      this.graphics,
+      36 - 1.2,
+      36 - 1.2,
+      5,
+      24,
+      24 / 2,
+      0xffffff,
+      0xffffff
+    );
+
+    this.graphics.generateTexture("coin", 70, 66).clear();
+
+    // set for drawing debug graphics
+    this.graphics.fillStyle(0xff0000, 0.05).lineStyle(10, 0x0000ff, 0.05);
+    if (DEV_MODE) this.graphics.strokeRectShape(this.bounds);
+  }
+
+  // stolen from phaser examples
+  // https://labs.phaser.io/edit.html?src=src\game%20objects\graphics\star%20shape.js
+  drawStar(
+    graphics,
+    cx,
+    cy,
+    spikes,
+    outerRadius,
+    innerRadius,
+    color,
+    lineColor
+  ) {
+    let rot = (Math.PI / 2) * 3;
+    let x = cx;
+    let y = cy;
+    const step = Math.PI / spikes;
+
+    graphics.lineStyle(4, lineColor, 1);
+    graphics.fillStyle(color, 1);
+    graphics.beginPath();
+    graphics.moveTo(cx, cy - outerRadius);
+
+    for (let i = 0; i < spikes; i++) {
+      x = cx + Math.cos(rot) * outerRadius;
+      y = cy + Math.sin(rot) * outerRadius;
+      graphics.lineTo(x, y);
+      rot += step;
+
+      x = cx + Math.cos(rot) * innerRadius;
+      y = cy + Math.sin(rot) * innerRadius;
+      graphics.lineTo(x, y);
+      rot += step;
+    }
+
+    graphics.lineTo(cx, cy - outerRadius);
+    graphics.closePath();
+    graphics.fillPath();
+    graphics.strokePath();
   }
 
   createLayout() {
@@ -702,17 +755,21 @@ class Game extends Phaser.Scene {
         })
         .setName("platform")
         .setTint(0xbc6c25) // stationary platform color
-        .setAngle(Phaser.Math.Between(-4, 4) * 2);
+        .setAngle(Phaser.Math.Between(-3, 3) * 2);
 
-      platform.setScale(0.8 + Phaser.Math.FloatBetween(0, 1.2));
+      platform.setScale(0.5 + Phaser.Math.FloatBetween(0, 1));
 
       // find spot away from other structures algorithm
       let iterations = 100; // loop many times before giving up
       let intersects = true;
       let p = this.bounds.getRandomPoint();
+      const w = platform.displayWidth;
+      const h = platform.displayHeight;
 
-      let radius = platform.displayWidth * 0.52;
-      let shape = new Phaser.Geom.Circle(p.x, p.y, radius);
+      let shape = new Phaser.Geom.Rectangle(0, 0, w, h);
+
+      shape = Phaser.Geom.Rectangle.CenterOn(shape, p.x, p.y);
+      shape = Phaser.Geom.Rectangle.Inflate(shape, w * 0.05, h * 2);
 
       while (intersects && iterations > 0) {
         intersects = false;
@@ -720,11 +777,11 @@ class Game extends Phaser.Scene {
         this.structures.forEach((s) => {
           const other = s.getData("bounds");
           if (other.type == Phaser.Geom.CIRCLE) {
-            if (Phaser.Geom.Intersects.CircleToCircle(other, shape)) {
+            if (Phaser.Geom.Intersects.CircleToRectangle(other, shape)) {
               intersects = true;
             }
           } else if (other.type == Phaser.Geom.RECTANGLE) {
-            if (Phaser.Geom.Intersects.CircleToRectangle(shape, other)) {
+            if (Phaser.Geom.Intersects.RectangleToRectangle(other, shape)) {
               intersects = true;
             }
           }
@@ -732,8 +789,7 @@ class Game extends Phaser.Scene {
 
         if (intersects) {
           p = this.bounds.getRandomPoint();
-          shape.x = p.x;
-          shape.y = p.y;
+          shape = Phaser.Geom.Rectangle.CenterOn(shape, p.x, p.y);
         }
 
         iterations -= 1;
@@ -743,7 +799,7 @@ class Game extends Phaser.Scene {
 
       platform.setPosition(p.x, p.y);
       platform.setData("bounds", shape);
-      if (DEV_MODE) this.graphics.fillCircleShape(shape);
+      if (DEV_MODE) this.graphics.fillRectShape(shape);
 
       this.structures.push(platform);
     }
@@ -807,6 +863,16 @@ class Game extends Phaser.Scene {
 
       this.structures.push(jumpPad);
     }
+  }
+
+  createCoins() {
+    this.matter.add
+      .image(0, gameH * 0.2, "coin", null, {
+        isStatic: true,
+        isSensor: true,
+        circleRadius: 40,
+      })
+      .setTint(0xfcf300);
   }
 
   createPlayer() {
