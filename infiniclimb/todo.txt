@@ -1,3 +1,2 @@
-- coins on platforms
 - checkpoints (on platforms or separate barrier)
 - restart at checkpoint button (costs coins)

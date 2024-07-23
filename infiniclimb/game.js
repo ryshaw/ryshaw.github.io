@@ -97,6 +97,8 @@ class Game extends Phaser.Scene {
   timer; // how long to wait between jumps
   structures; // all grabbables, platforms, jump pads, etc.
   graphics; // for drawing bounds of the structures in debug mode
+  coins; // how many coins the player has
+  maxIterations; // for the placement of structures algorithm
 
   constructor() {
     super("Game");
@@ -105,7 +107,9 @@ class Game extends Phaser.Scene {
   create() {
     this.canJump = true;
     this.arrowVector = new Phaser.Math.Vector2();
-    this.timer = 1200;
+    this.timer = DEV_MODE ? 200 : 1200;
+    this.coins = 0;
+    this.maxIterations = 300;
 
     const w = gameW * 8;
     const h = gameH * 14;
@@ -119,13 +123,13 @@ class Game extends Phaser.Scene {
     this.createLayout();
 
     this.structures = [];
-    this.createMovingPlatforms(10);
-    this.createJumpPads(10);
-    this.createPlatforms(16);
-    this.createMovingGrabbables(16);
-    this.createFallingGrabbables(40);
-    this.createGrabbables(40);
-    this.createCoins();
+    this.createMovingPlatforms(18);
+    this.createJumpPads(18);
+    this.createPlatforms(30);
+    this.createMovingGrabbables(18);
+    this.createFallingGrabbables(30);
+    this.createGrabbables(70);
+    this.createCoins(35);
 
     this.createPlayer();
 
@@ -136,7 +140,7 @@ class Game extends Phaser.Scene {
 
     this.reticle = this.add.circle(this.player.x, this.player.y);
     this.cameras.main.startFollow(this.reticle, false, 0.05, 0.05);
-    this.cameras.main.setZoom(0.8);
+    this.cameras.main.setZoom(0.5);
   }
 
   createResolution() {
@@ -191,10 +195,10 @@ class Game extends Phaser.Scene {
       .generateTexture("line", 128, 16)
       .clear()
       .fillStyle(0x000000)
-      .fillRoundedRect(0, 0, 512, 40, 12)
+      .fillRoundedRect(0, 0, 256, 30, 6)
       .fillStyle(0xffffff) // platform vs. moving platform is different
-      .fillRoundedRect(4, 4, 500, 28, 8)
-      .generateTexture("platform", 512, 40)
+      .fillRoundedRect(3, 3, 248, 22, 4)
+      .generateTexture("platform", 256, 30)
       .clear();
 
     this.drawStar(this.graphics, 36, 36, 5, 32, 32 / 2, 0x000000, 0x000000);
@@ -271,8 +275,8 @@ class Game extends Phaser.Scene {
       const line = this.add.image(0, 0, "line").setName("line");
 
       let scale;
-      if (i <= num * 0.25) scale = 1 + Phaser.Math.FloatBetween(2, 4);
-      else if (i <= num * 0.5) scale = 1 + Phaser.Math.FloatBetween(1, 3);
+      if (i <= num * 0.15) scale = 1 + Phaser.Math.FloatBetween(1, 3);
+      else if (i <= num * 0.3) scale = 1 + Phaser.Math.FloatBetween(0.5, 2.5);
       else scale = 1 + Phaser.Math.FloatBetween(0, 2);
 
       line.setScale(scale, 1).setTint(0xccc5b9);
@@ -299,7 +303,7 @@ class Game extends Phaser.Scene {
       this.matter.add.gameObject(c, rect, true);
 
       // find spot away from other grabbables algorithm
-      let iterations = 100; // loop many times before giving up
+      let iterations = this.maxIterations; // loop many times before giving up
       let intersects = true;
       let p = this.bounds.getRandomPoint();
 
@@ -386,14 +390,12 @@ class Game extends Phaser.Scene {
   }
 
   createFallingGrabbables(num) {
-    // 06d6a0
-
     for (let i = 0; i < num; i++) {
       const line = this.add.image(0, 0, "line").setName("line");
 
       let scale;
-      if (i <= num * 0.25) scale = 1 + Phaser.Math.FloatBetween(2, 4);
-      else if (i <= num * 0.5) scale = 1 + Phaser.Math.FloatBetween(1, 3);
+      if (i <= num * 0.15) scale = 1 + Phaser.Math.FloatBetween(1, 3);
+      else if (i <= num * 0.3) scale = 1 + Phaser.Math.FloatBetween(0.5, 2.5);
       else scale = 1 + Phaser.Math.FloatBetween(0, 2);
 
       line.setScale(scale, 1).setTint(0x06d6a0);
@@ -422,7 +424,7 @@ class Game extends Phaser.Scene {
       this.matter.add.gameObject(c, rect, true);
 
       // find spot away from other grabbables algorithm
-      let iterations = 100; // loop many times before giving up
+      let iterations = this.maxIterations; // loop many times before giving up
       let intersects = true;
       let p = this.bounds.getRandomPoint();
 
@@ -513,8 +515,8 @@ class Game extends Phaser.Scene {
       const line = this.add.image(0, 0, "line").setName("line");
 
       let scale;
-      if (i <= num * 0.25) scale = 1 + Phaser.Math.FloatBetween(2, 4);
-      else if (i <= num * 0.5) scale = 1 + Phaser.Math.FloatBetween(1, 3);
+      if (i <= num * 0.15) scale = 1 + Phaser.Math.FloatBetween(1, 3);
+      else if (i <= num * 0.3) scale = 1 + Phaser.Math.FloatBetween(0.5, 2.5);
       else scale = 1 + Phaser.Math.FloatBetween(0, 2);
 
       line.setScale(scale, 1).setTint(0x3a86ff);
@@ -544,7 +546,7 @@ class Game extends Phaser.Scene {
       let d = Math.random() > 0.5 ? 1 : -1; // going right or left
 
       // find spot away from other grabbables algorithm
-      let iterations = 100; // loop many times before giving up
+      let iterations = this.maxIterations; // loop many times before giving up
       let intersects = true;
       let p = this.bounds.getRandomPoint();
       const w = b.width;
@@ -632,8 +634,8 @@ class Game extends Phaser.Scene {
         });
       }
 
-      // normalize so it covers platform's width in four seconds
-      const duration = 1000 * (span / line.width);
+      // normalize so it covers line's width in a certain amount of time
+      const duration = 500 * (span / line.width);
       const ease = "sine.inout";
 
       this.tweens.chain({
@@ -641,13 +643,11 @@ class Game extends Phaser.Scene {
         tweens: [
           {
             x: `+=${d * span}`,
-            delay: 1000,
             duration: duration,
             ease: ease,
           },
           {
             x: `-=${d * span}`,
-            delay: 1000,
             duration: duration,
             ease: ease,
           },
@@ -665,18 +665,23 @@ class Game extends Phaser.Scene {
       const platform = this.matter.add
         .image(0, 0, "platform", null, {
           isStatic: true,
-          chamfer: { radius: 16 },
+          chamfer: { radius: 8 },
           label: "platform",
         })
         .setName("platform")
         .setTint(0xe0aaff); // moving platform color
 
-      platform.setScale(0.5 + Phaser.Math.FloatBetween(0, 1.5));
+      let scale;
+      if (i <= num * 0.15) scale = 0.8 + Phaser.Math.FloatBetween(0, 1.5);
+      else if (i <= num * 0.3) scale = 0.8 + Phaser.Math.FloatBetween(0, 1);
+      else scale = 0.8 + Phaser.Math.FloatBetween(0, 0.5);
+
+      platform.setScale(scale);
 
       let span = Phaser.Math.Between(gameH * 0.8, gameH * 2);
 
       // find spot away from other structures algorithm
-      let iterations = 100; // loop many times before giving up
+      let iterations = this.maxIterations; // loop many times before giving up
       let intersects = true; // true if intersects other structures
       let p = this.bounds.getRandomPoint();
       const w = platform.displayWidth;
@@ -717,24 +722,22 @@ class Game extends Phaser.Scene {
       platform.setData("bounds", shape);
       if (DEV_MODE) this.graphics.fillRectShape(shape);
 
-      // normalize so it covers platform's width in three seconds
-      const duration = 4000 * (span / w);
-      const ease = "sine.inout";
+      // normalize so it covers platform's width in a certain amount of time
+      const d = 2000 * (span / w);
+      const e = "sine.inout";
 
       this.tweens.chain({
         targets: platform,
         tweens: [
           {
-            y: `-=${span}`, // go up
-            delay: 1000,
-            duration: duration,
-            ease: ease,
+            y: `-=${span}`,
+            duration: d,
+            ease: e,
           },
           {
-            y: `+=${span}`, // go down
-            delay: 1000,
-            duration: duration,
-            ease: ease,
+            y: `+=${span}`,
+            duration: d,
+            ease: e,
           },
         ],
         loop: -1,
@@ -750,17 +753,22 @@ class Game extends Phaser.Scene {
       const platform = this.matter.add
         .image(0, 0, "platform", null, {
           isStatic: true,
-          chamfer: { radius: 16 },
+          chamfer: { radius: 8 },
           label: "platform",
         })
         .setName("platform")
         .setTint(0xbc6c25) // stationary platform color
         .setAngle(Phaser.Math.Between(-3, 3) * 2);
 
-      platform.setScale(0.5 + Phaser.Math.FloatBetween(0, 1));
+      let scale;
+      if (i <= num * 0.15) scale = 0.8 + Phaser.Math.FloatBetween(0, 1.5);
+      else if (i <= num * 0.3) scale = 0.8 + Phaser.Math.FloatBetween(0, 1);
+      else scale = 0.8 + Phaser.Math.FloatBetween(0, 0.5);
+
+      platform.setScale(scale);
 
       // find spot away from other structures algorithm
-      let iterations = 100; // loop many times before giving up
+      let iterations = this.maxIterations; // loop many times before giving up
       let intersects = true;
       let p = this.bounds.getRandomPoint();
       const w = platform.displayWidth;
@@ -810,17 +818,22 @@ class Game extends Phaser.Scene {
       const jumpPad = this.matter.add
         .image(0, 0, "platform", null, {
           isStatic: true,
-          chamfer: { radius: 16 },
+          chamfer: { radius: 8 },
           label: "jumpPad",
         })
         .setName("jumpPad")
         .setTint(0xfb8500) // orange
         .setAngle(Phaser.Math.Between(-4, 4) * 2);
 
-      jumpPad.setScale(0.4 + Phaser.Math.FloatBetween(0, 0.2));
+      let scale;
+      if (i <= num * 0.15) scale = 0.8 + Phaser.Math.FloatBetween(0, 1.5);
+      else if (i <= num * 0.3) scale = 0.8 + Phaser.Math.FloatBetween(0, 1);
+      else scale = 0.8 + Phaser.Math.FloatBetween(0, 0.5);
+
+      jumpPad.setScale(scale);
 
       // find spot away from other structures algorithm
-      let iterations = 100; // loop many times before giving up
+      let iterations = this.maxIterations; // loop many times before giving up
       let intersects = true;
       let p = this.bounds.getRandomPoint();
       const w = jumpPad.displayWidth;
@@ -865,14 +878,115 @@ class Game extends Phaser.Scene {
     }
   }
 
-  createCoins() {
-    this.matter.add
-      .image(0, gameH * 0.2, "coin", null, {
-        isStatic: true,
-        isSensor: true,
-        circleRadius: 40,
-      })
-      .setTint(0xfcf300);
+  createCoins(num) {
+    // num = how many "coin sets" there are
+    // a coin set is a row or column of a few coins packed together
+    const coinSets = []; // contains all currently placed sets of coins
+    const space = 100; // the space between coins, about coin.width * 1.5
+
+    for (let i = 0; i < num; i++) {
+      const numCoins = Phaser.Math.Between(2, 6);
+      const coins = [];
+
+      for (let j = 0; j < numCoins; j++) {
+        const coin = this.matter.add
+          .image(j * space, 0, "coin", null, {
+            isStatic: true,
+            isSensor: true,
+            circleRadius: 55,
+            label: "coin",
+          })
+          .setTint(0xfce45d)
+          .setAngle(-10); // for below tween!
+
+        this.add.tween({
+          targets: coin,
+          duration: 600,
+          ease: "sine.inout",
+          angle: 10,
+          yoyo: true,
+          loop: -1,
+        });
+
+        coins.push(coin);
+      }
+
+      // find spot away from structures algorithm
+      let iterations = this.maxIterations; // loop many times before giving up
+      let intersects = true;
+      let p = this.bounds.getRandomPoint();
+
+      let x;
+      let y;
+      let radius;
+      if (numCoins % 2 != 0) {
+        const centerCoin = coins[Math.floor(numCoins / 2)];
+        x = centerCoin.x;
+        y = centerCoin.y;
+        radius = centerCoin.x - coins[0].x + space * 0.6;
+      } else {
+        const firstCenterCoin = coins[Math.floor(numCoins / 2) - 1];
+        const secondCenterCoin = coins[Math.floor(numCoins / 2)];
+        x = (firstCenterCoin.x + secondCenterCoin.x) / 2;
+        y = (firstCenterCoin.y + secondCenterCoin.y) / 2;
+        radius = x - coins[0].x + space * 0.6;
+      }
+
+      let shape = new Phaser.Geom.Circle(p.x, p.y, radius);
+
+      while (intersects && iterations > 0) {
+        intersects = false;
+
+        this.structures.forEach((s) => {
+          const other = s.getData("bounds");
+          if (other.type == Phaser.Geom.CIRCLE) {
+            if (Phaser.Geom.Intersects.CircleToCircle(other, shape)) {
+              intersects = true;
+            }
+          } else if (other.type == Phaser.Geom.RECTANGLE) {
+            if (Phaser.Geom.Intersects.CircleToRectangle(shape, other)) {
+              intersects = true;
+            }
+          }
+        });
+
+        // now check the currently placed other coin sets
+        coinSets.forEach((other) => {
+          if (Phaser.Geom.Intersects.CircleToCircle(other, shape)) {
+            intersects = true;
+          }
+        });
+
+        if (intersects) {
+          p = this.bounds.getRandomPoint();
+          shape.x = p.x;
+          shape.y = p.y;
+        }
+
+        iterations -= 1;
+      }
+
+      if (iterations < 10) console.log(iterations);
+
+      if (DEV_MODE) this.graphics.fillCircleShape(shape);
+      coinSets.push(shape);
+
+      // pick an angle in [0, 360) by increments of 15
+      // so either 0, 15, 30, 45, 60, and so on
+      const angle = Phaser.Math.Between(0, 23) * 15;
+
+      for (let k = 0; k < coins.length; k++) {
+        // don't even ask how the math works, it just works okay
+        const v = new Phaser.Math.Vector2();
+        v.x = k * space - ((coins.length - 1) * space) / 2;
+        v.y = 0;
+
+        v.rotate(Phaser.Math.DegToRad(angle));
+
+        coins[k].x = shape.x + v.x;
+        coins[k].y = shape.y + v.y;
+      }
+    }
   }
 
   createPlayer() {
@@ -934,6 +1048,7 @@ class Game extends Phaser.Scene {
         case "movingGrabbable":
           this.createConstraint(other);
           break;
+
         case "jumpPad":
           // remove constraint if hit platform
           if (this.constraint) {
@@ -943,6 +1058,7 @@ class Game extends Phaser.Scene {
 
           this.jumpForce(other);
           break;
+
         case "fallingGrabbable":
           const o = other.gameObject;
           const p = new Phaser.Math.Vector2(o.x, o.y);
@@ -952,7 +1068,7 @@ class Game extends Phaser.Scene {
 
           o.setData("falling", true);
           this.createConstraint(other);
-          this.time.delayedCall(2000, () => o.setIgnoreGravity(false));
+          this.time.delayedCall(3000, () => o.setIgnoreGravity(false));
           this.time.delayedCall(8000, () => {
             // respawn this grabbable
             if (this.constraint?.bodyB == other) {
@@ -965,13 +1081,38 @@ class Game extends Phaser.Scene {
             o.setData("falling", false);
           });
           break;
+
+        case "coin":
+          this.coins++;
+          this.matter.world.remove(other);
+          this.tweens.killTweensOf(other.gameObject);
+
+          this.tweens.chain({
+            targets: other.gameObject,
+            tweens: [
+              {
+                scale: 1.3,
+                duration: 250,
+                ease: "bounce.out",
+              },
+              {
+                scale: 0,
+                duration: 500,
+                angle: 180,
+                ease: "sine.inout",
+              },
+            ],
+            onComplete: () => other.gameObject.destroy(),
+          });
+          break;
+
         default:
           // remove constraint if hit platform
           if (this.constraint) {
             this.matter.world.removeConstraint(this.constraint);
             this.constraint = null;
           }
-          return;
+          break;
       }
     });
   }
