@@ -128,8 +128,8 @@ class Game extends Phaser.Scene {
     this.createPlatforms(30);
     this.createMovingGrabbables(18);
     this.createFallingGrabbables(30);
-    this.createGrabbables(70);
-    this.createCoins(35);
+    this.createGrabbables(60);
+    this.createCoins(30);
 
     this.createPlayer();
 
