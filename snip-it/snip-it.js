@@ -4,7 +4,7 @@ this file contains game config, MainUI, and Background
 Game class, custom classes, and constants are imported */
 
 console.log(window.location);
-
+/*
 import { Game } from "./snip-it/game.js";
 import { GameText, GameButton } from "./snip-it/customObjects.js";
 import {
@@ -15,7 +15,7 @@ import {
   MAX_LEVEL,
   FONTS,
   COLORS,
-} from "./snip-it/constants.js";
+} from "./snip-it/constants.js";*/
 
 class Background extends Phaser.Scene {
   graphics;
