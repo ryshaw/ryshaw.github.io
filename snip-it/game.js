@@ -66,8 +66,6 @@ export class Game extends Phaser.Scene {
     this.level = data.level; // level is any number from 0 (tutorial) to 26 (game complete)
     this.level = this.level / 1; // make sure it's a number
 
-    this.level = 26;
-
     this.createResolution();
     this.createEvents();
 
@@ -1881,17 +1879,39 @@ export class Game extends Phaser.Scene {
           ease: "sine.inout",
         });
 
-        const s =
+        const mouseKbText =
           "here's how to unlock cheat mode:\n\n" +
           `- click/tap & hold the "${VERSION}" text on the start menu ` +
           'for ten seconds\n\n- or type the word "capybara" on the start menu\n\n' +
           "cheat mode doubles your speed, and powerups will appear 5x as fast. enjoy!\n\n" +
-          "hold any key, or tap & hold to return to the start menu";
+          "hold any key, or click/tap & hold to return to the start menu";
 
-        const c = new GameText(this, gameW * 0.5, gameH * 0.35, s, "s", "c")
+        const gamepadText =
+          "here's how to unlock cheat mode:\n\n" +
+          "- on the start menu, hold\nL1 + R2 + B + D-pad left\n" +
+          "all at the same time for ten seconds\n\n" +
+          "cheat mode doubles your speed, and powerups will appear 5x as fast. enjoy!\n\n" +
+          "hold any button (except analog sticks) to return to the start menu";
+
+        const c = new GameText(
+          this,
+          gameW * 0.5,
+          gameH * 0.33,
+          mouseKbText,
+          "s",
+          "c"
+        )
           .setOrigin(0.5, 0)
           .setLineSpacing(14)
           .setWordWrapWidth(gameW * 0.97, true);
+
+        this.input.gamepad.once("connected", () => (c.text = gamepadText));
+
+        this.input.gamepad.on("down", () => (c.text = gamepadText));
+
+        this.input.keyboard.on("keydown", () => (c.text = mouseKbText));
+
+        this.input.on("pointerdown", () => (c.text = mouseKbText));
 
         const r = this.add
           .rectangle(gameW * 0.05, gameH - 20, 0, 16, COLORS.buttonColor, 1)
@@ -1931,6 +1951,24 @@ export class Game extends Phaser.Scene {
           this.tweens.add(tween);
         });
         this.input.on("pointerup", () => {
+          this.tweens.killTweensOf(r);
+          r.width = 0;
+        });
+        this.input.gamepad.on("down", (pad) => {
+          /* bug: moving the sticks triggers the down event,
+          but releasing the sticks will not trigger the up event.
+
+          fix: upon further investigation, pressing the gamepad buttons
+          (not the sticks) will give a Gamepad object as the pad parameter,
+          whereas the sticks will not give a Gamepad object and simply
+          leave it as undefined. so, if there's no pad parameter,
+          assume the player is moving the sticks and do not record as down.
+          */
+          if (!pad) return; // sticks moved, don't start tween
+          if (this.tweens.getTweensOf(r).length > 0) return;
+          this.tweens.add(tween);
+        });
+        this.input.gamepad.on("up", () => {
           this.tweens.killTweensOf(r);
           r.width = 0;
         });
