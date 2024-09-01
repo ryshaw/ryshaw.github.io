@@ -1,4 +1,6 @@
-import { COLORS } from "./../constants.js";
+const path = window.location.pathname;
+
+let { COLORS } = await import(`${path}constants.js`);
 
 export class GameText extends Phaser.GameObjects.Text {
   constructor(

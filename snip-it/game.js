@@ -1,13 +1,8 @@
-import {
-  VERSION,
-  gameW,
-  gameH,
-  DEV_MODE,
-  MAX_LEVEL,
-  FONTS,
-  COLORS,
-} from "./../constants.js";
-import { GameText, GameButton } from "./../customObjects.js";
+const path = window.location.pathname;
+
+let { GameText, GameButton } = await import(`${path}customObjects.js`);
+let { VERSION, gameW, gameH, DEV_MODE, MAX_LEVEL, FONTS, COLORS } =
+  await import(`${path}constants.js`);
 
 export class Game extends Phaser.Scene {
   keysDown; // track the keys being pressed in order

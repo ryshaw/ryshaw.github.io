@@ -4,18 +4,12 @@ this file contains game config, MainUI, and Background
 Game class, custom classes, and constants are imported */
 
 console.log(window.location);
-/*
-import { Game } from "./snip-it/game.js";
-import { GameText, GameButton } from "./snip-it/customObjects.js";
-import {
-  VERSION,
-  gameW,
-  gameH,
-  DEV_MODE,
-  MAX_LEVEL,
-  FONTS,
-  COLORS,
-} from "./snip-it/constants.js";*/
+const path = window.location.pathname;
+
+let { Game } = await import(`${path}game.js`);
+let { GameText, GameButton } = await import(`${path}customObjects.js`);
+let { VERSION, gameW, gameH, DEV_MODE, MAX_LEVEL, FONTS, COLORS } =
+  await import(`${path}constants.js`);
 
 class Background extends Phaser.Scene {
   graphics;
