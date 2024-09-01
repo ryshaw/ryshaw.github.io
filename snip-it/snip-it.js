@@ -3,8 +3,11 @@ the limit for formatting is ~3450 lines
 this file contains game config, MainUI, and Background
 Game class, custom classes, and constants are imported */
 
-console.log(window.location);
+/* OK, so I also had to use ES6 dynamic import or whatever,
+because localhost and ryshaw.github.io throw the modules into
+different folders so I need to lookup the paths during runtime. */
 const path = window.location.pathname;
+// path = "/" for localhost, and "/snip-it/" on ryshaw.github.io
 
 let { Game } = await import(`${path}game.js`);
 let { GameText, GameButton } = await import(`${path}customObjects.js`);
