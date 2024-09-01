@@ -5,8 +5,8 @@ Game class, custom classes, and constants are imported */
 
 console.log(window.location);
 
-import { Game } from "./../game.js";
-import { GameText, GameButton } from "./../customObjects.js";
+import { Game } from "./snip-it/game.js";
+import { GameText, GameButton } from "./snip-it/customObjects.js";
 import {
   VERSION,
   gameW,
@@ -15,7 +15,7 @@ import {
   MAX_LEVEL,
   FONTS,
   COLORS,
-} from "./../constants.js";
+} from "./snip-it/constants.js";
 
 class Background extends Phaser.Scene {
   graphics;
