@@ -6,7 +6,7 @@ import {
   MAX_LEVEL,
   FONTS,
   COLORS,
-} from "./constants.js";
+} from "/constants.js";
 import { GameText, GameButton } from "/customObjects.js";
 
 export class Game extends Phaser.Scene {
