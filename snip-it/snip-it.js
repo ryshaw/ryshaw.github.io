@@ -2,6 +2,9 @@
 the limit for formatting is ~3450 lines
 this file contains game config, MainUI, and Background
 Game class, custom classes, and constants are imported */
+
+console.log(window.location);
+
 import { Game } from "./../game.js";
 import { GameText, GameButton } from "./../customObjects.js";
 import {
