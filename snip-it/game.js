@@ -6,8 +6,8 @@ import {
   MAX_LEVEL,
   FONTS,
   COLORS,
-} from "/snip-it/constants.js";
-import { GameText, GameButton } from "/snip-it/customObjects.js";
+} from "./../constants.js";
+import { GameText, GameButton } from "./../customObjects.js";
 
 export class Game extends Phaser.Scene {
   keysDown; // track the keys being pressed in order
