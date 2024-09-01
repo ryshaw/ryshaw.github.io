@@ -1,4 +1,4 @@
-import { COLORS } from "/constants.js";
+import { COLORS } from "/snip-it/constants.js";
 
 export class GameText extends Phaser.GameObjects.Text {
   constructor(

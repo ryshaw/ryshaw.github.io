@@ -2,8 +2,8 @@
 the limit for formatting is ~3450 lines
 this file contains game config, MainUI, and Background
 Game class, custom classes, and constants are imported */
-import { Game } from "/game.js";
-import { GameText, GameButton } from "/customObjects.js";
+import { Game } from "/snip-it/game.js";
+import { GameText, GameButton } from "/snip-it/customObjects.js";
 import {
   VERSION,
   gameW,
@@ -12,7 +12,7 @@ import {
   MAX_LEVEL,
   FONTS,
   COLORS,
-} from "/constants.js";
+} from "/snip-it/constants.js";
 
 class Background extends Phaser.Scene {
   graphics;
