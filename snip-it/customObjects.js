@@ -1,4 +1,4 @@
-const path = window.location.pathname;
+const path = window.location.pathname.replace("index.html", "");
 
 let { COLORS } = await import(`${path}constants.js`);
 

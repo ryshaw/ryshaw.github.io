@@ -1,4 +1,4 @@
-const path = window.location.pathname;
+const path = window.location.pathname.replace("index.html", "");
 
 let { GameText, GameButton } = await import(`${path}customObjects.js`);
 let { VERSION, gameW, gameH, DEV_MODE, MAX_LEVEL, FONTS, COLORS } =
