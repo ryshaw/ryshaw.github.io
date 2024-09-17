@@ -1,4 +1,4 @@
-const VERSION = "Startracer Corp v0.1";
+const VERSION = "Deep Space Excavate v0.1";
 
 const DEV_MODE = false; // turns on physics debug mode
 
@@ -95,28 +95,18 @@ class Background extends Phaser.Scene {
 class Game extends Phaser.Scene {
   player;
   keysDown;
-  encounters; // physic group containing obstacles/events... in space!
-  roadY = gameH * 0.9; // for placing everything down consistently at the bottom
-  gameLength; // integer. measured in gameW, so total is gameW * gameLength
-  end; // ending planet of level
-  gameOver; // level is over or player died, stop running game events
 
   constructor() {
     super("Game");
   }
 
   create() {
-    // gameLength = 6 corresponds to 30 seconds a level
-    this.gameLength = 3;
-    this.gameOver = false;
-    this.encounters = this.physics.add.group();
-
     this.createResolution();
 
     //this.createStars();
 
     //this.createPlayer();
-    //this.createLayout();
+    this.createAsteroid();
     //this.createEncounters();
 
     //this.createPhysics();
@@ -150,21 +140,28 @@ class Game extends Phaser.Scene {
     this.scale.on("resize", this.resize, this);
   }
 
-  createLayout() {
-    // start planet
-    this.add
-      .image(gameW * 0.5, this.roadY, "planet0")
-      .setScale(0.18)
-      .setAlpha(1)
-      .setDepth(1);
+  createAsteroid() {
+    const num = 20;
+    for (let i = 0; i < num; i++) {
+      const x = Phaser.Math.Between(gameW * 0.3, gameW * 0.8);
+      const y = Phaser.Math.Between(gameH * 0.3, gameH * 0.8);
+      const w = Phaser.Math.Between(32, 368);
 
-    // end planet
-    this.end = this.physics.add
-      .image(gameW * this.gameLength, this.roadY, "planet1")
-      .setDepth(1)
-      .setScale(0.18);
+      //this.add.rectangle(x, y, w, w, 0xbecdef, 1);
+    }
 
-    this.end.body.setSize(this.end.width * 1.2, this.end.height * 1.2);
+    const grid = [];
+
+    const gridX = 60;
+    const gridY = 60;
+    const width = 24;
+
+    for (let i = 0; i < 60; i++) {
+      const x = i * width + width;
+      grid[i] = this.add
+        .rectangle(x, 100, width, width)
+        .setStrokeStyle(2, 0xffffff);
+    }
   }
 
   createStars() {
