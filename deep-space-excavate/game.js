@@ -143,22 +143,22 @@ class Game extends Phaser.Scene {
   createAsteroid() {
     const shapes = [];
 
-    const num = 40;
+    const num = 22;
     for (let i = 0; i < num; i++) {
-      const x = Phaser.Math.Between(gameW * 0.275, gameW * 0.725);
-      const y = Phaser.Math.Between(gameH * 0.25, gameH * 0.75);
-      const w = Phaser.Math.Between(60, 240);
+      const x = Phaser.Math.Between(gameW * 0.325, gameW * 0.675);
+      const y = Phaser.Math.Between(gameH * 0.325, gameH * 0.675);
+      const w = Phaser.Math.Between(40, 320);
 
-      const c = this.add.circle(x, y, w * 0.5, 0xbecdef, 0.3);
+      const c = this.add.circle(x, y, w * 0.5, 0xbecdef, 0);
 
       shapes[i] = new Phaser.Geom.Circle(c.x, c.y, c.radius);
     }
 
     const grid = [];
 
-    const gridX = 36;
-    const gridY = 24;
-    const width = 32;
+    const gridX = 48;
+    const gridY = 40;
+    const width = 20;
 
     const startX = gameW * 0.5 - gridX * width * 0.5; // top left corner
     const startY = gameH * 0.5 - gridY * width * 0.5; // top left corner
@@ -184,7 +184,7 @@ class Game extends Phaser.Scene {
           if (Phaser.Geom.Intersects.CircleToRectangle(circle, r)) {
             rectangle
               .setStrokeStyle(2, 0xbecdef)
-              .setFillStyle(0x495057, 0.9)
+              .setFillStyle(0x343a40, 0.9)
               .setData("filled", true);
           }
         });
@@ -218,7 +218,7 @@ class Game extends Phaser.Scene {
         if (count >= 3) {
           tile
             .setStrokeStyle(2, 0xbecdef)
-            .setFillStyle(0x495057, 0.9)
+            .setFillStyle(0xff0000, 0.9)
             .setData("filled", true);
         }
       }
