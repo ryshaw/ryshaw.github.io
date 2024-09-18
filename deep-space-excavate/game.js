@@ -74,7 +74,7 @@ class Background extends Phaser.Scene {
     this.graphics.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
     this.scene.launch("Game");
-    //this.scene.launch("HUD"); // UI above every scene
+    this.scene.launch("HUD"); // UI above every scene
 
     this.scale.on("resize", this.resize, this);
   }
@@ -141,26 +141,87 @@ class Game extends Phaser.Scene {
   }
 
   createAsteroid() {
-    const num = 20;
-    for (let i = 0; i < num; i++) {
-      const x = Phaser.Math.Between(gameW * 0.3, gameW * 0.8);
-      const y = Phaser.Math.Between(gameH * 0.3, gameH * 0.8);
-      const w = Phaser.Math.Between(32, 368);
+    const shapes = [];
 
-      //this.add.rectangle(x, y, w, w, 0xbecdef, 1);
+    const num = 40;
+    for (let i = 0; i < num; i++) {
+      const x = Phaser.Math.Between(gameW * 0.275, gameW * 0.725);
+      const y = Phaser.Math.Between(gameH * 0.25, gameH * 0.75);
+      const w = Phaser.Math.Between(60, 240);
+
+      const c = this.add.circle(x, y, w * 0.5, 0xbecdef, 0.3);
+
+      shapes[i] = new Phaser.Geom.Circle(c.x, c.y, c.radius);
     }
 
     const grid = [];
 
-    const gridX = 60;
-    const gridY = 60;
-    const width = 24;
+    const gridX = 36;
+    const gridY = 24;
+    const width = 32;
 
-    for (let i = 0; i < 60; i++) {
-      const x = i * width + width;
-      grid[i] = this.add
-        .rectangle(x, 100, width, width)
-        .setStrokeStyle(2, 0xffffff);
+    const startX = gameW * 0.5 - gridX * width * 0.5; // top left corner
+    const startY = gameH * 0.5 - gridY * width * 0.5; // top left corner
+
+    for (let i = 0; i < gridX; i++) {
+      grid[i] = [];
+      for (let j = 0; j < gridY; j++) {
+        const x = startX + i * width;
+        const y = startY + j * width;
+        const rectangle = this.add
+          .rectangle(x, y, width, width)
+          .setStrokeStyle(2, 0xbecdef, 0.1)
+          .setData("filled", false);
+
+        const r = new Phaser.Geom.Rectangle(
+          rectangle.getTopLeft().x,
+          rectangle.getTopLeft().y,
+          rectangle.width,
+          rectangle.height
+        );
+
+        shapes.forEach((circle) => {
+          if (Phaser.Geom.Intersects.CircleToRectangle(circle, r)) {
+            rectangle
+              .setStrokeStyle(2, 0xbecdef)
+              .setFillStyle(0x495057, 0.9)
+              .setData("filled", true);
+          }
+        });
+
+        grid[i][j] = rectangle;
+      }
+    }
+
+    for (let i = 0; i < gridX; i++) {
+      for (let j = 0; j < gridY; j++) {
+        const tile = grid[i][j];
+
+        if (i <= 0 || i >= gridX - 1 || j <= 0 || j >= gridY - 1) continue;
+        if (tile.getData("filled")) continue;
+
+        const neighbors = [
+          grid[i - 1][j],
+          grid[i + 1][j],
+          grid[i][j - 1],
+          grid[i][j + 1],
+        ];
+
+        let count = 0;
+
+        neighbors.forEach((n) => {
+          if (n.getData("filled")) {
+            count++;
+          }
+        });
+
+        if (count >= 3) {
+          tile
+            .setStrokeStyle(2, 0xbecdef)
+            .setFillStyle(0x495057, 0.9)
+            .setData("filled", true);
+        }
+      }
     }
   }
 
@@ -461,888 +522,6 @@ class Game extends Phaser.Scene {
   }
 }
 
-class Station extends Phaser.Scene {
-  station;
-  shop;
-  ship;
-  contracts;
-  transition;
-  transitionTime;
-  playerData;
-  oldContract;
-  newContract;
-
-  constructor() {
-    super("Station");
-  }
-
-  create() {
-    this.oldContract = JSON.parse(localStorage.getItem("oldContract"));
-    this.newContract = JSON.parse(localStorage.getItem("newContract"));
-
-    this.transition = false;
-    this.transitionTime = 800;
-
-    this.createResolution();
-    this.createStars();
-    this.createLayout();
-
-    WebFont.load({
-      google: {
-        families: FONTS,
-      },
-      active: () => {
-        this.createMenus();
-      },
-    });
-
-    this.scene.get("HUD").cameras.main.fadeIn();
-  }
-
-  createResolution() {
-    // I don't know how this code works but it's magic. I also stole it from here:
-    // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
-    const width = this.scale.gameSize.width;
-    const height = this.scale.gameSize.height;
-
-    this.parent = new Phaser.Structs.Size(width, height);
-
-    this.sizer = new Phaser.Structs.Size(
-      gameW,
-      gameH,
-      Phaser.Structs.Size.FIT,
-      this.parent
-    );
-
-    this.parent.setSize(width, height);
-    this.sizer.setSize(width, height);
-
-    this.updateCamera();
-    this.cameras.main.centerOn(gameW / 2, gameH / 2);
-
-    this.scale.on("resize", this.resize, this);
-  }
-
-  createLayout() {
-    if (!this.oldContract) {
-      this.add.image(gameW, gameH * 0.5, "planet0");
-      return;
-    }
-
-    // the planet in localStorage comes in its four overlaid
-    // images, so we must reassemble it.
-    // and yes, the color of each part is the name of the part.
-    this.loadPlanet(this.oldContract.planet).setPosition(gameW, gameH * 0.5);
-  }
-
-  createStars() {
-    this.stars = this.add.group({
-      key: "star",
-      frame: [0, 1, 2, 3],
-      quantity: 200,
-      setAlpha: { value: 0.8 },
-      setScale: { x: 0.3, y: 0.3 },
-    });
-
-    Phaser.Actions.RandomRectangle(
-      this.stars.getChildren(),
-      new Phaser.Geom.Rectangle(-gameW / 2, -2000, gameW * 3, 4000)
-    );
-
-    Phaser.Actions.Call(this.stars.getChildren(), (star) => {
-      // the star frames are in the order: tiny, large, medium, small
-      // so the size is just opposite of the frame number
-      // except for tiny, which I manually set to 1
-      let size = 5 - star.frame.name;
-      if (size == 5) size = 1;
-
-      const random = Phaser.Math.Between(-10, 10) * 0.001; // [-0.01, 0.01]
-      star.setScrollFactor(size * 0.025 + random, 1);
-      star.setTint(Phaser.Utils.Array.GetRandom(COLORS.shipColors));
-
-      this.tweens.add({
-        targets: star,
-        alpha: 0,
-        duration: 200,
-        delay: Phaser.Math.Between(500, 6000),
-        loop: -1,
-        yoyo: true,
-      });
-    });
-  }
-
-  createMenus() {
-    this.createStationMenu();
-    this.createShopMenu();
-    this.createShipMenu();
-    this.createContractsMenu();
-
-    /*
-    const shop = this.add
-      .container(gameW * 0.35, gameH * 0.5)
-      .setSize(gameW * 0.65, gameH * 0.9);
-
-    shop.add([
-      this.add.rectangle(0, 0, shop.width, shop.height, "0xabc4ff", 0.9),
-      new GameText(
-        this,
-        shop.width * 0.5,
-        shop.height * 0.5,
-        "to ship >",
-        5,
-        () => {
-          this.cameras.main.pan(
-            gameW * 1.35,
-            gameH * 0.5,
-            800,
-            Phaser.Math.Easing.Sine.InOut
-          );
-        }
-      )
-        .setOrigin(1, 1)
-        .setPadding(shop.width * 0.02)
-        .setLineSpacing(0),
-    ]);
-
-    const ship = this.add
-      .container(gameW * 1.35, gameH * 0.5)
-      .setSize(gameW * 0.65, gameH * 0.9);
-
-    ship.add([
-      this.add.rectangle(0, 0, ship.width, ship.height, "0xabc4ff", 0.9),
-      new GameText(
-        this,
-        ship.width * 0.5,
-        ship.height * 0.5,
-        "to map >",
-        5,
-        () => {
-          this.cameras.main.pan(
-            gameW * 2.2,
-            gameH * 0.5,
-            800,
-            Phaser.Math.Easing.Sine.InOut
-          );
-        }
-      )
-        .setOrigin(1, 1)
-        .setPadding(ship.width * 0.02)
-        .setLineSpacing(0),
-      new GameText(
-        this,
-        -ship.width * 0.5,
-        ship.height * 0.5,
-        "< to shop",
-        5,
-        () => {
-          this.cameras.main.pan(
-            gameW * 0.5,
-            gameH * 0.5,
-            800,
-            Phaser.Math.Easing.Sine.InOut
-          );
-        }
-      )
-        .setOrigin(0, 1)
-        .setPadding(ship.width * 0.02)
-        .setLineSpacing(0),
-    ]);
-
-    const map = this.add
-      .container(gameW * 2.35, gameH * 0.5)
-      .setSize(gameW * 0.65, gameH * 0.9);
-
-    map.add([
-      this.add.rectangle(0, 0, map.width, map.height, "0xabc4ff", 0.9),
-      new GameText(
-        this,
-        map.width * 0.5,
-        map.height * 0.5,
-        "DEPART",
-        5,
-        this.endScene
-      )
-        .setOrigin(1, 1)
-        .setPadding(map.width * 0.02)
-        .setLineSpacing(0),
-      new GameText(
-        this,
-        -map.width * 0.5,
-        map.height * 0.5,
-        "< to ship",
-        5,
-        () => {
-          this.cameras.main.pan(
-            gameW * 1.35,
-            gameH * 0.5,
-            800,
-            Phaser.Math.Easing.Sine.InOut
-          );
-        }
-      )
-        .setOrigin(0, 1)
-        .setPadding(ship.width * 0.02)
-        .setLineSpacing(0),
-    ]);
-    /*
-    const shopNext = new GameText(
-      this,
-      gameW * 0.5,
-      gameH * 0.94,
-      ">",
-      7,
-      () => {
-        this.cameras.main.pan(
-          gameW * 1.25,
-          gameH * 0.5,
-          800,
-          Phaser.Math.Easing.Sine.InOut
-        );
-      }
-    )
-      .setBackgroundColor("#abc4ff")
-      .setPadding(gameW * 0.125, 0, gameW * 0.125, 0);
-    /*
-    const menu1 = this.add.container(gameW * 0.17, gameH * 0.35).add([
-      this.add
-        .image(0, 0, "menuBig")
-        .setDisplaySize(gameW * 0.28, gameH * 0.5)
-        .setTint(COLORS.stationColor)
-        .setAlpha(0.8),
-      new GameText(this, -240, -240, "shop", 3).setOrigin(0),
-    ]);
-
-    const menu2 = this.add.container(gameW * 0.47, gameH * 0.35).add([
-      this.add
-        .image(0, 0, "menuBig")
-        .setDisplaySize(gameW * 0.28, gameH * 0.5)
-        .setTint(COLORS.stationColor)
-        .setAlpha(0.8),
-      new GameText(this, -240, -240, "inventory", 3).setOrigin(0),
-    ]);
-
-    const menu3 = this.add.container(gameW * 0.32, gameH * 0.8).add([
-      this.add
-        .image(0, 0, "menuBig")
-        .setDisplaySize(gameW * 0.6, gameH * 0.3)
-        .setTint(COLORS.stationColor)
-        .setAlpha(0.8),
-      new GameText(
-        this,
-        -520,
-        -120,
-        "hover over an item to display info",
-        2
-      ).setOrigin(0),
-    ]);
-
-    const menu4 = this.add.container(gameW * 0.7, gameH * 0.9).add([
-      this.add
-        .image(0, 0, "menuSmall")
-        .setDisplaySize(gameW * 0.12, gameH * 0.1)
-        .setTint(COLORS.stationColor)
-        .setAlpha(0.8),
-      new GameText(this, 0, 0, "next", 4, () => {
-        this.cameras.main.pan(
-          gameW * 1.25,
-          gameH * 0.5,
-          800,
-          Phaser.Math.Easing.Sine.InOut
-        );
-      }),
-    ]);
-
-    const menu5 = this.add.container(gameW * 1.68, gameH * 0.35).add([
-      this.add
-        .image(0, 0, "menuBig")
-        .setDisplaySize(gameW * 0.56, gameH * 0.5)
-        .setTint(COLORS.stationColor)
-        .setAlpha(0.8),
-      new GameText(this, -480, -240, "map", 3).setOrigin(0),
-    ]);
-
-    const menu6 = this.add.container(gameW * 1.57, gameH * 0.8).add([
-      this.add
-        .image(0, 0, "menuBig")
-        .setDisplaySize(gameW * 0.34, gameH * 0.3)
-        .setTint(COLORS.stationColor)
-        .setAlpha(0.8),
-      new GameText(this, -280, -120, "hover over a station\nto display info", 2)
-        .setOrigin(0)
-        .setAlign("left"),
-    ]);
-
-    const menu7 = this.add.container(gameW * 1.86, gameH * 0.8).add([
-      this.add
-        .image(0, 0, "menuSmall")
-        .setDisplaySize(gameW * 0.18, gameH * 0.18)
-        .setTint(COLORS.stationColor)
-        .setAlpha(0.8),
-      new GameText(this, 0, 0, "DEPART", 4, this.endScene),
-    ]);
-
-    const menu8 = this.add.container(gameW * 1.3, gameH * 0.9).add([
-      this.add
-        .image(0, 0, "menuSmall")
-        .setDisplaySize(gameW * 0.12, gameH * 0.1)
-        .setTint(COLORS.stationColor)
-        .setAlpha(0.8),
-      new GameText(this, 0, 0, "back", 4, () => {
-        this.cameras.main.pan(
-          gameW * 0.5,
-          gameH * 0.5,
-          800,
-          Phaser.Math.Easing.Sine.InOut
-        );
-      }),
-    ]);*/
-  }
-
-  createStationMenu() {
-    this.station = this.add
-      .container(gameW * 0.36, gameH * 0.55)
-      .setSize(gameW * 0.65, gameH * 0.86);
-
-    this.station.add([
-      this.add
-        .rectangle(
-          0,
-          0,
-          this.station.width,
-          this.station.height,
-          COLORS.fillColor,
-          0.85
-        )
-        .setStrokeStyle(10, COLORS.strokeColor),
-    ]);
-
-    let planetName;
-    if (!this.oldContract) planetName = "A-111";
-    else planetName = this.oldContract.name;
-
-    let text = content.shop.dialog.replace("#name", planetName);
-
-    const dialog = this.add.gameText(
-      -this.station.width * 0.46,
-      -this.station.height * 0.46,
-      text,
-      3,
-      this.station.width * 0.9
-    );
-
-    let bottom = dialog.getBottomLeft();
-    bottom.x += this.station.width * 0.06;
-    bottom.y += this.station.height * 0.03;
-
-    this.station.add(dialog);
-
-    for (let i = 0; i < content.shop.actions.length; i++) {
-      const action = content.shop.actions[i];
-      let x = bottom.x;
-      let y = bottom.y + this.station.height * 0.04;
-
-      const choice = this.add
-        .gameText(
-          x,
-          y,
-          `${i + 1}. ` + action.text,
-          3,
-          this.station.width * 0.9,
-          action.action(this)
-        )
-        .setName(`choice${i}`);
-
-      // change depart text before contract is selected
-      if (i == 3)
-        choice.setColor("#6c757d").setFontStyle("italic").disableInteractive();
-
-      this.station.add(choice);
-      bottom = choice.getBottomLeft();
-    }
-  }
-
-  createShopMenu() {
-    this.shop = this.add
-      .container(gameW * 1.36, gameH * 0.55)
-      .setSize(gameW * 0.65, gameH * 0.86);
-
-    this.shop.add([
-      this.add
-        .rectangle(
-          0,
-          0,
-          this.shop.width,
-          this.shop.height,
-          COLORS.fillColor,
-          0.85
-        )
-        .setStrokeStyle(10, COLORS.strokeColor),
-    ]);
-
-    const title = this.add
-      .gameText(0, -this.shop.height * 0.48, "Shop", 6)
-      .setOrigin(0.5, 0);
-
-    const buy = this.add.gameText(
-      -this.shop.width * 0.46,
-      -this.shop.height * 0.38,
-      "Buy",
-      4
-    );
-
-    const sell = this.add
-      .gameText(0, -this.shop.height * 0.38, "Sell", 4)
-      .setOrigin(0, 0);
-
-    const desc = this.add
-      .gameText(
-        -this.shop.width * 0.46,
-        this.shop.height * 0.05,
-        "Description",
-        4
-      )
-      .setOrigin(0, 0);
-
-    const exit = this.add
-      .gameText(
-        this.shop.width * 0.49,
-        -this.shop.height * 0.51,
-        "x",
-        10,
-        null,
-        this.closeShopMenu
-      )
-      .setOrigin(1, 0);
-
-    this.shop.add([title, buy, sell, desc, exit]);
-  }
-
-  openShopMenu() {
-    if (this.transition) return;
-
-    this.add.tween({
-      targets: [this.station, this.shop],
-      x: `-=${gameW}`,
-      duration: this.transitionTime,
-      ease: "cubic.out",
-      onStart: () => (this.transition = true),
-      onComplete: () => (this.transition = false),
-    });
-  }
-
-  closeShopMenu() {
-    if (this.transition) return;
-
-    this.add.tween({
-      targets: [this.station, this.shop],
-      x: `+=${gameW}`,
-      duration: this.transitionTime,
-      ease: "cubic.out",
-      onStart: () => (this.transition = true),
-      onComplete: () => (this.transition = false),
-    });
-  }
-
-  createShipMenu() {
-    this.ship = this.add
-      .container(gameW * 1.36, gameH * 0.55)
-      .setSize(gameW * 0.65, gameH * 0.86);
-
-    this.ship.add([
-      this.add
-        .rectangle(
-          0,
-          0,
-          this.ship.width,
-          this.ship.height,
-          COLORS.fillColor,
-          0.85
-        )
-        .setStrokeStyle(10, COLORS.strokeColor),
-    ]);
-
-    const title = this.add
-      .gameText(0, -this.ship.height * 0.48, "Shipyard", 6)
-      .setOrigin(0.5, 0);
-
-    const weapons = this.add.gameText(
-      -this.ship.width * 0.46,
-      -this.ship.height * 0.38,
-      "Weapons",
-      4
-    );
-
-    const augments = this.add
-      .gameText(0, -this.ship.height * 0.38, "Augments", 4)
-      .setOrigin(0, 0);
-
-    const inv = this.add
-      .gameText(
-        -this.ship.width * 0.46,
-        this.ship.height * 0.05,
-        "Inventory",
-        4
-      )
-      .setOrigin(0, 0);
-
-    const exit = this.add
-      .gameText(
-        this.ship.width * 0.49,
-        -this.ship.height * 0.51,
-        "x",
-        10,
-        null,
-        this.closeShipMenu
-      )
-      .setOrigin(1, 0);
-
-    this.ship.add([title, weapons, augments, inv, exit]);
-  }
-
-  openShipMenu() {
-    if (this.transition) return;
-
-    this.add.tween({
-      targets: [this.station, this.ship],
-      x: `-=${gameW}`,
-      duration: this.transitionTime,
-      ease: "cubic.out",
-      onStart: () => (this.transition = true),
-      onComplete: () => (this.transition = false),
-    });
-  }
-
-  closeShipMenu() {
-    if (this.transition) return;
-
-    this.add.tween({
-      targets: [this.station, this.ship],
-      x: `+=${gameW}`,
-      duration: this.transitionTime,
-      ease: "cubic.out",
-      onStart: () => (this.transition = true),
-      onComplete: () => (this.transition = false),
-    });
-  }
-
-  createContractsMenu() {
-    this.contracts = this.add
-      .container(gameW * 1.36, gameH * 0.55)
-      .setSize(gameW * 0.65, gameH * 0.86);
-
-    this.contracts.add([
-      this.add
-        .rectangle(
-          0,
-          0,
-          this.contracts.width,
-          this.contracts.height,
-          COLORS.fillColor,
-          0.85
-        )
-        .setStrokeStyle(10, COLORS.strokeColor),
-    ]);
-
-    const title = this.add
-      .gameText(0, -this.contracts.height * 0.48, "Open Contracts", 6)
-      .setOrigin(0.5, 0);
-
-    // saves the list of contracts over restarts and loads
-    let contractsList = JSON.parse(localStorage.getItem("contractsList"));
-
-    for (let i = 0; i < 3; i++) {
-      let difficulty;
-      let reward;
-      let planet;
-      let planetName;
-
-      if (!contractsList) {
-        // if no saved list, generate new one
-        switch (i) {
-          case 0:
-          default:
-            difficulty = "Easy";
-            reward = Phaser.Math.Between(5, 8) * 10;
-            break;
-          case 1:
-            difficulty = "Medium";
-            reward = Phaser.Math.Between(9, 12) * 10;
-            break;
-          case 2:
-            difficulty = "Hard";
-            reward = Phaser.Math.Between(13, 16) * 10;
-            break;
-        }
-
-        planet = this.generatePlanet().setScale(0.2);
-        planetName = planet.name;
-      } else {
-        // load the current generated list
-        difficulty = contractsList[i].difficulty;
-        reward = contractsList[i].reward;
-        planetName = contractsList[i].name;
-
-        // reassemble planet image
-        planet = this.loadPlanet(contractsList[i].planet).setScale(0.2);
-      }
-
-      const text =
-        `Deliver cargo to Planet ${planetName}.` +
-        `\nDifficulty: ${difficulty}\nReward: ${reward}`;
-
-      const contract = this.add
-        .container(
-          -this.contracts.width * 0.33,
-          -this.contracts.height * 0.22 + i * this.contracts.height * 0.28
-        )
-        .add([
-          planet,
-          this.add.gameText(
-            this.contracts.width * 0.12,
-            -this.contracts.height * 0.125,
-            text,
-            3
-          ),
-        ])
-        .setName(`contract${i}`)
-        .setData({
-          name: planetName,
-          index: i, // index in this list specifically so we can save it
-          planet: planet.getAll(), // must export images, not container
-          difficulty: difficulty,
-          reward: reward,
-        });
-
-      const bounds = contract.getBounds();
-      const rect = this.add
-        .rectangle(
-          this.contracts.width * 0.32,
-          0,
-          bounds.width,
-          bounds.height,
-          COLORS.strokeColor
-        )
-        .setName("rect")
-        .setAlpha(0.3)
-        .setScale(1.08)
-        .setInteractive()
-        .on("pointerover", () => rect.setAlpha(0.5))
-        .on("pointerout", () => rect.setAlpha(0.3))
-        .on("pointerdown", () => this.selectContract(i));
-
-      contract.add(rect);
-      contract.sendToBack(rect);
-
-      this.contracts.add(contract);
-    }
-
-    const exit = this.add
-      .gameText(
-        this.contracts.width * 0.49,
-        -this.contracts.height * 0.51,
-        "x",
-        10,
-        null,
-        this.closeContractsMenu
-      )
-      .setOrigin(1, 0);
-
-    this.contracts.add([title, exit]);
-
-    // if we generated new contracts, save them
-    if (!contractsList) {
-      contractsList = [];
-      for (let i = 0; i < 3; i++) {
-        const contract = this.contracts.getByName(`contract${i}`);
-        contractsList.push(contract.data.list);
-      }
-
-      localStorage.setItem("contractsList", JSON.stringify(contractsList));
-    }
-
-    // and if we've selected a contract already, keep it selected
-    if (this.newContract) this.selectContract(this.newContract.index);
-  }
-
-  selectContract(index) {
-    for (let i = 0; i < 3; i++) {
-      const contract = this.contracts.getByName(`contract${i}`);
-      const rect = contract.getByName("rect");
-
-      if (i == index) {
-        rect.setStrokeStyle(12, 0xd6e2e9, 1).setAlpha(0.7).disableInteractive();
-        this.newContract = contract.data.list;
-        localStorage.setItem("newContract", JSON.stringify(this.newContract));
-      } else rect.setStrokeStyle().setAlpha(0.3).setInteractive();
-    }
-
-    // contract was selected, so now allowed to depart
-    // we can't "unselect" a contract so we don't need to check if selected
-    this.station
-      .getByName("choice3")
-      .setText("4. Depart")
-      .setFontStyle()
-      .setColor("#fff")
-      .setInteractive();
-  }
-
-  openContractsMenu() {
-    if (this.transition) return;
-
-    this.add.tween({
-      targets: [this.station, this.contracts],
-      x: `-=${gameW}`,
-      duration: this.transitionTime,
-      ease: "cubic.out",
-      onStart: () => (this.transition = true),
-      onComplete: () => (this.transition = false),
-    });
-  }
-
-  closeContractsMenu() {
-    if (this.transition) return;
-
-    this.add.tween({
-      targets: [this.station, this.contracts],
-      x: `+=${gameW}`,
-      duration: this.transitionTime,
-      ease: "cubic.out",
-      onStart: () => (this.transition = true),
-      onComplete: () => (this.transition = false),
-    });
-  }
-
-  generatePlanet() {
-    // generate name
-    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const letter = alphabet[Phaser.Math.Between(0, 25)];
-    const num = Phaser.Math.Between(1, 999);
-    let name;
-
-    if (num < 10) name = letter + "-00" + num;
-    else if (num < 100) name = letter + "-0" + num;
-    else name = letter + "-" + num;
-
-    // generate sprite
-    const colorWheel = Phaser.Display.Color.HSVColorWheel(0.7, 0.7);
-
-    const l = Phaser.Math.Between(0, 10); // light
-    const n = Phaser.Math.Between(0, 27); // noise 1
-    const s = Phaser.Math.Between(0, 2); // sphere
-    const n2 = Phaser.Math.Between(0, 27); // noise 2
-
-    const c1 = Phaser.Math.Between(0, 359); // color of sphere
-    const c2 = Phaser.Math.Between(0, 359); // color of noise 1
-
-    const sphere = this.add
-      .image(0, 0, `sphere${s}`)
-      .setTintFill(colorWheel[c1].color);
-
-    sphere.name = sphere.tintTopLeft; // so we can import the colors too
-
-    const noise1 = this.add
-      .image(0, 0, `noise${n}`)
-      .setAlpha(0.8)
-      .setBlendMode(Phaser.BlendModes.ADD)
-      .setTint(colorWheel[c2].color);
-
-    noise1.name = noise1.tintTopLeft; // see above
-
-    const noise2 = this.add
-      .image(0, 0, `noise${n2}`)
-      .setAlpha(0.2)
-      .setBlendMode(Phaser.BlendModes.SCREEN);
-
-    noise2.name = noise2.tintTopLeft;
-
-    const light = this.add
-      .image(0, 0, `light${l}`)
-      .setAlpha(0.4)
-      .setBlendMode(Phaser.BlendModes.SCREEN);
-
-    light.name = light.tintTopLeft;
-
-    return this.add
-      .container(0, 0, [sphere, noise1, noise2, light])
-      .setName(name);
-  }
-
-  loadPlanet(parts) {
-    const sphere = this.add
-      .image(0, 0, parts[0].textureKey)
-      .setTintFill(parts[0].name);
-
-    sphere.name = sphere.tintTopLeft; // so we can import the colors too
-
-    const noise1 = this.add
-      .image(0, 0, parts[1].textureKey)
-      .setAlpha(0.8)
-      .setBlendMode(Phaser.BlendModes.ADD)
-      .setTint(parts[1].name);
-
-    noise1.name = noise1.tintTopLeft; // see above
-
-    const noise2 = this.add
-      .image(0, 0, parts[2].textureKey)
-      .setAlpha(0.2)
-      .setBlendMode(Phaser.BlendModes.SCREEN);
-
-    noise2.name = noise2.tintTopLeft;
-
-    const light = this.add
-      .image(0, 0, parts[3].textureKey)
-      .setAlpha(0.4)
-      .setBlendMode(Phaser.BlendModes.SCREEN);
-
-    light.name = light.tintTopLeft;
-
-    return this.add.container(0, 0, [sphere, noise1, noise2, light]);
-  }
-
-  depart() {
-    if (this.transition) return;
-
-    this.transition = true;
-
-    this.scene.get("HUD").cameras.main.fade();
-    this.time.delayedCall(1000, () => {
-      this.oldContract = this.newContract;
-      localStorage.setItem("oldContract", JSON.stringify(this.oldContract));
-      localStorage.setItem("newContract", null); // new is now old
-
-      // going to new station with new contracts
-      localStorage.setItem("contractsList", null);
-
-      this.scene.start("Game");
-    });
-  }
-
-  resize(gameSize) {
-    const width = gameSize.width;
-    const height = gameSize.height;
-
-    this.parent.setSize(width, height);
-    this.sizer.setSize(width, height);
-
-    this.updateCamera();
-  }
-
-  updateCamera() {
-    const camera = this.cameras.main;
-
-    const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
-    const y = 0;
-    const scaleX = this.sizer.width / gameW;
-    const scaleY = this.sizer.height / gameH;
-
-    if (!camera) return;
-
-    camera.setViewport(x, y, this.sizer.width, this.parent.height);
-    camera.setZoom(Math.max(scaleX, scaleY));
-    camera.centerOn(camera.midPoint.x, camera.midPoint.y);
-  }
-}
-
 class HUD extends Phaser.Scene {
   bounds;
   armor; // armor.x is current armor, armor.y is total
@@ -1364,131 +543,18 @@ class HUD extends Phaser.Scene {
   }
 
   create() {
-    this.armor = new Phaser.Math.Vector2(10, 10);
-    this.shield = new Phaser.Math.Vector2(5, 5);
-    this.bits = 100;
-    this.displayBits = this.bits;
-
     this.createResolution();
 
     // show bounds of game while in dev
     this.bounds = this.add
       .rectangle(gameW / 2, gameH / 2, gameW, gameH)
-      .setStrokeStyle(4, 0xffffff, 0);
+      .setStrokeStyle(4, 0xffffff, 0.5);
 
     WebFont.load({
       google: {
         families: FONTS,
       },
-      active: () => {
-        this.createText();
-
-        this.time.addEvent({
-          loop: true,
-          delay: 2000,
-          callback: () => {
-            this.updateArmor(-1);
-            this.updateShield(-1);
-            this.updateBits(Phaser.Math.Between(-20, 20));
-          },
-        });
-      },
-    });
-  }
-
-  createText() {
-    this.add.gameText(gameW, gameH, VERSION).setOrigin(1, 1);
-
-    const fpsText = this.add.gameText(0, gameH).setOrigin(0, 1);
-
-    this.time.addEvent({
-      delay: 500,
-      loop: true,
-      callbackScope: this,
-      callback: () => {
-        fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`);
-      },
-    });
-
-    const displayFontFamily = "Share Tech Mono";
-
-    this.display = this.add.container(0, 0).add([
-      this.add
-        .rectangle(
-          gameW * 0.5,
-          gameH * 0.04,
-          gameW * 1.1,
-          gameH * 0.08,
-          COLORS.fillColor,
-          0.5
-        )
-        .setStrokeStyle(4, COLORS.strokeColor, 0.5),
-      this.add
-        .gameText(0, 0, `A ${this.armor.x}/${this.armor.y}`, 6)
-        .setPadding(gameW * 0.01, gameH * 0.01)
-        .setFontFamily(displayFontFamily)
-        .setName("armor"),
-      this.add
-        .gameText(gameW * 0.24, 0, `S ${this.shield.x}/${this.shield.y}`, 6)
-        .setPadding(gameW * 0.01, gameH * 0.01)
-        .setFontFamily(displayFontFamily)
-        .setName("shield"),
-      this.add
-        .gameText(gameW * 0.45, 0, `B ${this.displayBits}`, 6)
-        .setPadding(gameW * 0.01, gameH * 0.01)
-        .setFontFamily(displayFontFamily)
-        .setName("bits"),
-      this.add
-        .gameText(gameW, 0, `Options`, 6, null, () => {
-          console.log("hi");
-        })
-        .setPadding(gameW * 0.01, gameH * 0.01)
-        .setOrigin(1, 0)
-        .setFontFamily(displayFontFamily)
-        .setName("options"),
-    ]);
-  }
-
-  updateArmor(change) {
-    if (this.armor.x <= 0) return;
-    this.armor.x += change;
-
-    const displayText = this.display.getByName("armor");
-    displayText.text = `A ${this.armor.x}/${this.armor.y}`;
-  }
-
-  updateShield(change) {
-    if (this.shield.x <= 0) return;
-
-    this.shield.x += change;
-
-    const displayText = this.display.getByName("shield");
-    displayText.text = `S ${this.shield.x}/${this.shield.y}`;
-  }
-
-  checkValidBits(value) {
-    return this.bits + change >= 0;
-  }
-
-  updateBits(change) {
-    if (this.bits + change <= 0) return;
-
-    this.bits += change;
-
-    const displayText = this.display.getByName("bits");
-
-    // takes one second to count 50 bits
-    // 10 seconds to count 500 bits
-    const diff = 20 * Math.abs(this.bits - this.displayBits);
-
-    const tween = this.tweens.addCounter({
-      from: this.displayBits,
-      to: this.bits,
-      duration: diff,
-      onUpdate: () => {
-        displayText.text = `B ${Math.round(tween.getValue())}`;
-        this.displayBits = Math.round(tween.getValue());
-      },
+      active: () => {},
     });
   }
 
@@ -2859,7 +1925,7 @@ const config = {
     height: gameH,
   },
   // pixelArt: true,
-  scene: [Background, Game, Station, HUD],
+  scene: [Background, Game, HUD],
   physics: {
     default: "arcade",
     arcade: {
