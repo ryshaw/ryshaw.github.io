@@ -149,7 +149,7 @@ class Game extends Phaser.Scene {
       const y = Phaser.Math.Between(gameH * 0.325, gameH * 0.675);
       const w = Phaser.Math.Between(40, 320);
 
-      const c = this.add.circle(x, y, w * 0.5, 0xbecdef, 0);
+      const c = this.add.circle(x, y, w * 0.5, 0xbecdef, 0.5);
 
       shapes[i] = new Phaser.Geom.Circle(c.x, c.y, c.radius);
     }
@@ -170,7 +170,7 @@ class Game extends Phaser.Scene {
         const y = startY + j * width;
         const rectangle = this.add
           .rectangle(x, y, width, width)
-          .setStrokeStyle(2, 0xbecdef, 0.1)
+          .setStrokeStyle(1, 0xbecdef, 0.1)
           .setData("filled", false);
 
         const r = new Phaser.Geom.Rectangle(
@@ -188,6 +188,18 @@ class Game extends Phaser.Scene {
               .setData("filled", true);
           }
         });
+
+        if (
+          i >= Math.round((gridX * 1) / 3) &&
+          i <= Math.round((gridX * 2) / 3) &&
+          j >= Math.round((gridY * 1) / 3) &&
+          j <= Math.round((gridY * 2) / 3)
+        ) {
+          rectangle
+            .setStrokeStyle(2, 0xbecdef)
+            .setFillStyle(0x343a40, 0.9)
+            .setData("filled", true);
+        }
 
         grid[i][j] = rectangle;
       }
@@ -218,7 +230,7 @@ class Game extends Phaser.Scene {
         if (count >= 3) {
           tile
             .setStrokeStyle(2, 0xbecdef)
-            .setFillStyle(0xff0000, 0.9)
+            .setFillStyle(0x343a40, 0.9)
             .setData("filled", true);
         }
       }
