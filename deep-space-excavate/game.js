@@ -95,6 +95,8 @@ class Background extends Phaser.Scene {
 class Game extends Phaser.Scene {
   player;
   keysDown;
+  grid;
+  filledTiles;
 
   constructor() {
     super("Game");
@@ -106,7 +108,8 @@ class Game extends Phaser.Scene {
     //this.createStars();
 
     //this.createPlayer();
-    this.createAsteroid();
+    this.createAsteroidGrid();
+    this.createOreDeposits();
     //this.createEncounters();
 
     //this.createPhysics();
@@ -140,12 +143,12 @@ class Game extends Phaser.Scene {
     this.scale.on("resize", this.resize, this);
   }
 
-  createAsteroid() {
+  createAsteroidGrid() {
     const shapes = [];
 
     const num = 22;
     for (let i = 0; i < num; i++) {
-      const x = Phaser.Math.Between(gameW * 0.325, gameW * 0.675);
+      const x = Phaser.Math.Between(gameW * 0.33, gameW * 0.67);
       const y = Phaser.Math.Between(gameH * 0.325, gameH * 0.675);
       const w = Phaser.Math.Between(40, 320);
 
@@ -154,7 +157,8 @@ class Game extends Phaser.Scene {
       shapes[i] = new Phaser.Geom.Circle(c.x, c.y, c.radius);
     }
 
-    const grid = [];
+    this.grid = [];
+    this.filledTiles = new Phaser.Structs.List();
 
     const gridX = 48;
     const gridY = 40;
@@ -164,14 +168,16 @@ class Game extends Phaser.Scene {
     const startY = gameH * 0.5 - gridY * width * 0.5; // top left corner
 
     for (let i = 0; i < gridX; i++) {
-      grid[i] = [];
+      this.grid[i] = [];
       for (let j = 0; j < gridY; j++) {
         const x = startX + i * width;
         const y = startY + j * width;
         const rectangle = this.add
           .rectangle(x, y, width, width)
           .setStrokeStyle(1, 0xbecdef, 0.1)
-          .setData("filled", false);
+          .setData("filled", false)
+          .setData("x", i)
+          .setData("y", j);
 
         const r = new Phaser.Geom.Rectangle(
           rectangle.getTopLeft().x,
@@ -186,6 +192,8 @@ class Game extends Phaser.Scene {
               .setStrokeStyle(2, 0xbecdef)
               .setFillStyle(0x343a40, 0.9)
               .setData("filled", true);
+
+            this.filledTiles.add(rectangle);
           }
         });
 
@@ -199,32 +207,32 @@ class Game extends Phaser.Scene {
             .setStrokeStyle(2, 0xbecdef)
             .setFillStyle(0x343a40, 0.9)
             .setData("filled", true);
+
+          this.filledTiles.add(rectangle);
         }
 
-        grid[i][j] = rectangle;
+        this.grid[i][j] = rectangle;
       }
     }
 
     for (let i = 0; i < gridX; i++) {
       for (let j = 0; j < gridY; j++) {
-        const tile = grid[i][j];
+        const tile = this.grid[i][j];
 
         if (i <= 0 || i >= gridX - 1 || j <= 0 || j >= gridY - 1) continue;
         if (tile.getData("filled")) continue;
 
         const neighbors = [
-          grid[i - 1][j],
-          grid[i + 1][j],
-          grid[i][j - 1],
-          grid[i][j + 1],
+          this.grid[i - 1][j],
+          this.grid[i + 1][j],
+          this.grid[i][j - 1],
+          this.grid[i][j + 1],
         ];
 
         let count = 0;
 
         neighbors.forEach((n) => {
-          if (n.getData("filled")) {
-            count++;
-          }
+          if (n.getData("filled")) count++;
         });
 
         if (count >= 3) {
@@ -232,8 +240,68 @@ class Game extends Phaser.Scene {
             .setStrokeStyle(2, 0xbecdef)
             .setFillStyle(0x343a40, 0.9)
             .setData("filled", true);
+
+          this.filledTiles.add(tile);
         }
       }
+    }
+  }
+
+  checkIfInGrid(x, y) {
+    const gridX = this.grid.length;
+    const gridY = this.grid[0].length;
+
+    return x >= 0 && x <= gridX - 1 && y >= 0 && y <= gridY - 1;
+  }
+
+  checkIfFilled(x, y) {
+    return this.grid[x][y].getData("filled");
+  }
+
+  createOreDeposits() {
+    const num = Phaser.Math.Between(8, 12);
+
+    for (let i = 1; i <= num; i++) {
+      let iterations = 30;
+
+      findSpot: while (iterations > 0) {
+        iterations -= 1;
+
+        const tile = this.filledTiles.getRandom();
+        const x = tile.getData("x");
+        const y = tile.getData("y");
+
+        if (tile.getData("ore")) continue findSpot;
+
+        this.grid[x][y].setFillStyle(0xff0000, 0.9);
+
+        // check neighbors to see if they're filled
+
+        for (let dist = 1; dist <= 4; dist++) {
+          for (let angle = 0; angle < 360; angle += 15) {
+            const v = new Phaser.Math.Vector2(dist, 0);
+
+            const r = Phaser.Math.DegToRad(angle);
+            v.setAngle(r);
+            v.x = Math.round(v.x) + x;
+            v.y = Math.round(v.y) + y;
+
+            if (!this.checkIfInGrid(v.x, v.y)) continue findSpot;
+            if (!this.checkIfFilled(v.x, v.y)) continue findSpot;
+            if (dist <= 2 && this.grid[v.x][v.y].getData("ore"))
+              continue findSpot;
+          }
+        }
+
+        this.grid[x][y].setFillStyle(0x00b4d8, 0.9).setData("ore", true);
+        break;
+      }
+
+      if (iterations < 10) console.log(iterations);
+      if (iterations <= 0) {
+        console.log("ore deposits made: " + i);
+        return;
+      } // give up making more ore
     }
   }
 
