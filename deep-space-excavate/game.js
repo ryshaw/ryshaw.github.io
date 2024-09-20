@@ -113,7 +113,9 @@ class Game extends Phaser.Scene {
     //this.createPlayer();
     this.createAsteroidGrid();
     this.createOreDeposits();
-    this.createMiningDrone();
+    this.initiateTurtleDrop();
+
+    //this.createMiningDrone();
     //this.createEncounters();
 
     //this.createPhysics();
@@ -164,8 +166,8 @@ class Game extends Phaser.Scene {
     this.grid = [];
     this.filledTiles = new Phaser.Structs.List();
 
-    const gridX = 50;
-    const gridY = 35;
+    const gridX = 48;
+    const gridY = 36;
     this.tileWidth = 28;
 
     // top left corner
@@ -402,8 +404,8 @@ class Game extends Phaser.Scene {
 
           if (
             this.checkIfInGrid(v.x, v.y) &&
-            this.checkIfFilled(v.x, v.y) &&
-            !this.checkIfEdge(v.x, v.y)
+            this.checkIfFilled(v.x, v.y) //&&
+            //!this.checkIfEdge(v.x, v.y)
           ) {
             const dist = Phaser.Math.Distance.Between(
               v.x,
@@ -420,7 +422,7 @@ class Game extends Phaser.Scene {
         }
 
         // if we didn't pick a next tile, we're still outside at the start
-        if (!nextTile) nextTile = edge;
+        //if (!nextTile) nextTile = edge;
 
         if (nextTile.alpha <= 0) {
           miner.setPosition(nextTile.x, nextTile.y);
@@ -440,6 +442,16 @@ class Game extends Phaser.Scene {
 
   collectOre() {
     console.log("collected");
+  }
+
+  initiateTurtleDrop() {
+    this.input.once("pointerdown", (p) => {
+      console.log(p.worldX, p.worldY);
+    });
+  }
+
+  convertWorldToGrid(x, y) {
+    const v = new Phaser.Math.Vector2();
   }
 
   createStars() {
