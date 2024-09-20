@@ -150,13 +150,13 @@ class Game extends Phaser.Scene {
   createAsteroidGrid() {
     const shapes = [];
 
-    const num = 24;
+    const num = 30;
     for (let i = 0; i < num; i++) {
-      const x = Phaser.Math.Between(gameW * 0.3, gameW * 0.7);
-      const y = Phaser.Math.Between(gameH * 0.3, gameH * 0.7);
-      const w = Phaser.Math.Between(40, 360);
+      const x = Phaser.Math.Between(gameW * 0.25, gameW * 0.75);
+      const y = Phaser.Math.Between(gameH * 0.25, gameH * 0.75);
+      const w = Phaser.Math.Between(40, 400);
 
-      const c = this.add.circle(x, y, w * 0.5, 0xbecdef, 0.4);
+      const c = this.add.circle(x, y, w * 0.5, 0xff0000, 0).setDepth(1);
 
       shapes[i] = new Phaser.Geom.Circle(c.x, c.y, c.radius);
     }
@@ -164,9 +164,9 @@ class Game extends Phaser.Scene {
     this.grid = [];
     this.filledTiles = new Phaser.Structs.List();
 
-    const gridX = 48;
-    const gridY = 36;
-    this.tileWidth = 24;
+    const gridX = 50;
+    const gridY = 35;
+    this.tileWidth = 28;
 
     // top left corner
     const startX = gameW * 0.5 - gridX * this.tileWidth * 0.5;
@@ -179,6 +179,7 @@ class Game extends Phaser.Scene {
         const y = startY + j * this.tileWidth;
         const rectangle = this.add
           .rectangle(x, y, this.tileWidth, this.tileWidth)
+          .setStrokeStyle(1, 0xffffff, 0.1)
           .setData("x", i)
           .setData("y", j);
 
@@ -242,6 +243,8 @@ class Game extends Phaser.Scene {
 
       if (x == 0 || x == gridX - 1 || y == 0 || y == gridY - 1) {
         tile.setFillStyle(color, 1);
+        this.edgeTiles.add(tile);
+        tile.setData("edge", true);
       } else {
         const neighbors = [
           this.grid[x - 1][y],
@@ -336,18 +339,37 @@ class Game extends Phaser.Scene {
   }
 
   createMiningDrone() {
-    const start = this.edgeTiles.getRandom();
+    // pick an edge tile to start at
+    const edge = this.edgeTiles.getRandom();
+
+    // but start on the outside so we can burrow into the asteroid
+    let start;
+
+    for (let angle = 0; angle < 360; angle += 90) {
+      const v = new Phaser.Math.Vector2(1, 0);
+
+      const r = Phaser.Math.DegToRad(angle);
+      v.setAngle(r);
+      v.x = Math.round(v.x) + edge.getData("x");
+      v.y = Math.round(v.y) + edge.getData("y");
+
+      if (this.checkIfInGrid(v.x, v.y) && !this.checkIfFilled(v.x, v.y)) {
+        start = this.grid[v.x][v.y];
+      }
+    }
 
     const miner = this.add
-      .circle(start.x, start.y, this.tileWidth * 0.5, 0xca6702)
-      .setStrokeStyle(4, 0x000000)
+      .rectangle(start.x, start.y, this.tileWidth, this.tileWidth, 0xca6702)
+      .setStrokeStyle(4, 0xe9d8a6)
       .setData("x", start.getData("x"))
       .setData("y", start.getData("y"));
 
     this.time.addEvent({
       loop: true,
-      delay: 1500,
+      delay: 400, //800,
       callback: () => {
+        if (this.oreTiles.length <= 0) return; // no more ore to mine
+
         // find closest ore target to head to
         let target;
         let targetDist;
@@ -397,11 +419,27 @@ class Game extends Phaser.Scene {
           }
         }
 
-        miner.setPosition(nextTile.x, nextTile.y);
-        miner.setData("x", nextTile.getData("x"));
-        miner.setData("y", nextTile.getData("y"));
+        // if we didn't pick a next tile, we're still outside at the start
+        if (!nextTile) nextTile = edge;
+
+        if (nextTile.alpha <= 0) {
+          miner.setPosition(nextTile.x, nextTile.y);
+          miner.setData("x", nextTile.getData("x"));
+          miner.setData("y", nextTile.getData("y"));
+
+          if (nextTile.getData("ore")) {
+            nextTile.getData("ore", false);
+            this.oreTiles.remove(nextTile);
+          }
+        } else {
+          nextTile.alpha -= 0.34;
+        }
       },
     });
+  }
+
+  collectOre() {
+    console.log("collected");
   }
 
   createStars() {
