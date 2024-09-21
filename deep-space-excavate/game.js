@@ -99,7 +99,7 @@ class Game extends Phaser.Scene {
   filledTiles;
   edgeTiles;
   oreTiles;
-  tileWidth;
+  tileW;
   selectedObj; // what object the mouse is holding
 
   constructor() {
@@ -115,6 +115,8 @@ class Game extends Phaser.Scene {
     this.createAsteroidGrid();
     this.createOreDeposits();
     this.initiateTurtleDrop();
+
+    this.createSidebar();
 
     //this.createMiningDrone();
     //this.createEncounters();
@@ -169,19 +171,19 @@ class Game extends Phaser.Scene {
 
     const gridX = 42;
     const gridY = 30;
-    this.tileWidth = 32;
+    this.tileW = 32;
 
     // top left corner
-    const startX = gameW * 0.5 - gridX * this.tileWidth * 0.5;
-    const startY = gameH * 0.5 - gridY * this.tileWidth * 0.5;
+    const startX = gameW * 0.5 - gridX * this.tileW * 0.5;
+    const startY = gameH * 0.5 - gridY * this.tileW * 0.5;
 
     for (let i = 0; i < gridX; i++) {
       this.grid[i] = [];
       for (let j = 0; j < gridY; j++) {
-        const x = startX + i * this.tileWidth;
-        const y = startY + j * this.tileWidth;
+        const x = startX + i * this.tileW;
+        const y = startY + j * this.tileW;
         const rectangle = this.add
-          .rectangle(x, y, this.tileWidth, this.tileWidth)
+          .rectangle(x, y, this.tileW, this.tileW)
           .setAlpha(0)
           .setData("x", i)
           .setData("y", j);
@@ -343,7 +345,7 @@ class Game extends Phaser.Scene {
     let start = this.grid[x][y];
 
     const miner = this.add
-      .rectangle(start.x, start.y, this.tileWidth, this.tileWidth, 0xca6702)
+      .rectangle(start.x, start.y, this.tileW, this.tileW, 0xca6702)
       .setStrokeStyle(4, 0xe9d8a6)
       .setData("x", start.getData("x"))
       .setData("y", start.getData("y"));
@@ -428,6 +430,8 @@ class Game extends Phaser.Scene {
 
   initiateTurtleDrop() {
     this.input.on("pointermove", (p) => {
+      if (!this.selectedObj) return;
+
       const pos = this.convertWorldToGrid(p.worldX, p.worldY);
 
       const edgeCoords = [
@@ -437,29 +441,31 @@ class Game extends Phaser.Scene {
         { x: this.grid.length - 1, y: pos.y },
       ];
 
-      const distances = [];
-      edgeCoords.forEach((coords) => {
-        const dist = Phaser.Math.Distance.BetweenPoints(pos, coords);
-        distances.push(dist);
+      // im tired of doing this over multiple for loops so here you go
+      edgeCoords.sort((a, b) => {
+        return (
+          Phaser.Math.Distance.BetweenPoints(pos, a) -
+          Phaser.Math.Distance.BetweenPoints(pos, b)
+        );
       });
 
-      console.log(distances);
+      const tile = this.grid[edgeCoords[0].x][edgeCoords[0].y];
 
-      const tile = this.grid[pos.x][pos.y];
-
-      if (!this.selectedObj) {
-        this.selectedObj = this.add
-          .rectangle(tile.x, tile.y, this.tileWidth, this.tileWidth, 0xca6702)
-          .setStrokeStyle(4, 0xe9d8a6);
-      } else {
-        this.selectedObj.setPosition(tile.x, tile.y);
-      }
+      this.selectedObj.setPosition(tile.x, tile.y);
     });
 
     this.input.on("pointerdown", (p) => {
-      const pos = this.convertWorldToGrid(p.worldX, p.worldY);
+      if (!this.selectedObj) return;
+
+      const pos = this.convertWorldToGrid(
+        this.selectedObj.x,
+        this.selectedObj.y
+      );
       const tile = this.grid[pos.x][pos.y];
-      //this.createMiningDrone(pos.x, pos.y);
+      this.createMiningDrone(pos.x, pos.y);
+
+      this.selectedObj.destroy();
+      this.selectedObj = null;
     });
   }
 
@@ -467,12 +473,40 @@ class Game extends Phaser.Scene {
     const v = new Phaser.Math.Vector2(x, y);
     const topLeft = this.grid[0][0].getTopLeft();
 
-    v.subtract({ x: topLeft.x, y: topLeft.y }).scale(1 / this.tileWidth);
+    v.subtract({ x: topLeft.x, y: topLeft.y }).scale(1 / this.tileW);
 
     v.x = Phaser.Math.Clamp(Math.floor(v.x), 0, this.grid.length - 1);
     v.y = Phaser.Math.Clamp(Math.floor(v.y), 0, this.grid[0].length - 1);
 
     return v;
+  }
+
+  createSidebar() {
+    const container = this.add
+      .container(gameW * 0.9, gameH * 0.1, [
+        this.add
+          .rectangle(0, 0, this.tileW * 3, this.tileW * 3, 0xffffff)
+          .setAlpha(0.1)
+          .setName("bg"),
+        this.add
+          .rectangle(0, 0, this.tileW, this.tileW, 0xca6702)
+          .setStrokeStyle(4, 0xe9d8a6)
+          .setName("item"),
+      ])
+      .setSize(this.tileW * 3, this.tileW * 3)
+      .setInteractive()
+      .on("pointerover", () => {
+        container.getByName("bg").setAlpha(0.3);
+      })
+      .on("pointerout", () => {
+        container.getByName("bg").setAlpha(0.1);
+      })
+      .on("pointerup", () => {
+        this.selectedObj = Phaser.Utils.Objects.Clone(
+          container.getByName("item")
+        );
+        container.remove(this.selectedObj.setPosition(100, 100));
+      });
   }
 
   createStars() {
