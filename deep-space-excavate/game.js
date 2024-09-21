@@ -100,6 +100,7 @@ class Game extends Phaser.Scene {
   edgeTiles;
   oreTiles;
   tileWidth;
+  selectedObj; // what object the mouse is holding
 
   constructor() {
     super("Game");
@@ -152,13 +153,13 @@ class Game extends Phaser.Scene {
   createAsteroidGrid() {
     const shapes = [];
 
-    const num = 30;
+    const num = 32;
     for (let i = 0; i < num; i++) {
-      const x = Phaser.Math.Between(gameW * 0.25, gameW * 0.75);
-      const y = Phaser.Math.Between(gameH * 0.25, gameH * 0.75);
+      const x = Phaser.Math.Between(gameW * 0.275, gameW * 0.725);
+      const y = Phaser.Math.Between(gameH * 0.275, gameH * 0.725);
       const w = Phaser.Math.Between(40, 400);
 
-      const c = this.add.circle(x, y, w * 0.5, 0xff0000, 0).setDepth(1);
+      const c = this.add.circle(x, y, w * 0.5, 0xff0000, 0.05).setDepth(1);
 
       shapes[i] = new Phaser.Geom.Circle(c.x, c.y, c.radius);
     }
@@ -166,9 +167,9 @@ class Game extends Phaser.Scene {
     this.grid = [];
     this.filledTiles = new Phaser.Structs.List();
 
-    const gridX = 48;
-    const gridY = 36;
-    this.tileWidth = 28;
+    const gridX = 42;
+    const gridY = 30;
+    this.tileWidth = 32;
 
     // top left corner
     const startX = gameW * 0.5 - gridX * this.tileWidth * 0.5;
@@ -181,7 +182,7 @@ class Game extends Phaser.Scene {
         const y = startY + j * this.tileWidth;
         const rectangle = this.add
           .rectangle(x, y, this.tileWidth, this.tileWidth)
-          .setStrokeStyle(1, 0xffffff, 0.1)
+          .setAlpha(0)
           .setData("x", i)
           .setData("y", j);
 
@@ -244,9 +245,8 @@ class Game extends Phaser.Scene {
       const color = 0xa6a6a8;
 
       if (x == 0 || x == gridX - 1 || y == 0 || y == gridY - 1) {
-        tile.setFillStyle(color, 1);
+        tile.setFillStyle(color).setData("edge", true);
         this.edgeTiles.add(tile);
-        tile.setData("edge", true);
       } else {
         const neighbors = [
           this.grid[x - 1][y],
@@ -261,9 +261,8 @@ class Game extends Phaser.Scene {
 
         neighbors.forEach((n) => {
           if (!n.getData("filled")) {
-            tile.setFillStyle(color, 1);
+            tile.setFillStyle(color).setData("edge", true);
             this.edgeTiles.add(tile);
-            tile.setData("edge", true);
           }
         });
       }
@@ -271,7 +270,7 @@ class Game extends Phaser.Scene {
   }
 
   fillInTile(tile) {
-    tile.setFillStyle(0x272635, 1).setData("filled", true);
+    tile.setAlpha(1).setFillStyle(0x272635).setData("filled", true);
 
     this.filledTiles.add(tile);
   }
@@ -340,25 +339,8 @@ class Game extends Phaser.Scene {
     }
   }
 
-  createMiningDrone() {
-    // pick an edge tile to start at
-    const edge = this.edgeTiles.getRandom();
-
-    // but start on the outside so we can burrow into the asteroid
-    let start;
-
-    for (let angle = 0; angle < 360; angle += 90) {
-      const v = new Phaser.Math.Vector2(1, 0);
-
-      const r = Phaser.Math.DegToRad(angle);
-      v.setAngle(r);
-      v.x = Math.round(v.x) + edge.getData("x");
-      v.y = Math.round(v.y) + edge.getData("y");
-
-      if (this.checkIfInGrid(v.x, v.y) && !this.checkIfFilled(v.x, v.y)) {
-        start = this.grid[v.x][v.y];
-      }
-    }
+  createMiningDrone(x, y) {
+    let start = this.grid[x][y];
 
     const miner = this.add
       .rectangle(start.x, start.y, this.tileWidth, this.tileWidth, 0xca6702)
@@ -368,7 +350,7 @@ class Game extends Phaser.Scene {
 
     this.time.addEvent({
       loop: true,
-      delay: 400, //800,
+      delay: 600, //800,
       callback: () => {
         if (this.oreTiles.length <= 0) return; // no more ore to mine
 
@@ -403,8 +385,8 @@ class Game extends Phaser.Scene {
           v.y = Math.round(v.y) + miner.getData("y");
 
           if (
-            this.checkIfInGrid(v.x, v.y) &&
-            this.checkIfFilled(v.x, v.y) //&&
+            this.checkIfInGrid(v.x, v.y) // &&
+            //this.checkIfFilled(v.x, v.y) //&&
             //!this.checkIfEdge(v.x, v.y)
           ) {
             const dist = Phaser.Math.Distance.Between(
@@ -445,13 +427,52 @@ class Game extends Phaser.Scene {
   }
 
   initiateTurtleDrop() {
-    this.input.once("pointerdown", (p) => {
-      console.log(p.worldX, p.worldY);
+    this.input.on("pointermove", (p) => {
+      const pos = this.convertWorldToGrid(p.worldX, p.worldY);
+
+      const edgeCoords = [
+        { x: pos.x, y: 0 },
+        { x: pos.x, y: this.grid[0].length - 1 },
+        { x: 0, y: pos.y },
+        { x: this.grid.length - 1, y: pos.y },
+      ];
+
+      const distances = [];
+      edgeCoords.forEach((coords) => {
+        const dist = Phaser.Math.Distance.BetweenPoints(pos, coords);
+        distances.push(dist);
+      });
+
+      console.log(distances);
+
+      const tile = this.grid[pos.x][pos.y];
+
+      if (!this.selectedObj) {
+        this.selectedObj = this.add
+          .rectangle(tile.x, tile.y, this.tileWidth, this.tileWidth, 0xca6702)
+          .setStrokeStyle(4, 0xe9d8a6);
+      } else {
+        this.selectedObj.setPosition(tile.x, tile.y);
+      }
+    });
+
+    this.input.on("pointerdown", (p) => {
+      const pos = this.convertWorldToGrid(p.worldX, p.worldY);
+      const tile = this.grid[pos.x][pos.y];
+      //this.createMiningDrone(pos.x, pos.y);
     });
   }
 
   convertWorldToGrid(x, y) {
-    const v = new Phaser.Math.Vector2();
+    const v = new Phaser.Math.Vector2(x, y);
+    const topLeft = this.grid[0][0].getTopLeft();
+
+    v.subtract({ x: topLeft.x, y: topLeft.y }).scale(1 / this.tileWidth);
+
+    v.x = Phaser.Math.Clamp(Math.floor(v.x), 0, this.grid.length - 1);
+    v.y = Phaser.Math.Clamp(Math.floor(v.y), 0, this.grid[0].length - 1);
+
+    return v;
   }
 
   createStars() {
