@@ -116,7 +116,7 @@ class Game extends Phaser.Scene {
     this.centerAsteroidGrid();
 
     this.createOreDeposits();
-    this.initiateTurtleDrop();
+    this.createMouseControls();
 
     this.createSidebar();
 
@@ -493,30 +493,87 @@ class Game extends Phaser.Scene {
     console.log("collected");
   }
 
-  initiateTurtleDrop() {
+  createMouseControls() {
     this.input.on("pointermove", (p) => {
       if (!this.selectedObj) return;
 
       const pos = this.convertWorldToGrid(p.worldX, p.worldY);
 
-      const edgeCoords = [
-        { x: pos.x, y: 0 },
-        { x: pos.x, y: this.grid[0].length - 1 },
-        { x: 0, y: pos.y },
-        { x: this.grid.length - 1, y: pos.y },
-      ];
+      if (this.selectedObj.name == "turtle") {
+        const edgeCoords = [
+          { x: pos.x, y: 0 },
+          { x: pos.x, y: this.grid[0].length - 1 },
+          { x: 0, y: pos.y },
+          { x: this.grid.length - 1, y: pos.y },
+        ];
 
-      // im tired of doing this over multiple for loops so here you go
-      edgeCoords.sort((a, b) => {
-        return (
-          Phaser.Math.Distance.BetweenPoints(pos, a) -
-          Phaser.Math.Distance.BetweenPoints(pos, b)
+        // im tired of doing this over multiple for loops so here you go
+        edgeCoords.sort((a, b) => {
+          return (
+            Phaser.Math.Distance.BetweenPoints(pos, a) -
+            Phaser.Math.Distance.BetweenPoints(pos, b)
+          );
+        });
+
+        const tile = this.grid[edgeCoords[0].x][edgeCoords[0].y];
+
+        this.selectedObj.setPosition(tile.x, tile.y);
+      } else {
+        // turret
+
+        const adjustedPos = this.convertWorldToGrid(
+          p.worldX + this.tileW / 2,
+          p.worldY + this.tileW / 2
         );
-      });
 
-      const tile = this.grid[edgeCoords[0].x][edgeCoords[0].y];
+        const tile = this.grid[adjustedPos.x][adjustedPos.y];
 
-      this.selectedObj.setPosition(tile.x, tile.y);
+        this.selectedObj.setPosition(
+          tile.x - this.tileW / 2,
+          tile.y - this.tileW / 2
+        );
+
+        // reset these properties (could be changed later down)
+        this.selectedObj.setAlpha(1).setStrokeStyle(4, 0xffffff);
+
+        // check all four tiles to see if it can be built here
+
+        const corners = [
+          { x: 1, y: 1 },
+          { x: -1, y: 1 },
+          { x: 1, y: -1 },
+          { x: -1, y: -1 },
+        ];
+
+        corners.forEach((corner) => {
+          const cornerPos = this.convertWorldToGrid(
+            p.worldX + corner.x * (this.tileW / 2),
+            p.worldY + corner.y * (this.tileW / 2)
+          );
+
+          const cornerTile = this.grid[cornerPos.x][cornerPos.y];
+
+          // check valid conditions
+          if (
+            cornerTile.getData("ore") ||
+            !cornerTile.getData("filled") ||
+            cornerTile.getData("turret")
+          ) {
+            this.selectedObj.setAlpha(0.7).setStrokeStyle(4, 0xff0000);
+          }
+        });
+
+        //this.selectedObj.setPosition(p.worldX, p.worldY);
+
+        /*
+        const topLeft = this.selectedObj.getTopLeft();
+        const topLeftPos = this.convertWorldToGrid(topLeft.x, topLeft.y);
+        const topLeftTile = this.grid[topLeftPos.x][topLeftPos.y];
+
+        if (topLeftTile.getData("filled")) {
+          topLeftTile.setFillStyle(0xff0000);
+        }*/
+      }
     });
 
     this.input.on("pointerdown", (p) => {
@@ -526,28 +583,58 @@ class Game extends Phaser.Scene {
         this.selectedObj.x,
         this.selectedObj.y
       );
-      const tile = this.grid[pos.x][pos.y];
-      this.createMiningDrone(pos.x, pos.y);
 
-      this.selectedObj.destroy();
-      this.selectedObj = null;
+      if (this.selectedObj.name == "turtle") {
+        this.createMiningDrone(pos.x, pos.y);
 
-      for (let i = 0; i < this.grid.length; i++) {
-        for (let j = 0; j < this.grid[i].length; j++) {
-          if (
-            i == 0 ||
-            i == this.grid.length - 1 ||
-            j == 0 ||
-            j == this.grid[i].length - 1
-          ) {
-            this.grid[i][j].setStrokeStyle(2, 0xffffff);
-            this.tweens.add({
-              targets: this.grid[i][j],
-              alpha: 0,
-              duration: 100,
-            });
+        this.selectedObj.destroy();
+        this.selectedObj = null;
+
+        for (let i = 0; i < this.grid.length; i++) {
+          for (let j = 0; j < this.grid[i].length; j++) {
+            if (
+              i == 0 ||
+              i == this.grid.length - 1 ||
+              j == 0 ||
+              j == this.grid[i].length - 1
+            ) {
+              this.grid[i][j].setStrokeStyle(2, 0xffffff);
+              this.tweens.add({
+                targets: this.grid[i][j],
+                alpha: 0,
+                duration: 100,
+              });
+            }
           }
         }
+      } else {
+        // turret
+        if (this.selectedObj.alpha == 1) {
+          // valid position
+
+          const corners = [
+            { x: 1, y: 1 },
+            { x: -1, y: 1 },
+            { x: 1, y: -1 },
+            { x: -1, y: -1 },
+          ];
+
+          corners.forEach((corner) => {
+            const cornerPos = this.convertWorldToGrid(
+              p.worldX + corner.x * (this.tileW / 2),
+              p.worldY + corner.y * (this.tileW / 2)
+            );
+
+            const cornerTile = this.grid[cornerPos.x][cornerPos.y];
+
+            // occupied by turret
+            cornerTile.setData("turret", true);
+          });
+        } else {
+          this.selectedObj.destroy();
+        }
+
+        this.selectedObj = null;
       }
     });
   }
@@ -629,7 +716,8 @@ class Game extends Phaser.Scene {
 
             this.selectedObj = this.add
               .rectangle(p.worldX, p.worldY, this.tileW, this.tileW, 0xca6702)
-              .setStrokeStyle(4, 0xe9d8a6);
+              .setStrokeStyle(4, 0xe9d8a6)
+              .setName("turtle");
 
             for (let i = 0; i < this.grid.length; i++) {
               for (let j = 0; j < this.grid[i].length; j++) {
@@ -677,7 +765,7 @@ class Game extends Phaser.Scene {
         .setStrokeStyle(6, 0xffffff, 0.8);
 
       let turret = this.add.rectangle();
-      const size = this.tileW * 1.8;
+      const size = this.tileW * 1.5;
 
       switch (i) {
         case 0:
@@ -697,62 +785,72 @@ class Game extends Phaser.Scene {
           break;
       }
 
+      let colorMatrix;
+
       const c = this.add
-        .container(x, y)
+        .container(x, y, [bg, turret])
+        .setData("number", i)
         .setSize(bg.width, bg.height)
         .setInteractive()
         .on("pointerover", () => {
           this.tweens.add({
             targets: bg,
             fillAlpha: 0.5,
-            duration: 200,
+            duration: 100,
+          });
+          this.tweens.add({
+            targets: turret,
+            scale: 1.1,
+            duration: 100,
           });
         })
         .on("pointerout", () => {
+          colorMatrix.brightness(1);
           this.tweens.add({
             targets: bg,
             fillAlpha: 0.3,
-            duration: 200,
+            duration: 100,
+          });
+          this.tweens.add({
+            targets: turret,
+            scale: 1,
+            duration: 100,
           });
           c.off("pointerup");
         })
         .on("pointerdown", () => {
-          bgColorMatrix.brightness(0.8);
-          textColorMatrix.brightness(0.8);
+          colorMatrix.brightness(0.85);
 
           if (c.listenerCount("pointerup") < 1) {
             c.on("pointerup", (p) => {
-              bgColorMatrix.brightness(1);
-              textColorMatrix.brightness(1);
-
-              this.selectedObj = this.add
-                .rectangle(p.worldX, p.worldY, this.tileW, this.tileW, 0xca6702)
-                .setStrokeStyle(4, 0xe9d8a6);
-
-              for (let i = 0; i < this.grid.length; i++) {
-                for (let j = 0; j < this.grid[i].length; j++) {
-                  if (
-                    i == 0 ||
-                    i == this.grid.length - 1 ||
-                    j == 0 ||
-                    j == this.grid[i].length - 1
-                  ) {
-                    this.grid[i][j].setStrokeStyle(3, 0xffffff);
-                    this.tweens.add({
-                      targets: this.grid[i][j],
-                      alpha: 0.7,
-                      duration: 200,
-                    });
-                  }
-                }
+              switch (c.getData("number")) {
+                case 0:
+                  this.selectedObj = this.add
+                    .rectangle(p.worldX, p.worldY, size, size, 0xff9f1c, 1)
+                    .setStrokeStyle(4, 0xffffff, 1)
+                    .setName("railgun");
+                  break;
+                case 1:
+                  break;
+                case 2:
+                  break;
+                case 3:
+                  break;
+                case 4:
+                  break;
+                case 5:
+                  break;
               }
 
-              c.destroy();
+              colorMatrix.brightness(1);
+              c.off("pointerup");
             });
           }
         });
 
-      turrets.push(c.add([bg, turret]));
+      colorMatrix = c.postFX.addColorMatrix();
+
+      turrets.push(c);
     }
 
     return turrets;
