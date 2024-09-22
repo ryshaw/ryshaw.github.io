@@ -113,6 +113,8 @@ class Game extends Phaser.Scene {
 
     //this.createPlayer();
     this.createAsteroidGrid();
+    this.centerAsteroidGrid();
+
     this.createOreDeposits();
     this.initiateTurtleDrop();
 
@@ -161,7 +163,7 @@ class Game extends Phaser.Scene {
       const y = Phaser.Math.Between(gameH * 0.275, gameH * 0.725);
       const w = Phaser.Math.Between(40, 400);
 
-      const c = this.add.circle(x, y, w * 0.5, 0xff0000, 0.05).setDepth(1);
+      const c = this.add.circle(x, y, w * 0.5, 0xff0000, 0).setDepth(1);
 
       shapes[i] = new Phaser.Geom.Circle(c.x, c.y, c.radius);
     }
@@ -275,6 +277,61 @@ class Game extends Phaser.Scene {
     tile.setAlpha(1).setFillStyle(0x272635).setData("filled", true);
 
     this.filledTiles.add(tile);
+  }
+
+  centerAsteroidGrid() {
+    let top;
+    let bottom;
+    let left;
+    let right;
+    for (let i = 0; i < this.grid.length; i++) {
+      for (let j = 0; j < this.grid[i].length; j++) {
+        const tile = this.grid[i][j];
+        if (tile.getData("filled")) {
+          if (!left) left = i;
+          right = i;
+
+          if (!top) top = j;
+          if (top && j < top) top = j;
+
+          if (!bottom) bottom = j;
+          if (bottom && j > bottom) bottom = j;
+        }
+      }
+    }
+
+    bottom = this.grid[0].length - 1 - bottom;
+    right = this.grid.length - 1 - right;
+
+    const shiftX = Math.round(left - Phaser.Math.Average([right, left]));
+    const shiftY = Math.round(top - Phaser.Math.Average([top, bottom]));
+
+    console.log(shiftX, shiftY);
+
+    if (shiftX == 0 && shiftY == 0) return;
+
+    let start = new Phaser.Math.Vector2(this.grid[0][0].x, this.grid[0][0].y);
+
+    for (let i = 0; i < this.grid.length; i++) {
+      if (i - shiftX < 0 || i - shiftX > this.grid.length - 1) continue;
+      for (let j = 0; j < this.grid[i].length; j++) {
+        if (j - shiftY < 0 || j - shiftY > this.grid[i].length - 1) continue;
+
+        const tile = this.grid[i][j];
+        const swap = this.grid[i - shiftX][j - shiftY];
+
+        tile.x = start.x + (i - shiftX) * this.tileW;
+        tile.y = start.y + (j - shiftY) * this.tileW;
+
+        swap.x = start.x + i * this.tileW;
+        swap.y = start.y + j * this.tileW;
+
+        this.grid[i][j] = swap.setData("x", i).setData("y", j);
+        this.grid[i - shiftX][j - shiftY] = tile
+          .setData("x", i - shiftX)
+          .setData("y", j - shiftY);
+      }
+    }
   }
 
   checkIfInGrid(x, y) {
@@ -466,6 +523,24 @@ class Game extends Phaser.Scene {
 
       this.selectedObj.destroy();
       this.selectedObj = null;
+
+      for (let i = 0; i < this.grid.length; i++) {
+        for (let j = 0; j < this.grid[i].length; j++) {
+          if (
+            i == 0 ||
+            i == this.grid.length - 1 ||
+            j == 0 ||
+            j == this.grid[i].length - 1
+          ) {
+            this.grid[i][j].setStrokeStyle(2, 0xffffff);
+            this.tweens.add({
+              targets: this.grid[i][j],
+              alpha: 0,
+              duration: 100,
+            });
+          }
+        }
+      }
     });
   }
 
@@ -482,31 +557,49 @@ class Game extends Phaser.Scene {
   }
 
   createSidebar() {
-    const container = this.add
-      .container(gameW * 0.9, gameH * 0.1, [
-        this.add
-          .rectangle(0, 0, this.tileW * 3, this.tileW * 3, 0xffffff)
-          .setAlpha(0.1)
-          .setName("bg"),
-        this.add
-          .rectangle(0, 0, this.tileW, this.tileW, 0xca6702)
-          .setStrokeStyle(4, 0xe9d8a6)
-          .setName("item"),
-      ])
-      .setSize(this.tileW * 3, this.tileW * 3)
+    const turtleBg = this.add
+      .rectangle(
+        gameW * 0.9,
+        gameH * 0.1,
+        this.tileW * 3,
+        this.tileW * 3,
+        0xffffff
+      )
+      .setAlpha(0.1)
       .setInteractive()
       .on("pointerover", () => {
-        container.getByName("bg").setAlpha(0.3);
+        turtleBg.setAlpha(0.3);
       })
       .on("pointerout", () => {
-        container.getByName("bg").setAlpha(0.1);
+        turtleBg.setAlpha(0.1);
       })
       .on("pointerup", () => {
-        this.selectedObj = Phaser.Utils.Objects.Clone(
-          container.getByName("item")
-        );
-        container.remove(this.selectedObj.setPosition(100, 100));
+        this.selectedObj = this.add
+          .rectangle(gameW * 0.9, gameH * 0.1, this.tileW, this.tileW, 0xca6702)
+          .setStrokeStyle(4, 0xe9d8a6);
+
+        for (let i = 0; i < this.grid.length; i++) {
+          for (let j = 0; j < this.grid[i].length; j++) {
+            if (
+              i == 0 ||
+              i == this.grid.length - 1 ||
+              j == 0 ||
+              j == this.grid[i].length - 1
+            ) {
+              this.grid[i][j].setStrokeStyle(3, 0xffffff);
+              this.tweens.add({
+                targets: this.grid[i][j],
+                alpha: 0.7,
+                duration: 200,
+              });
+            }
+          }
+        }
       });
+
+    this.add
+      .rectangle(gameW * 0.9, gameH * 0.1, this.tileW, this.tileW, 0xca6702)
+      .setStrokeStyle(4, 0xe9d8a6);
   }
 
   createStars() {
