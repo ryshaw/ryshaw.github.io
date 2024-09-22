@@ -128,6 +128,15 @@ class Game extends Phaser.Scene {
     //this.createKeyboardControls();
 
     //this.startGame();
+
+    WebFont.load({
+      google: {
+        families: FONTS,
+      },
+      active: () => {
+        this.createMenu();
+      },
+    });
   }
 
   createResolution() {
@@ -176,8 +185,8 @@ class Game extends Phaser.Scene {
     this.tileW = 32;
 
     // top left corner
-    const startX = gameW * 0.5 - gridX * this.tileW * 0.5;
-    const startY = gameH * 0.5 - gridY * this.tileW * 0.5;
+    const startX = gameW * 0.4 - gridX * this.tileW * 0.5;
+    const startY = gameH * 0.48 - gridY * this.tileW * 0.5;
 
     for (let i = 0; i < gridX; i++) {
       this.grid[i] = [];
@@ -305,8 +314,6 @@ class Game extends Phaser.Scene {
 
     const shiftX = Math.round(left - Phaser.Math.Average([right, left]));
     const shiftY = Math.round(top - Phaser.Math.Average([top, bottom]));
-
-    console.log(shiftX, shiftY);
 
     if (shiftX == 0 && shiftY == 0) return;
 
@@ -600,6 +607,10 @@ class Game extends Phaser.Scene {
     this.add
       .rectangle(gameW * 0.9, gameH * 0.1, this.tileW, this.tileW, 0xca6702)
       .setStrokeStyle(4, 0xe9d8a6);
+  }
+
+  createMenu() {
+    this.add.gameText(100, 100, "Deploy Turtle", 4);
   }
 
   createStars() {
@@ -2345,7 +2356,7 @@ class GameText extends Phaser.GameObjects.Text {
       },
     });
 
-    this.setOrigin(0, 0).setFontFamily("Ubuntu Mono");
+    this.setOrigin(0, 0).setFontFamily("Space Mono");
 
     // if callback is given, assume it's a button and add callback.
     // fine-tuned this code so button only clicks if player
