@@ -134,6 +134,7 @@ class Game extends Phaser.Scene {
         families: FONTS,
       },
       active: () => {
+        this.createDeployButton();
         this.createMenu();
       },
     });
@@ -580,37 +581,181 @@ class Game extends Phaser.Scene {
       .on("pointerout", () => {
         turtleBg.setAlpha(0.1);
       })
-      .on("pointerup", () => {
-        this.selectedObj = this.add
-          .rectangle(gameW * 0.9, gameH * 0.1, this.tileW, this.tileW, 0xca6702)
-          .setStrokeStyle(4, 0xe9d8a6);
-
-        for (let i = 0; i < this.grid.length; i++) {
-          for (let j = 0; j < this.grid[i].length; j++) {
-            if (
-              i == 0 ||
-              i == this.grid.length - 1 ||
-              j == 0 ||
-              j == this.grid[i].length - 1
-            ) {
-              this.grid[i][j].setStrokeStyle(3, 0xffffff);
-              this.tweens.add({
-                targets: this.grid[i][j],
-                alpha: 0.7,
-                duration: 200,
-              });
-            }
-          }
-        }
-      });
+      .on("pointerup", () => {});
 
     this.add
       .rectangle(gameW * 0.9, gameH * 0.1, this.tileW, this.tileW, 0xca6702)
       .setStrokeStyle(4, 0xe9d8a6);
   }
 
+  createDeployButton() {
+    const t = this.add
+      .gameText(0, 0, "Deploy Turtle", 3)
+      .setOrigin(0.5, 0.5)
+      .setPadding(30)
+      .setFontStyle("bold")
+      .setShadow(2, 2, "#000", 5, true, true);
+
+    const r = this.add
+      .rectangle(0, 0, t.getBounds().width, t.getBounds().height, 0x2a9134)
+      .setStrokeStyle(8, 0xffffff)
+      .setName("bg");
+
+    const bgGradient = r.postFX.addGradient(0x2a9134, 0xffffff);
+    const bgColorMatrix = r.postFX.addColorMatrix();
+    const textColorMatrix = t.postFX.addColorMatrix();
+
+    const c = this.add
+      .container(gameW * 0.4, gameH * 0.9, [r, t])
+      .setSize(r.width, r.height)
+      .setInteractive()
+      .on("pointerover", () => {
+        bgGradient.alpha = 0.4;
+      })
+      .on("pointerout", () => {
+        bgGradient.alpha = 0.2;
+        bgColorMatrix.brightness(1);
+        textColorMatrix.brightness(1);
+        c.off("pointerup");
+      })
+      .on("pointerdown", () => {
+        bgColorMatrix.brightness(0.8);
+        textColorMatrix.brightness(0.8);
+
+        if (c.listenerCount("pointerup") < 1) {
+          c.on("pointerup", (p) => {
+            bgColorMatrix.brightness(1);
+            textColorMatrix.brightness(1);
+
+            this.selectedObj = this.add
+              .rectangle(p.worldX, p.worldY, this.tileW, this.tileW, 0xca6702)
+              .setStrokeStyle(4, 0xe9d8a6);
+
+            for (let i = 0; i < this.grid.length; i++) {
+              for (let j = 0; j < this.grid[i].length; j++) {
+                if (
+                  i == 0 ||
+                  i == this.grid.length - 1 ||
+                  j == 0 ||
+                  j == this.grid[i].length - 1
+                ) {
+                  this.grid[i][j].setStrokeStyle(3, 0xffffff);
+                  this.tweens.add({
+                    targets: this.grid[i][j],
+                    alpha: 0.7,
+                    duration: 200,
+                  });
+                }
+              }
+            }
+
+            c.destroy();
+          });
+        }
+      });
+  }
+
   createMenu() {
-    this.add.gameText(100, 100, "Deploy Turtle", 4);
+    const menu = this.add.container(gameW * 0.9, gameH * 0.5, [
+      this.add
+        .rectangle(0, 0, gameW * 0.2, gameH - 16, 0x284b63)
+        .setStrokeStyle(16, 0x3c6e71)
+        .postFX.addGradient(0x343a40, 0x6c757d, 0.4).gameObject,
+      ...this.createTurretButtons(),
+    ]);
+  }
+
+  createTurretButtons() {
+    const turrets = [];
+
+    for (let i = 0; i < 6; i++) {
+      const x = (i % 2) * 180 - 90;
+      const y = Math.floor(i / 2) * 180 - 400;
+
+      const bg = this.add
+        .rectangle(0, 0, 144, 144, 0xffffff, 0.3)
+        .setStrokeStyle(6, 0xffffff, 0.8);
+
+      let turret = this.add.rectangle();
+      const size = this.tileW * 1.8;
+
+      switch (i) {
+        case 0:
+          turret = this.add
+            .rectangle(0, 0, size, size, 0xff9f1c, 1)
+            .setStrokeStyle(4, 0xffffff, 1);
+          break;
+        case 1:
+          break;
+        case 2:
+          break;
+        case 3:
+          break;
+        case 4:
+          break;
+        case 5:
+          break;
+      }
+
+      const c = this.add
+        .container(x, y)
+        .setSize(bg.width, bg.height)
+        .setInteractive()
+        .on("pointerover", () => {
+          this.tweens.add({
+            targets: bg,
+            fillAlpha: 0.5,
+            duration: 200,
+          });
+        })
+        .on("pointerout", () => {
+          this.tweens.add({
+            targets: bg,
+            fillAlpha: 0.3,
+            duration: 200,
+          });
+          c.off("pointerup");
+        })
+        .on("pointerdown", () => {
+          bgColorMatrix.brightness(0.8);
+          textColorMatrix.brightness(0.8);
+
+          if (c.listenerCount("pointerup") < 1) {
+            c.on("pointerup", (p) => {
+              bgColorMatrix.brightness(1);
+              textColorMatrix.brightness(1);
+
+              this.selectedObj = this.add
+                .rectangle(p.worldX, p.worldY, this.tileW, this.tileW, 0xca6702)
+                .setStrokeStyle(4, 0xe9d8a6);
+
+              for (let i = 0; i < this.grid.length; i++) {
+                for (let j = 0; j < this.grid[i].length; j++) {
+                  if (
+                    i == 0 ||
+                    i == this.grid.length - 1 ||
+                    j == 0 ||
+                    j == this.grid[i].length - 1
+                  ) {
+                    this.grid[i][j].setStrokeStyle(3, 0xffffff);
+                    this.tweens.add({
+                      targets: this.grid[i][j],
+                      alpha: 0.7,
+                      duration: 200,
+                    });
+                  }
+                }
+              }
+
+              c.destroy();
+            });
+          }
+        });
+
+      turrets.push(c.add([bg, turret]));
+    }
+
+    return turrets;
   }
 
   createStars() {
@@ -936,7 +1081,7 @@ class HUD extends Phaser.Scene {
     // show bounds of game while in dev
     this.bounds = this.add
       .rectangle(gameW / 2, gameH / 2, gameW, gameH)
-      .setStrokeStyle(4, 0xffffff, 0.5);
+      .setStrokeStyle(4, 0xffffff, 0.3);
 
     WebFont.load({
       google: {
@@ -2356,7 +2501,7 @@ class GameText extends Phaser.GameObjects.Text {
       },
     });
 
-    this.setOrigin(0, 0).setFontFamily("Space Mono");
+    this.setOrigin(0, 0).setFontFamily("JetBrains Mono");
 
     // if callback is given, assume it's a button and add callback.
     // fine-tuned this code so button only clicks if player
