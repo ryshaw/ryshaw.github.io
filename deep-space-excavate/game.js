@@ -421,75 +421,83 @@ class Game extends Phaser.Scene {
 
     this.time.addEvent({
       loop: true,
-      delay: 600, //800,
-      callback: () => {
-        if (this.oreTiles.length <= 0) return; // no more ore to mine
-
-        // find closest ore target to head to
-        let target;
-        let targetDist;
-
-        this.oreTiles.each((oreTile) => {
-          const dist = Phaser.Math.Distance.Between(
-            miner.getData("x"),
-            miner.getData("y"),
-            oreTile.getData("x"),
-            oreTile.getData("y")
-          );
-
-          if (!target || dist < targetDist) {
-            target = oreTile;
-            targetDist = dist;
-          }
-        });
-
-        // pick which tile to move to next
-        let nextTile;
-        let nextTileDistToTarget;
-
-        for (let angle = 0; angle < 360; angle += 90) {
-          const v = new Phaser.Math.Vector2(1, 0);
-
-          const r = Phaser.Math.DegToRad(angle);
-          v.setAngle(r);
-          v.x = Math.round(v.x) + miner.getData("x");
-          v.y = Math.round(v.y) + miner.getData("y");
-
-          if (
-            !this.checkIfInGrid(v.x, v.y) ||
-            this.grid[v.x][v.y].getData("turret")
-          )
-            continue;
-
-          const dist = Phaser.Math.Distance.Between(
-            v.x,
-            v.y,
-            target.getData("x"),
-            target.getData("y")
-          );
-
-          if (!nextTile || dist < nextTileDistToTarget) {
-            nextTile = this.grid[v.x][v.y];
-            nextTileDistToTarget = dist;
-          }
-        }
-
-        if (nextTile.getData("filled")) nextTile.setData("filled", false);
-
-        if (nextTile.alpha <= 0) {
-          miner.setPosition(nextTile.x, nextTile.y);
-          miner.setData("x", nextTile.getData("x"));
-          miner.setData("y", nextTile.getData("y"));
-
-          if (nextTile.getData("ore")) {
-            nextTile.setData("ore", false);
-            this.oreTiles.remove(nextTile);
-          }
-        } else {
-          nextTile.alpha -= 0.34;
-        }
-      },
+      delay: 400, //800,
+      callback: () => this.updateMiningDrone(miner),
     });
+  }
+
+  updateMiningDrone(miner) {
+    if (this.oreTiles.length <= 0) return; // no more ore to mine
+
+    // find closest ore target to head to
+    let target;
+    let targetDist;
+
+    this.oreTiles.each((oreTile) => {
+      const dist = Phaser.Math.Distance.Between(
+        miner.getData("x"),
+        miner.getData("y"),
+        oreTile.getData("x"),
+        oreTile.getData("y")
+      );
+
+      if (!target || dist < targetDist) {
+        target = oreTile;
+        targetDist = dist;
+      }
+    });
+
+    // pick which tile to move to next
+    let nextTile;
+    let nextTileDistToTarget;
+
+    for (let angle = 0; angle < 360; angle += 90) {
+      const v = new Phaser.Math.Vector2(1, 0);
+
+      const r = Phaser.Math.DegToRad(angle);
+      v.setAngle(r);
+      v.x = Math.round(v.x) + miner.getData("x");
+      v.y = Math.round(v.y) + miner.getData("y");
+
+      if (
+        !this.checkIfInGrid(v.x, v.y) ||
+        this.grid[v.x][v.y].getData("turret")
+      )
+        continue;
+
+      const dist = Phaser.Math.Distance.Between(
+        v.x,
+        v.y,
+        target.getData("x"),
+        target.getData("y")
+      );
+
+      if (!nextTile || dist < nextTileDistToTarget) {
+        nextTile = this.grid[v.x][v.y];
+        nextTileDistToTarget = dist;
+      }
+    }
+
+    // start digging next hole
+    if (nextTile.getData("filled")) nextTile.setData("filled", false);
+
+    this.input.emit(
+      "pointermove",
+      this.input.activePointer.updateWorldPoint(this.cameras.main)
+    );
+
+    if (nextTile.alpha <= 0) {
+      miner.setPosition(nextTile.x, nextTile.y);
+      miner.setData("x", nextTile.getData("x"));
+      miner.setData("y", nextTile.getData("y"));
+
+      if (nextTile.getData("ore")) {
+        nextTile.setData("ore", false);
+        this.oreTiles.remove(nextTile);
+      }
+    } else {
+      nextTile.alpha -= 0.34;
+    }
   }
 
   collectOre() {
