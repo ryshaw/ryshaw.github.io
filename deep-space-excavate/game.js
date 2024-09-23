@@ -357,6 +357,10 @@ class Game extends Phaser.Scene {
     return this.grid[x][y].getData("edge");
   }
 
+  checkIfHasTurret(x, y) {
+    return this.grid[x][y].getData("turret");
+  }
+
   createOreDeposits() {
     const num = Phaser.Math.Between(8, 12);
     this.oreTiles = new Phaser.Structs.List();
@@ -452,26 +456,25 @@ class Game extends Phaser.Scene {
           v.y = Math.round(v.y) + miner.getData("y");
 
           if (
-            this.checkIfInGrid(v.x, v.y) // &&
-            //this.checkIfFilled(v.x, v.y) //&&
-            //!this.checkIfEdge(v.x, v.y)
-          ) {
-            const dist = Phaser.Math.Distance.Between(
-              v.x,
-              v.y,
-              target.getData("x"),
-              target.getData("y")
-            );
+            !this.checkIfInGrid(v.x, v.y) ||
+            this.grid[v.x][v.y].getData("turret")
+          )
+            continue;
 
-            if (!nextTile || dist < nextTileDistToTarget) {
-              nextTile = this.grid[v.x][v.y];
-              nextTileDistToTarget = dist;
-            }
+          const dist = Phaser.Math.Distance.Between(
+            v.x,
+            v.y,
+            target.getData("x"),
+            target.getData("y")
+          );
+
+          if (!nextTile || dist < nextTileDistToTarget) {
+            nextTile = this.grid[v.x][v.y];
+            nextTileDistToTarget = dist;
           }
         }
 
-        // if we didn't pick a next tile, we're still outside at the start
-        //if (!nextTile) nextTile = edge;
+        if (nextTile.getData("filled")) nextTile.setData("filled", false);
 
         if (nextTile.alpha <= 0) {
           miner.setPosition(nextTile.x, nextTile.y);
@@ -479,7 +482,7 @@ class Game extends Phaser.Scene {
           miner.setData("y", nextTile.getData("y"));
 
           if (nextTile.getData("ore")) {
-            nextTile.getData("ore", false);
+            nextTile.setData("ore", false);
             this.oreTiles.remove(nextTile);
           }
         } else {
@@ -534,7 +537,7 @@ class Game extends Phaser.Scene {
         );
 
         // reset these properties (could be changed later down)
-        this.selectedObj.setAlpha(1).setStrokeStyle(4, 0xffffff);
+        this.selectedObj.setAlpha(1).strokeColor = 0xffffff;
 
         // check all four tiles to see if it can be built here
 
@@ -559,20 +562,9 @@ class Game extends Phaser.Scene {
             !cornerTile.getData("filled") ||
             cornerTile.getData("turret")
           ) {
-            this.selectedObj.setAlpha(0.7).setStrokeStyle(4, 0xff0000);
+            this.selectedObj.setAlpha(0.7).strokeColor = 0xff0000;
           }
         });
-
-        //this.selectedObj.setPosition(p.worldX, p.worldY);
-
-        /*
-        const topLeft = this.selectedObj.getTopLeft();
-        const topLeftPos = this.convertWorldToGrid(topLeft.x, topLeft.y);
-        const topLeftTile = this.grid[topLeftPos.x][topLeftPos.y];
-
-        if (topLeftTile.getData("filled")) {
-          topLeftTile.setFillStyle(0xff0000);
-        }*/
       }
     });
 
@@ -625,10 +617,17 @@ class Game extends Phaser.Scene {
               p.worldY + corner.y * (this.tileW / 2)
             );
 
-            const cornerTile = this.grid[cornerPos.x][cornerPos.y];
+            // set 3x3 grid around cornerTile to be turreted
+            // so it leaves room for mining turtle to move around
+            for (let angle = 0; angle < 360; angle += 45) {
+              const v = new Phaser.Math.Vector2(1, 0);
 
-            // occupied by turret
-            cornerTile.setData("turret", true);
+              v.setAngle(Phaser.Math.DegToRad(angle));
+              v.x = Math.round(v.x) + cornerPos.x;
+              v.y = Math.round(v.y) + cornerPos.y;
+
+              this.grid[v.x][v.y].setData("turret", true);
+            }
           });
         } else {
           this.selectedObj.destroy();
@@ -765,13 +764,13 @@ class Game extends Phaser.Scene {
         .setStrokeStyle(6, 0xffffff, 0.8);
 
       let turret = this.add.rectangle();
-      const size = this.tileW * 1.5;
+      const size = this.tileW * 1.4;
 
       switch (i) {
         case 0:
           turret = this.add
             .rectangle(0, 0, size, size, 0xff9f1c, 1)
-            .setStrokeStyle(4, 0xffffff, 1);
+            .setStrokeStyle(6, 0xffffff, 1);
           break;
         case 1:
           break;
@@ -826,8 +825,9 @@ class Game extends Phaser.Scene {
               switch (c.getData("number")) {
                 case 0:
                   this.selectedObj = this.add
-                    .rectangle(p.worldX, p.worldY, size, size, 0xff9f1c, 1)
-                    .setStrokeStyle(4, 0xffffff, 1)
+                    .rectangle(p.worldX, p.worldY, size, size, 0xff9f1c)
+                    .setStrokeStyle(6, 0xffffff)
+                    .setAlpha(0.9)
                     .setName("railgun");
                   break;
                 case 1:
