@@ -524,47 +524,22 @@ class Game extends Phaser.Scene {
       } else {
         // turret
 
-        const adjustedPos = this.convertWorldToGrid(
-          p.worldX + this.tileW / 2,
-          p.worldY + this.tileW / 2
-        );
+        const tile = this.grid[pos.x][pos.y];
 
-        const tile = this.grid[adjustedPos.x][adjustedPos.y];
-
-        this.selectedObj.setPosition(
-          tile.x - this.tileW / 2,
-          tile.y - this.tileW / 2
-        );
+        this.selectedObj.setPosition(tile.x, tile.y);
 
         // reset these properties (could be changed later down)
         this.selectedObj.setAlpha(1).strokeColor = 0xffffff;
 
-        // check all four tiles to see if it can be built here
-
-        const corners = [
-          { x: 1, y: 1 },
-          { x: -1, y: 1 },
-          { x: 1, y: -1 },
-          { x: -1, y: -1 },
-        ];
-
-        corners.forEach((corner) => {
-          const cornerPos = this.convertWorldToGrid(
-            p.worldX + corner.x * (this.tileW / 2),
-            p.worldY + corner.y * (this.tileW / 2)
-          );
-
-          const cornerTile = this.grid[cornerPos.x][cornerPos.y];
-
-          // check valid conditions
-          if (
-            cornerTile.getData("ore") ||
-            !cornerTile.getData("filled") ||
-            cornerTile.getData("turret")
-          ) {
-            this.selectedObj.setAlpha(0.7).strokeColor = 0xff0000;
-          }
-        });
+        // check valid conditions
+        if (
+          tile.getData("ore") ||
+          !tile.getData("filled") ||
+          tile.getData("turret") ||
+          tile.getData("turretAdjacent")
+        ) {
+          this.selectedObj.setAlpha(0.7).strokeColor = 0xff0000;
+        }
       }
     });
 
@@ -603,32 +578,19 @@ class Game extends Phaser.Scene {
         // turret
         if (this.selectedObj.alpha == 1) {
           // valid position
+          this.grid[pos.x][pos.y].setData("turret", true);
 
-          const corners = [
-            { x: 1, y: 1 },
-            { x: -1, y: 1 },
-            { x: 1, y: -1 },
-            { x: -1, y: -1 },
-          ];
+          // set 3x3 grid around cornerTile to be turreted
+          // so it leaves room for mining turtle to move around
+          for (let angle = 0; angle < 360; angle += 45) {
+            const v = new Phaser.Math.Vector2(1, 0);
 
-          corners.forEach((corner) => {
-            const cornerPos = this.convertWorldToGrid(
-              p.worldX + corner.x * (this.tileW / 2),
-              p.worldY + corner.y * (this.tileW / 2)
-            );
+            v.setAngle(Phaser.Math.DegToRad(angle));
+            v.x = Math.round(v.x) + pos.x;
+            v.y = Math.round(v.y) + pos.y;
 
-            // set 3x3 grid around cornerTile to be turreted
-            // so it leaves room for mining turtle to move around
-            for (let angle = 0; angle < 360; angle += 45) {
-              const v = new Phaser.Math.Vector2(1, 0);
-
-              v.setAngle(Phaser.Math.DegToRad(angle));
-              v.x = Math.round(v.x) + cornerPos.x;
-              v.y = Math.round(v.y) + cornerPos.y;
-
-              this.grid[v.x][v.y].setData("turret", true);
-            }
-          });
+            this.grid[v.x][v.y].setData("turretAdjacent", true);
+          }
         } else {
           this.selectedObj.destroy();
         }
@@ -764,7 +726,7 @@ class Game extends Phaser.Scene {
         .setStrokeStyle(6, 0xffffff, 0.8);
 
       let turret = this.add.rectangle();
-      const size = this.tileW * 1.4;
+      const size = this.tileW * 1.2;
 
       switch (i) {
         case 0:
