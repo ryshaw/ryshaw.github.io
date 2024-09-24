@@ -362,7 +362,7 @@ class Game extends Phaser.Scene {
   }
 
   createOreDeposits() {
-    const num = Phaser.Math.Between(8, 12);
+    const num = 2; //Phaser.Math.Between(8, 12);
     this.oreTiles = new Phaser.Structs.List();
 
     for (let i = 1; i <= num; i++) {
@@ -419,20 +419,32 @@ class Game extends Phaser.Scene {
       .setData("x", start.getData("x"))
       .setData("y", start.getData("y"));
 
-    this.time.addEvent({
-      loop: true,
-      delay: 400, //800,
-      callback: () => this.updateMiningDrone(miner),
-    });
+    miner.setData(
+      "loop",
+      this.time.addEvent({
+        loop: true,
+        delay: 400, //800,
+        callback: () => this.updateMiningDrone(miner),
+      })
+    );
   }
 
   updateMiningDrone(miner) {
-    if (this.oreTiles.length <= 0) return; // no more ore to mine
-
-    // find closest ore target to head to
+    // pick next target to head to
+    // could be ore, or if there's no more ore left,
+    // the miner will leave to space through
+    // the shorest path
     let target;
+
+    if (this.oreTiles.length <= 0) {
+      // no more ore to mine, escape from the asteroid
+      target = this.returnMiningDrone(miner);
+    }
+
+    // if ore, find closest ore target to head to
     let targetDist;
 
+    // only goes through this if ore
     this.oreTiles.each((oreTile) => {
       const dist = Phaser.Math.Distance.Between(
         miner.getData("x"),
@@ -447,7 +459,7 @@ class Game extends Phaser.Scene {
       }
     });
 
-    // pick which tile to move to next
+    // with target set, pick which tile to move to next
     let nextTile;
     let nextTileDistToTarget;
 
@@ -481,6 +493,7 @@ class Game extends Phaser.Scene {
     // start digging next hole
     if (nextTile.getData("filled")) nextTile.setData("filled", false);
 
+    // this method will reset possible turret build locations
     this.input.emit(
       "pointermove",
       this.input.activePointer.updateWorldPoint(this.cameras.main)
@@ -499,6 +512,69 @@ class Game extends Phaser.Scene {
       nextTile.alpha -= 0.34;
     }
   }
+
+  returnMiningDrone(miner) {
+    // after mining all the ore,
+    // the turtle will return to space
+    // through the shortest number of filled tiles
+    // in any of the four directions.
+    let shortestPath;
+    let leastNumFilledTiles;
+
+    for (let angle = 0; angle < 360; angle += 90) {
+      const unit = new Phaser.Math.Vector2(1, 0);
+
+      unit.setAngle(Phaser.Math.DegToRad(angle));
+      unit.x = Math.round(unit.x);
+      unit.y = Math.round(unit.y);
+
+      let checkPos = unit.clone();
+      checkPos.x = unit.x + miner.getData("x");
+      checkPos.y = unit.y + miner.getData("y");
+
+      let numFilledTiles = 0;
+      while (this.checkIfInGrid(checkPos.x, checkPos.y)) {
+        // specifically the alpha because we must count tiles the miner
+        // is cutting down as well. we aren't done until there's no alpha left
+        if (this.grid[checkPos.x][checkPos.y].alpha > 0) numFilledTiles++;
+
+        // gotta move around turrets too
+        if (this.checkIfHasTurret(checkPos.x, checkPos.y)) numFilledTiles += 2;
+
+        checkPos.add(unit);
+      }
+
+      if (!shortestPath || numFilledTiles < leastNumFilledTiles) {
+        shortestPath = checkPos.subtract(unit); // make it go back on grid
+        leastNumFilledTiles = numFilledTiles;
+      }
+    }
+
+    const tile = this.grid[shortestPath.x][shortestPath.y];
+
+    if (leastNumFilledTiles == 0) {
+      const dist = Phaser.Math.Distance.Between(
+        miner.getData("x"),
+        miner.getData("y"),
+        shortestPath.x,
+        shortestPath.y
+      );
+
+      this.tweens.add({
+        targets: miner,
+        x: tile.x + 4 * (tile.x - miner.x),
+        y: tile.y + 4 * (tile.y - miner.y),
+        duration: 300 * dist,
+        delay: 800,
+        ease: "quint.inout",
+      });
+      miner.getData("loop").remove();
+    }
+
+    return tile;
+  }
+
+  escapeMiningDrone(miner, tile) {}
 
   collectOre() {
     console.log("collected");
@@ -713,13 +789,15 @@ class Game extends Phaser.Scene {
   }
 
   createMenu() {
-    const menu = this.add.container(gameW * 0.9, gameH * 0.5, [
-      this.add
-        .rectangle(0, 0, gameW * 0.2, gameH - 16, 0x284b63)
-        .setStrokeStyle(16, 0x3c6e71)
-        .postFX.addGradient(0x343a40, 0x6c757d, 0.4).gameObject,
-      ...this.createTurretButtons(),
-    ]);
+    const menu = this.add
+      .container(gameW * 0.9, gameH * 0.5, [
+        this.add
+          .rectangle(0, 0, gameW * 0.2, gameH - 16, 0x284b63)
+          .setStrokeStyle(16, 0x3c6e71)
+          .postFX.addGradient(0x343a40, 0x6c757d, 0.4).gameObject,
+        ...this.createTurretButtons(),
+      ])
+      .setDepth(1);
   }
 
   createTurretButtons() {
@@ -734,13 +812,14 @@ class Game extends Phaser.Scene {
         .setStrokeStyle(6, 0xffffff, 0.8);
 
       let turret = this.add.rectangle();
-      const size = this.tileW * 1.2;
+      const size = this.tileW * 1;
 
       switch (i) {
         case 0:
           turret = this.add
             .rectangle(0, 0, size, size, 0xff9f1c, 1)
-            .setStrokeStyle(6, 0xffffff, 1);
+            .setStrokeStyle(6, 0xffffff, 1)
+            .setScale(1.5);
           break;
         case 1:
           break;
@@ -769,7 +848,7 @@ class Game extends Phaser.Scene {
           });
           this.tweens.add({
             targets: turret,
-            scale: 1.1,
+            scale: 1.85,
             duration: 100,
           });
         })
@@ -782,7 +861,7 @@ class Game extends Phaser.Scene {
           });
           this.tweens.add({
             targets: turret,
-            scale: 1,
+            scale: 1.5,
             duration: 100,
           });
           c.off("pointerup");
@@ -798,6 +877,7 @@ class Game extends Phaser.Scene {
                     .rectangle(p.worldX, p.worldY, size, size, 0xff9f1c)
                     .setStrokeStyle(6, 0xffffff)
                     .setAlpha(0.9)
+                    .setDepth(1)
                     .setName("railgun");
                   break;
                 case 1:
