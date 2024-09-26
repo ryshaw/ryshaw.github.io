@@ -423,7 +423,7 @@ class Game extends Phaser.Scene {
       "loop",
       this.time.addEvent({
         loop: true,
-        delay: 400, //800,
+        delay: 100, //800,
         callback: () => this.updateMiningDrone(miner),
       })
     );
@@ -566,7 +566,10 @@ class Game extends Phaser.Scene {
         y: tile.y + 4 * (tile.y - miner.y),
         duration: 300 * dist,
         delay: 800,
-        ease: "quint.inout",
+        ease: "sine.inout",
+        onStart: () => {
+          this.cameras.main.startFollow(miner, false, 0.02, 0.02);
+        },
       });
       miner.getData("loop").remove();
     }
