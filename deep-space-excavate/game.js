@@ -124,6 +124,15 @@ class Game extends Phaser.Scene {
 
     this.createSidebar();
 
+    //this.add.image(100, 200, "trail").setAngle(90).setScale(0.5, 1);
+
+    /*
+    this.add
+      .image(200, 200, "ship")
+      .setScale(1.2)
+      .setAngle(90)
+      .setTint(0xe9c46a);*/
+
     //this.createMiningDrone();
     //this.createEncounters();
 
@@ -556,57 +565,60 @@ class Game extends Phaser.Scene {
 
     const tile = this.grid[shortestPath.x][shortestPath.y];
 
-    if (leastNumFilledTiles == 0) {
-      const point = Phaser.Geom.Circle.CircumferencePoint(
-        new Phaser.Geom.Circle(gameW / 2, gameH / 2, gameW),
-        Phaser.Math.Angle.Random()
-      );
-
-      const point2 = {
-        x: tile.x + (tile.x - point.x),
-        y: tile.y + (tile.y - point.y),
-      };
-
-      const angle = Phaser.Math.Angle.BetweenPoints(point, tile) + Math.PI / 2;
-
-      const ship = this.add
-        .image(point.x, point.y, "ship")
-        .setRotation(angle)
-        .setScale(1.5);
-
-      const dist = Phaser.Math.Distance.Between(
-        miner.getData("x"),
-        miner.getData("y"),
-        shortestPath.x,
-        shortestPath.y
-      );
-
-      this.tweens.add({
-        targets: [miner, ship],
-        x: tile.x,
-        y: tile.y,
-        duration: 1400,
-        delay: 200,
-        ease: "sine.inout",
-        onComplete: () => {
-          miner.setAlpha(0);
-          this.tweens.add({
-            targets: ship,
-            x: point2.x,
-            y: point2.y,
-            delay: 400,
-            duration: 1400,
-            ease: "sine.inout",
-          });
-        },
-      });
-      miner.getData("loop").remove();
-    }
+    if (leastNumFilledTiles == 0) this.escapeMiningDrone(miner, tile);
 
     return tile;
   }
 
-  escapeMiningDrone(miner, tile) {}
+  escapeMiningDrone(miner, tile) {
+    // stop update loop
+    miner.getData("loop").remove();
+
+    const point = Phaser.Geom.Circle.CircumferencePoint(
+      new Phaser.Geom.Circle(tile.x, tile.y, gameW),
+      Phaser.Math.Angle.Random()
+    );
+
+    const point2 = {
+      x: tile.x + (tile.x - point.x),
+      y: tile.y + (tile.y - point.y),
+    };
+
+    const angle = Phaser.Math.Angle.BetweenPoints(point, tile) + Math.PI / 2;
+
+    const ship = this.add
+      .image(point.x, point.y, "ship")
+      .setTint(0xe9c46a)
+      .setRotation(angle)
+      .setScale(1.4);
+
+    const dist = Phaser.Math.Distance.Between(
+      miner.getData("x"),
+      miner.getData("y"),
+      tile.getData("x"),
+      tile.getData("y")
+    );
+
+    this.tweens.add({
+      targets: [miner, ship],
+      x: tile.x,
+      y: tile.y,
+      duration: 1400,
+      delay: 200,
+      ease: "sine.inout",
+      onComplete: () => {
+        miner.setAlpha(0);
+        this.tweens.add({
+          targets: ship,
+          x: point2.x,
+          y: point2.y,
+          delay: 400,
+          duration: 1200,
+          ease: "sine.inout",
+        });
+      },
+    });
+  }
 
   collectOre() {
     console.log("collected");
@@ -668,7 +680,62 @@ class Game extends Phaser.Scene {
       );
 
       if (this.selectedObj.name == "turtle") {
-        this.createMiningDrone(pos.x, pos.y);
+        const tile = this.grid[pos.x][pos.y];
+
+        const point = Phaser.Geom.Circle.CircumferencePoint(
+          new Phaser.Geom.Circle(tile.x, tile.y, gameW),
+          Phaser.Math.Angle.Random()
+        );
+
+        const point2 = {
+          x: tile.x + (tile.x - point.x),
+          y: tile.y + (tile.y - point.y),
+        };
+
+        const angle =
+          Phaser.Math.Angle.BetweenPoints(point, tile) + Math.PI / 2;
+
+        const ship = this.add
+          .image(point.x, point.y, "ship")
+          .setTint(0xe9c46a)
+          .setRotation(angle)
+          .setScale(1.4)
+          .setDepth(1);
+
+        this.tweens.add({
+          targets: tile,
+          scale: 1.5,
+          angle: `+=90`,
+          duration: 600,
+          ease: "sine.inout",
+        });
+
+        this.tweens.add({
+          targets: ship,
+          x: tile.x,
+          y: tile.y,
+          duration: 1400,
+          ease: "sine.inout",
+          completeDelay: 300,
+          onComplete: () => {
+            this.createMiningDrone(pos.x, pos.y);
+            this.tweens.add({
+              targets: ship,
+              x: point2.x,
+              y: point2.y,
+              duration: 1400,
+              ease: "sine.inout",
+            });
+            this.tweens.add({
+              targets: tile,
+              alpha: 0,
+              scale: 1,
+              angle: `-=90`,
+              duration: 600,
+              ease: "sine.inout",
+            });
+          },
+        });
 
         this.selectedObj.destroy();
         this.selectedObj = null;
@@ -681,6 +748,8 @@ class Game extends Phaser.Scene {
               j == 0 ||
               j == this.grid[i].length - 1
             ) {
+              if (i == pos.x && j == pos.y) continue;
+
               this.grid[i][j].setStrokeStyle(2, 0xffffff);
               this.tweens.add({
                 targets: this.grid[i][j],
@@ -829,7 +898,7 @@ class Game extends Phaser.Scene {
           .postFX.addGradient(0x343a40, 0x6c757d, 0.4).gameObject,
         ...this.createTurretButtons(),
       ])
-      .setDepth(1);
+      .setDepth(2);
   }
 
   createTurretButtons() {
