@@ -54,6 +54,10 @@ class Background extends Phaser.Scene {
 
   // preload everything for the game
   preload() {
+    this.load.setPath("assets/kenney_simple-space/PNG/Retina/");
+    this.load.image("ship", "ship_L.png");
+    this.load.image("trail", "effect_purple.png");
+
     // load google's library for the various fonts we want to use
     this.load.script(
       "webfont",
@@ -553,6 +557,23 @@ class Game extends Phaser.Scene {
     const tile = this.grid[shortestPath.x][shortestPath.y];
 
     if (leastNumFilledTiles == 0) {
+      const point = Phaser.Geom.Circle.CircumferencePoint(
+        new Phaser.Geom.Circle(gameW / 2, gameH / 2, gameW),
+        Phaser.Math.Angle.Random()
+      );
+
+      const point2 = {
+        x: tile.x + (tile.x - point.x),
+        y: tile.y + (tile.y - point.y),
+      };
+
+      const angle = Phaser.Math.Angle.BetweenPoints(point, tile) + Math.PI / 2;
+
+      const ship = this.add
+        .image(point.x, point.y, "ship")
+        .setRotation(angle)
+        .setScale(1.5);
+
       const dist = Phaser.Math.Distance.Between(
         miner.getData("x"),
         miner.getData("y"),
@@ -561,14 +582,22 @@ class Game extends Phaser.Scene {
       );
 
       this.tweens.add({
-        targets: miner,
-        x: tile.x + 4 * (tile.x - miner.x),
-        y: tile.y + 4 * (tile.y - miner.y),
-        duration: 300 * dist,
-        delay: 800,
+        targets: [miner, ship],
+        x: tile.x,
+        y: tile.y,
+        duration: 1400,
+        delay: 200,
         ease: "sine.inout",
-        onStart: () => {
-          this.cameras.main.startFollow(miner, false, 0.02, 0.02);
+        onComplete: () => {
+          miner.setAlpha(0);
+          this.tweens.add({
+            targets: ship,
+            x: point2.x,
+            y: point2.y,
+            delay: 400,
+            duration: 1400,
+            ease: "sine.inout",
+          });
         },
       });
       miner.getData("loop").remove();
