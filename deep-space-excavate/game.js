@@ -25,6 +25,7 @@ const COLORS = {
   black: 0x000000,
   gray: 0xd2d2cf,
   shipColors: [0xcdb4db, 0xffc8dd, 0xffafcc, 0xbde0fe, 0xa2d2ff, 0x8affc1],
+  starColors: [0xcdb4db, 0xffc8dd, 0xffafcc, 0xbde0fe, 0xa2d2ff, 0x8affc1],
   stationColor: 0x98f5e1,
   fillColor: 0x14213d,
   strokeColor: 0x6bbaec,
@@ -54,15 +55,116 @@ class Background extends Phaser.Scene {
 
   // preload everything for the game
   preload() {
-    this.load.setPath("assets/kenney_simple-space/PNG/Retina/");
-    this.load.image("ship", "ship_L.png");
-    this.load.image("trail", "effect_purple.png");
-
     // load google's library for the various fonts we want to use
     this.load.script(
       "webfont",
       "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
     );
+
+    this.loadSpaceSpritesheet();
+  }
+
+  loadSpaceSpritesheet() {
+    this.load.setPath("./assets/kenney_simple-space/Tilesheet/");
+
+    this.load.spritesheet({
+      key: "ship",
+      url: "simpleSpace_tilesheet@2.png",
+      frameConfig: {
+        frameWidth: 128,
+        frameHeight: 128,
+        startFrame: 0,
+        endFrame: 10,
+      },
+    });
+
+    this.load.spritesheet({
+      key: "advancedShip",
+      url: "simpleSpace_tilesheet@2.png",
+      frameConfig: {
+        frameWidth: 128,
+        frameHeight: 128,
+        startFrame: 11,
+        endFrame: 20,
+      },
+    });
+
+    this.load.spritesheet({
+      key: "outpost",
+      url: "simpleSpace_tilesheet@2.png",
+      frameConfig: {
+        frameWidth: 128,
+        frameHeight: 128,
+        startFrame: 21,
+        endFrame: 23,
+      },
+    });
+
+    this.load.spritesheet({
+      key: "asteroid",
+      url: "simpleSpace_tilesheet@2.png",
+      frameConfig: {
+        frameWidth: 128,
+        frameHeight: 128,
+        startFrame: 24,
+        endFrame: 27,
+      },
+    });
+
+    this.load.spritesheet({
+      key: "star",
+      url: "simpleSpace_tilesheet@2.png",
+      frameConfig: {
+        frameWidth: 128,
+        frameHeight: 128,
+        startFrame: 28,
+        endFrame: 31,
+      },
+    });
+
+    this.load.spritesheet({
+      key: "asteroid2",
+      url: "simpleSpace_tilesheet@2.png",
+      frameConfig: {
+        frameWidth: 128,
+        frameHeight: 128,
+        startFrame: 32,
+        endFrame: 35,
+      },
+    });
+
+    this.load.spritesheet({
+      key: "satellite",
+      url: "simpleSpace_tilesheet@2.png",
+      frameConfig: {
+        frameWidth: 128,
+        frameHeight: 128,
+        startFrame: 36,
+        endFrame: 39,
+      },
+    });
+
+    this.load.spritesheet({
+      key: "target",
+      url: "simpleSpace_tilesheet@2.png",
+      frameConfig: {
+        frameWidth: 128,
+        frameHeight: 128,
+        startFrame: 40,
+        endFrame: 45,
+      },
+    });
+
+    this.load.spritesheet({
+      key: "effect",
+      url: "simpleSpace_tilesheet@2.png",
+      frameConfig: {
+        frameWidth: 128,
+        frameHeight: 128,
+        startFrame: 46,
+        endFrame: 47,
+      },
+    });
   }
 
   create() {
@@ -77,6 +179,7 @@ class Background extends Phaser.Scene {
     );
     this.graphics.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
+    this.scene.launch("Stars"); // stars background behind every scene
     this.scene.launch("Game");
     this.scene.launch("HUD"); // UI above every scene
 
@@ -98,6 +201,7 @@ class Background extends Phaser.Scene {
 
 class Game extends Phaser.Scene {
   player;
+  playerShip;
   keysDown;
   grid;
   filledTiles;
@@ -124,14 +228,13 @@ class Game extends Phaser.Scene {
 
     this.createSidebar();
 
-    //this.add.image(100, 200, "trail").setAngle(90).setScale(0.5, 1);
-
-    /*
-    this.add
-      .image(200, 200, "ship")
-      .setScale(1.2)
+    this.playerShip = this.add
+      .image(0, 0, "advancedShip", 5)
+      .setScale(1.5)
       .setAngle(90)
-      .setTint(0xe9c46a);*/
+      .setDepth(1)
+      .setTint(0xe9c46a)
+      .setAlpha(0);
 
     //this.createMiningDrone();
     //this.createEncounters();
@@ -375,7 +478,7 @@ class Game extends Phaser.Scene {
   }
 
   createOreDeposits() {
-    const num = 2; //Phaser.Math.Between(8, 12);
+    const num = 1; //2; //Phaser.Math.Between(8, 12);
     this.oreTiles = new Phaser.Structs.List();
 
     for (let i = 1; i <= num; i++) {
@@ -586,21 +689,13 @@ class Game extends Phaser.Scene {
 
     const angle = Phaser.Math.Angle.BetweenPoints(point, tile) + Math.PI / 2;
 
-    const ship = this.add
-      .image(point.x, point.y, "ship")
-      .setTint(0xe9c46a)
+    this.playerShip
+      .setPosition(point.x, point.y)
       .setRotation(angle)
-      .setScale(1.4);
-
-    const dist = Phaser.Math.Distance.Between(
-      miner.getData("x"),
-      miner.getData("y"),
-      tile.getData("x"),
-      tile.getData("y")
-    );
+      .setAlpha(1);
 
     this.tweens.add({
-      targets: [miner, ship],
+      targets: [miner, this.playerShip],
       x: tile.x,
       y: tile.y,
       duration: 1400,
@@ -609,12 +704,13 @@ class Game extends Phaser.Scene {
       onComplete: () => {
         miner.setAlpha(0);
         this.tweens.add({
-          targets: ship,
+          targets: this.playerShip,
           x: point2.x,
           y: point2.y,
           delay: 400,
           duration: 1200,
           ease: "sine.inout",
+          onComplete: () => this.playerShip.setAlpha(0),
         });
       },
     });
@@ -695,12 +791,10 @@ class Game extends Phaser.Scene {
         const angle =
           Phaser.Math.Angle.BetweenPoints(point, tile) + Math.PI / 2;
 
-        const ship = this.add
-          .image(point.x, point.y, "ship")
-          .setTint(0xe9c46a)
+        this.playerShip
+          .setPosition(point.x, point.y)
           .setRotation(angle)
-          .setScale(1.4)
-          .setDepth(1);
+          .setAlpha(1);
 
         this.tweens.add({
           targets: tile,
@@ -711,7 +805,7 @@ class Game extends Phaser.Scene {
         });
 
         this.tweens.add({
-          targets: ship,
+          targets: this.playerShip,
           x: tile.x,
           y: tile.y,
           duration: 1400,
@@ -720,11 +814,12 @@ class Game extends Phaser.Scene {
           onComplete: () => {
             this.createMiningDrone(pos.x, pos.y);
             this.tweens.add({
-              targets: ship,
+              targets: this.playerShip,
               x: point2.x,
               y: point2.y,
               duration: 1400,
               ease: "sine.inout",
+              onComplete: () => this.playerShip.setAlpha(0),
             });
             this.tweens.add({
               targets: tile,
@@ -1011,7 +1106,7 @@ class Game extends Phaser.Scene {
     this.stars = this.add.group({
       key: "star",
       frame: [0, 1, 2, 3],
-      quantity: this.gameLength * 30,
+      quantity: 10,
       setAlpha: { value: 0.8 },
       setScale: { x: 0.3, y: 0.3 },
     });
@@ -1299,6 +1394,100 @@ class Game extends Phaser.Scene {
     if (!camera) return;
 
     camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
+    camera.setZoom(Math.max(scaleX, scaleY));
+    camera.centerOn(camera.midPoint.x, camera.midPoint.y);
+  }
+}
+
+class Stars extends Phaser.Scene {
+  constructor() {
+    super("Stars");
+  }
+
+  create() {
+    this.createResolution();
+    this.createStars();
+  }
+
+  createStars() {
+    const stars = this.add.group({
+      key: "star",
+      frame: [0, 3],
+      quantity: 200,
+    });
+
+    Phaser.Actions.RandomRectangle(
+      stars.getChildren(),
+      new Phaser.Geom.Rectangle(8, 8, gameW - 16, gameH - 16)
+    );
+
+    Phaser.Actions.Call(stars.getChildren(), (star) => {
+      // the star frames are in the order: tiny, large, medium, small
+      // so the size is just opposite of the frame number
+      // except for tiny, which I manually set to 1
+      let size = 5 - star.frame.name;
+      if (size == 5) size = 1;
+
+      const scale = Phaser.Math.Between(2, 6) * 0.1;
+
+      star.setAlpha(scale).setScale(scale).setTint(0xffffff);
+
+      this.tweens.add({
+        targets: star,
+        alpha: 0,
+        duration: 200,
+        delay: Phaser.Math.Between(200, 10000),
+        loopDelay: Phaser.Math.Between(4000, 10000),
+        loop: -1,
+        yoyo: true,
+      });
+    });
+  }
+
+  createResolution() {
+    // I don't know how this code works but it's magic. I also stole it from here:
+    // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
+    const width = this.scale.gameSize.width;
+    const height = this.scale.gameSize.height;
+
+    this.parent = new Phaser.Structs.Size(width, height);
+
+    this.sizer = new Phaser.Structs.Size(
+      gameW,
+      gameH,
+      Phaser.Structs.Size.FIT,
+      this.parent
+    );
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+    this.cameras.main.centerOn(gameW / 2, gameH / 2);
+
+    this.scale.on("resize", this.resize, this);
+  }
+
+  resize(gameSize) {
+    const width = gameSize.width;
+    const height = gameSize.height;
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+  }
+
+  updateCamera() {
+    const camera = this.cameras.main;
+
+    const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
+    const y = 0;
+    const scaleX = this.sizer.width / gameW;
+    const scaleY = this.sizer.height / gameH;
+
+    if (!camera) return;
+    camera.setViewport(x, y, this.sizer.width, this.parent.height);
     camera.setZoom(Math.max(scaleX, scaleY));
     camera.centerOn(camera.midPoint.x, camera.midPoint.y);
   }
@@ -2707,7 +2896,7 @@ const config = {
     height: gameH,
   },
   // pixelArt: true,
-  scene: [Background, Game, HUD],
+  scene: [Background, Stars, Game, HUD],
   physics: {
     default: "arcade",
     arcade: {
