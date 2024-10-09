@@ -5,6 +5,8 @@ const DEV_MODE = false; // turns on physics debug mode
 const gameW = 1920;
 const gameH = 1080;
 
+const START_SCENE = "Shop"; // for testing different scenes
+
 const FONTS = [
   "PT Sans",
   "Ubuntu Mono",
@@ -180,8 +182,8 @@ class Background extends Phaser.Scene {
     this.graphics.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
     this.scene.launch("Stars"); // stars background behind every scene
-    this.scene.launch("Game");
-    this.scene.launch("HUD"); // UI above every scene
+    this.scene.launch(START_SCENE);
+    //this.scene.launch("HUD"); // UI above every scene
 
     this.scale.on("resize", this.resize, this);
   }
@@ -225,8 +227,6 @@ class Game extends Phaser.Scene {
 
     this.createOreDeposits();
     this.createMouseControls();
-
-    this.createSidebar();
 
     this.playerShip = this.add
       .image(0, 0, "advancedShip", 5)
@@ -710,9 +710,21 @@ class Game extends Phaser.Scene {
           delay: 400,
           duration: 1200,
           ease: "sine.inout",
-          onComplete: () => this.playerShip.setAlpha(0),
+          onComplete: () => this.endScene(),
         });
       },
+    });
+  }
+
+  endScene() {
+    this.playerShip.setAlpha(0);
+    const duration = 1000;
+    this.cameras.main.fade(duration);
+    this.time.delayedCall(duration, () => {
+      // this.scene.start() has a visual glitch
+      // so this is the solution instead
+      this.scene.launch("Shop");
+      this.time.delayedCall(0, () => this.scene.stop());
     });
   }
 
@@ -890,30 +902,6 @@ class Game extends Phaser.Scene {
     v.y = Phaser.Math.Clamp(Math.floor(v.y), 0, this.grid[0].length - 1);
 
     return v;
-  }
-
-  createSidebar() {
-    const turtleBg = this.add
-      .rectangle(
-        gameW * 0.9,
-        gameH * 0.1,
-        this.tileW * 3,
-        this.tileW * 3,
-        0xffffff
-      )
-      .setAlpha(0.1)
-      .setInteractive()
-      .on("pointerover", () => {
-        turtleBg.setAlpha(0.3);
-      })
-      .on("pointerout", () => {
-        turtleBg.setAlpha(0.1);
-      })
-      .on("pointerup", () => {});
-
-    this.add
-      .rectangle(gameW * 0.9, gameH * 0.1, this.tileW, this.tileW, 0xca6702)
-      .setStrokeStyle(4, 0xe9d8a6);
   }
 
   createDeployButton() {
@@ -1436,6 +1424,101 @@ class Stars extends Phaser.Scene {
         yoyo: true,
       });
     });
+  }
+
+  createResolution() {
+    // I don't know how this code works but it's magic. I also stole it from here:
+    // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
+    const width = this.scale.gameSize.width;
+    const height = this.scale.gameSize.height;
+
+    this.parent = new Phaser.Structs.Size(width, height);
+
+    this.sizer = new Phaser.Structs.Size(
+      gameW,
+      gameH,
+      Phaser.Structs.Size.FIT,
+      this.parent
+    );
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+    this.cameras.main.centerOn(gameW / 2, gameH / 2);
+
+    this.scale.on("resize", this.resize, this);
+  }
+
+  resize(gameSize) {
+    const width = gameSize.width;
+    const height = gameSize.height;
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+  }
+
+  updateCamera() {
+    const camera = this.cameras.main;
+
+    const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
+    const y = 0;
+    const scaleX = this.sizer.width / gameW;
+    const scaleY = this.sizer.height / gameH;
+
+    if (!camera) return;
+    camera.setViewport(x, y, this.sizer.width, this.parent.height);
+    camera.setZoom(Math.max(scaleX, scaleY));
+    camera.centerOn(camera.midPoint.x, camera.midPoint.y);
+  }
+}
+
+class Shop extends Phaser.Scene {
+  bounds;
+  armor; // armor.x is current armor, armor.y is total
+  shield; // shield.x is current armor, shield.y is total
+  bits;
+  displayBits; // lags behind actual bits so we can tween up and down
+  display;
+
+  constructor() {
+    super("Shop");
+  }
+
+  preload() {
+    // load google's library for the various fonts we want to use
+    this.load.script(
+      "webfont",
+      "https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"
+    );
+  }
+
+  create() {
+    this.createResolution();
+
+    this.cameras.main.fadeIn();
+
+    WebFont.load({
+      google: {
+        families: FONTS,
+      },
+      active: () => {
+        this.createResults();
+      },
+    });
+  }
+
+  createResults() {
+    const menu = this.add
+      .container(gameW * 0.5, gameH * 0.4, [
+        this.add
+          .rectangle(0, 0, gameW * 0.8, gameH * 0.7, 0x284b63)
+          .setStrokeStyle(16, 0x3c6e71)
+          .postFX.addGradient(0x343a40, 0x6c757d, 0.4).gameObject,
+      ])
+      .setDepth(2);
   }
 
   createResolution() {
@@ -2890,7 +2973,7 @@ const config = {
     height: gameH,
   },
   // pixelArt: true,
-  scene: [Background, Stars, Game, HUD],
+  scene: [Background, Stars, Shop, Game, HUD],
   physics: {
     default: "arcade",
     arcade: {
