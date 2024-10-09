@@ -1412,7 +1412,7 @@ class Stars extends Phaser.Scene {
   createStars() {
     const stars = this.add.group({
       key: "star",
-      frame: [0, 3],
+      frame: [0, 3], // only using the tiny & small stars
       quantity: 200,
     });
 
@@ -1422,12 +1422,6 @@ class Stars extends Phaser.Scene {
     );
 
     Phaser.Actions.Call(stars.getChildren(), (star) => {
-      // the star frames are in the order: tiny, large, medium, small
-      // so the size is just opposite of the frame number
-      // except for tiny, which I manually set to 1
-      let size = 5 - star.frame.name;
-      if (size == 5) size = 1;
-
       const scale = Phaser.Math.Between(2, 6) * 0.1;
 
       star.setAlpha(scale).setScale(scale).setTint(0xffffff);
