@@ -22,9 +22,13 @@ const CLRS = {
   droneColor: 0xca6702,
   droneStroke: 0xe9d8a6,
   textButton: {
-    fill: 0x2a9134,
+    fill: 0x023e7d, //0x2a9134,
     stroke: 0xffffff,
-    shadow: "#00a8e8",
+    shadow: "#023e7d", //"#00a8e8",
+  },
+  menu: {
+    fill: 0x001233,
+    stroke: 0x001233,
   },
 };
 
@@ -225,12 +229,14 @@ class Game extends Phaser.Scene {
   oreTiles;
   tileW;
   selectedObj; // what object the mouse is holding
+  prefab; // to instantiate our custom game objects
 
   constructor() {
     super("Game");
   }
 
   create() {
+    this.prefab = new Prefab(this);
     this.createResolution();
 
     this.createAsteroidGrid();
@@ -238,6 +244,8 @@ class Game extends Phaser.Scene {
 
     this.createOreDeposits();
     this.createMouseControls();
+
+    this.prefab.instantiate(Prefab.Object.playerShip);
 
     // for picking up and dropping off turtle animations
     this.playerShip = this.add
@@ -963,9 +971,9 @@ class Game extends Phaser.Scene {
     const menu = this.add
       .container(gameW * 0.9, gameH * 0.5, [
         this.add
-          .rectangle(0, 0, gameW * 0.2, gameH - 16, 0x284b63)
-          .setStrokeStyle(16, 0x3c6e71)
-          .postFX.addGradient(0x343a40, 0x6c757d, 0.4).gameObject,
+          .rectangle(0, 0, gameW * 0.2, gameH - 16, CLRS.menu.fill)
+          .setStrokeStyle(16, CLRS.menu.stroke)
+          .postFX.addGradient(CLRS.menu.fill, 0xffffff, 0.7).gameObject,
         ...this.createTurretButtons(),
       ])
       .setDepth(2);
@@ -1498,7 +1506,7 @@ class GameTextButton extends Phaser.GameObjects.Container {
     this.add([bg, text])
       .setSize(bg.width, bg.height)
       .setInteractive()
-      .on("pointerover", () => (bgGradient.alpha = 0.4))
+      .on("pointerover", () => (bgGradient.alpha = 0.35))
       .on("pointerout", () => {
         bgGradient.alpha = 0.2;
         bgColorMatrix.brightness(1);
@@ -1506,8 +1514,8 @@ class GameTextButton extends Phaser.GameObjects.Container {
         this.off("pointerup");
       })
       .on("pointerdown", () => {
-        bgColorMatrix.brightness(0.8);
-        textColorMatrix.brightness(0.8);
+        bgColorMatrix.brightness(0.7);
+        textColorMatrix.brightness(0.7);
 
         if (this.listenerCount("pointerup") < 1) {
           this.on("pointerup", (p) => {
@@ -1520,6 +1528,35 @@ class GameTextButton extends Phaser.GameObjects.Container {
   }
 
   preUpdate(delta, time) {}
+}
+
+/* prefab class is a "singleton" custom object maker
+  i.e. it can instantiate a turret, menu, and so on
+  so I don't have to copy and paste repeatedly */
+class Prefab extends Phaser.GameObjects.GameObject {
+  static Object = {
+    playerShip: 0,
+  };
+
+  constructor(scene) {
+    super(scene);
+  }
+
+  instantiate(obj) {
+    // see static Object for object name <> integer
+    switch (obj) {
+      case 0:
+        console.log("hi");
+        break;
+      case 1:
+        break;
+      case 2:
+        break;
+
+      default:
+        break;
+    }
+  }
 }
 
 const game = new Phaser.Game(config);
