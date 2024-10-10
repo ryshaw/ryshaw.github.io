@@ -15,20 +15,13 @@ const CLRS = {
   highlightColor: 0xffef9f, // for highlighting text
   clickColor: 0xbfbdc1, // when text is clicked
   spaceColors: [0xcdb4db, 0xffc8dd, 0xffafcc, 0xbde0fe, 0xa2d2ff, 0x8affc1],
-  playerColor: 0xe9c46a,
   tileColor: 0x272635,
   edgeColor: 0xa6a6a8,
   oreColor: 0x00b4d8,
-  droneColor: 0xca6702,
-  droneStroke: 0xe9d8a6,
   textButton: {
     fill: 0x023e7d, //0x2a9134,
     stroke: 0xffffff,
     shadow: "#023e7d", //"#00a8e8",
-  },
-  menu: {
-    fill: 0x001233,
-    stroke: 0x001233,
   },
 };
 
@@ -221,7 +214,6 @@ class Background extends Phaser.Scene {
 
 class Game extends Phaser.Scene {
   player;
-  playerShip;
   keysDown;
   grid;
   filledTiles;
@@ -244,17 +236,6 @@ class Game extends Phaser.Scene {
 
     this.createOreDeposits();
     this.createMouseControls();
-
-    this.prefab.instantiate(Prefab.Object.playerShip);
-
-    // for picking up and dropping off turtle animations
-    this.playerShip = this.add
-      .image(0, 0, "advancedShip", 5)
-      .setScale(1.5)
-      .setAngle(90)
-      .setDepth(1)
-      .setTint(CLRS.playerColor)
-      .setAlpha(0);
 
     WebFont.load({
       google: {
@@ -549,9 +530,14 @@ class Game extends Phaser.Scene {
   createMiningDrone(x, y) {
     let start = this.grid[x][y];
 
-    const miner = this.add
-      .rectangle(start.x, start.y, this.tileW, this.tileW, CLRS.droneColor)
-      .setStrokeStyle(4, CLRS.droneStroke)
+    const miner = this.prefab
+      .instantiate(
+        Prefab.Object.Drone,
+        start.x,
+        start.y,
+        this.tileW,
+        this.tileW
+      )
       .setData("x", start.getData("x"))
       .setData("y", start.getData("y"));
 
@@ -713,13 +699,12 @@ class Game extends Phaser.Scene {
 
     const angle = Phaser.Math.Angle.BetweenPoints(point, tile) + Math.PI / 2;
 
-    this.playerShip
-      .setPosition(point.x, point.y)
-      .setRotation(angle)
-      .setAlpha(1);
+    const ship = this.prefab
+      .instantiate(Prefab.Object.Ship, point.x, point.y)
+      .setRotation(angle);
 
     this.tweens.add({
-      targets: [miner, this.playerShip],
+      targets: [miner, ship],
       x: tile.x,
       y: tile.y,
       duration: 1400,
@@ -728,7 +713,7 @@ class Game extends Phaser.Scene {
       onComplete: () => {
         miner.setAlpha(0);
         this.tweens.add({
-          targets: this.playerShip,
+          targets: ship,
           x: point2.x,
           y: point2.y,
           delay: 400,
@@ -741,7 +726,6 @@ class Game extends Phaser.Scene {
   }
 
   endScene() {
-    this.playerShip.setAlpha(0);
     const duration = 1000;
     this.cameras.main.fade(duration);
     this.time.delayedCall(duration, () => {
@@ -854,10 +838,9 @@ class Game extends Phaser.Scene {
 
     const angle = Phaser.Math.Angle.BetweenPoints(point, tile) + Math.PI / 2;
 
-    this.playerShip
-      .setPosition(point.x, point.y)
-      .setRotation(angle)
-      .setAlpha(1);
+    const ship = this.prefab
+      .instantiate(Prefab.Object.Ship, point.x, point.y)
+      .setRotation(angle);
 
     this.tweens.add({
       targets: tile,
@@ -868,7 +851,7 @@ class Game extends Phaser.Scene {
     });
 
     this.tweens.add({
-      targets: this.playerShip,
+      targets: ship,
       x: tile.x,
       y: tile.y,
       duration: 1400,
@@ -877,12 +860,11 @@ class Game extends Phaser.Scene {
       onComplete: () => {
         this.createMiningDrone(pos.x, pos.y);
         this.tweens.add({
-          targets: this.playerShip,
+          targets: ship,
           x: point2.x,
           y: point2.y,
           duration: 1400,
           ease: "sine.inout",
-          onComplete: () => this.playerShip.setAlpha(0),
         });
         this.tweens.add({
           targets: tile,
@@ -939,10 +921,13 @@ class Game extends Phaser.Scene {
       3,
       null,
       (p) => {
-        this.selectedObj = this.add
-          .rectangle(p.worldX, p.worldY, this.tileW, this.tileW, 0xca6702)
-          .setStrokeStyle(4, 0xe9d8a6)
-          .setName("turtle");
+        this.selectedObj = this.prefab.instantiate(
+          Prefab.Object.Drone,
+          p.worldX,
+          p.worldY,
+          this.tileW,
+          this.tileW
+        );
 
         for (let i = 0; i < this.grid.length; i++) {
           for (let j = 0; j < this.grid[i].length; j++) {
@@ -968,15 +953,15 @@ class Game extends Phaser.Scene {
   }
 
   createMenu() {
-    const menu = this.add
-      .container(gameW * 0.9, gameH * 0.5, [
-        this.add
-          .rectangle(0, 0, gameW * 0.2, gameH - 16, CLRS.menu.fill)
-          .setStrokeStyle(16, CLRS.menu.stroke)
-          .postFX.addGradient(CLRS.menu.fill, 0xffffff, 0.7).gameObject,
-        ...this.createTurretButtons(),
-      ])
-      .setDepth(2);
+    const menu = this.prefab
+      .instantiate(
+        Prefab.Object.Menu,
+        gameW * 0.9,
+        gameH * 0.5,
+        gameW * 0.2,
+        gameH - 16
+      )
+      .add(this.createTurretButtons());
   }
 
   createTurretButtons() {
@@ -991,13 +976,11 @@ class Game extends Phaser.Scene {
         .setStrokeStyle(6, 0xffffff, 0.8);
 
       let turret = this.add.rectangle();
-      const size = this.tileW * 1;
 
       switch (i) {
         case 0:
-          turret = this.add
-            .rectangle(0, 0, size, size, 0xff9f1c, 1)
-            .setStrokeStyle(6, 0xffffff, 1)
+          turret = this.prefab
+            .instantiate(Prefab.Object.Railgun, 0, 0, this.tileW, this.tileW)
             .setScale(1.5);
           break;
         case 1:
@@ -1050,14 +1033,21 @@ class Game extends Phaser.Scene {
 
           if (c.listenerCount("pointerup") < 1) {
             c.on("pointerup", (p) => {
+              const turretSize = this.tileW * 0.9;
+
               switch (c.getData("number")) {
                 case 0:
-                  this.selectedObj = this.add
-                    .rectangle(p.worldX, p.worldY, size, size, 0xff9f1c)
-                    .setStrokeStyle(6, 0xffffff)
+                  this.selectedObj = this.prefab
+                    .instantiate(
+                      Prefab.Object.Railgun,
+                      p.worldX,
+                      p.worldY,
+                      turretSize,
+                      turretSize
+                    )
                     .setAlpha(0.9)
-                    .setDepth(1)
-                    .setName("railgun");
+                    .setDepth(1);
+
                   break;
                 case 1:
                   break;
@@ -1305,6 +1295,7 @@ class Shop extends Phaser.Scene {
   }
 
   create() {
+    this.prefab = new Prefab(this);
     this.createResolution();
 
     this.cameras.main.fadeIn();
@@ -1320,30 +1311,15 @@ class Shop extends Phaser.Scene {
   }
 
   createResults() {
-    const menu = this.add
-      .container(gameW * 0.5, gameH * 0.4, [
-        this.add
-          .rectangle(0, 0, gameW * 0.8, gameH * 0.7, 0x284b63)
-          .setStrokeStyle(16, 0x3c6e71)
-          .postFX.addGradient(0x343a40, 0x6c757d, 0.4).gameObject,
-        this.add.gameText(
-          -gameW * 0.4,
-          -gameH * 0.35,
-          "Results",
-          6,
-          null,
-          () => {
-            console.log("hello");
-          }
-        ),
-        this.add.gameText(
-          -gameW * 0.4,
-          -gameH * 0.15,
-          "Deep Space Excavate\nTesla coil - can attack multiple enemies\nRailgun\nMissile launcher\nIon\nPlasma\nLRL\nOre",
-          4
-        ),
-      ])
-      .setDepth(2);
+    const menu = this.prefab
+      .instantiate(
+        Prefab.Object.Menu,
+        gameW * 0.5,
+        gameH * 0.4,
+        gameW * 0.8,
+        gameH * 0.7
+      )
+      .add([this.add.gameText(-gameW * 0.4, -gameH * 0.35, "Results", 6)]);
   }
 
   createResolution() {
@@ -1535,26 +1511,63 @@ class GameTextButton extends Phaser.GameObjects.Container {
   so I don't have to copy and paste repeatedly */
 class Prefab extends Phaser.GameObjects.GameObject {
   static Object = {
-    playerShip: 0,
+    Ship: 0,
+    Menu: 1,
+    Drone: 2,
+    Railgun: 3,
+  };
+
+  colors = {
+    ship: 0xe9c46a,
+    menu: {
+      fill: 0x001233,
+      stroke: 0xa2d2ff,
+    },
+    drone: {
+      fill: 0xca6702,
+      stroke: 0xe9d8a6,
+    },
+    railgun: 0xff9f1c,
+    turretStroke: 0xffffff,
   };
 
   constructor(scene) {
     super(scene);
   }
 
-  instantiate(obj) {
+  instantiate(obj, x, y, w = null, h = null) {
     // see static Object for object name <> integer
     switch (obj) {
       case 0:
-        console.log("hi");
-        break;
+        return this.scene.add
+          .image(x, y, "advancedShip", 5)
+          .setScale(1.5)
+          .setAngle(90)
+          .setDepth(1)
+          .setTint(this.colors.ship);
       case 1:
-        break;
+        return this.scene.add
+          .container(x, y, [
+            this.scene.add
+              .rectangle(0, 0, w, h, this.colors.menu.fill)
+              .setStrokeStyle(12, this.colors.menu.stroke)
+              .postFX.addGradient(
+                this.colors.menu.fill,
+                this.colors.menu.stroke,
+                0.5
+              ).gameObject,
+          ])
+          .setDepth(2);
       case 2:
-        break;
-
-      default:
-        break;
+        return this.scene.add
+          .rectangle(x, y, w, h, this.colors.drone.fill)
+          .setStrokeStyle(4, this.colors.drone.stroke)
+          .setName("turtle");
+      case 3:
+        return this.scene.add
+          .rectangle(x, y, w, h, this.colors.railgun, 1)
+          .setStrokeStyle(6, this.colors.turretStroke, 1)
+          .setName("railgun");
     }
   }
 }
