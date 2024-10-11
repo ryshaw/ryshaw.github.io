@@ -5,7 +5,7 @@ const DEV_MODE = false; // turns on physics debug mode
 const gameW = 1920;
 const gameH = 1080;
 
-const START_SCENE = "Game"; // for testing different scenes
+const START_SCENE = "Shop"; // for testing different scenes
 
 const FONTS = ["Lexend"];
 
@@ -230,6 +230,8 @@ class Game extends Phaser.Scene {
   create() {
     this.prefab = new Prefab(this);
     this.createResolution();
+
+    this.cameras.main.fadeIn();
 
     this.createAsteroidGrid();
     this.centerAsteroidGrid();
@@ -726,6 +728,8 @@ class Game extends Phaser.Scene {
   }
 
   endScene() {
+    this.input.enabled = false; // stop all further player input
+
     const duration = 1000;
     this.cameras.main.fade(duration);
     this.time.delayedCall(duration, () => {
@@ -1282,6 +1286,11 @@ class Stars extends Phaser.Scene {
 }
 
 class Shop extends Phaser.Scene {
+  results;
+  shop;
+  contracts;
+  transitionTime = 600; // how long tweens will take
+
   constructor() {
     super("Shop");
   }
@@ -1305,13 +1314,15 @@ class Shop extends Phaser.Scene {
         families: FONTS,
       },
       active: () => {
-        this.createResults();
+        this.createResultsMenu();
+        this.createShopMenu();
+        this.createContractsMenu();
       },
     });
   }
 
-  createResults() {
-    const menu = this.prefab
+  createResultsMenu() {
+    this.results = this.prefab
       .instantiate(
         Prefab.Object.Menu,
         gameW * 0.5,
@@ -1319,7 +1330,159 @@ class Shop extends Phaser.Scene {
         gameW * 0.8,
         gameH * 0.7
       )
-      .add([this.add.gameText(-gameW * 0.4, -gameH * 0.35, "Results", 6)]);
+      .add([
+        this.add
+          .gameText(-gameW * 0.39, -gameH * 0.34, "Results", 6)
+          .setOrigin(0, 0),
+        this.add
+          .gameText(-gameW * 0.32, -gameH * 0.18, "Iron Ore x500", 3)
+          .setOrigin(0, 0.5),
+        this.add
+          .gameText(gameW * 0.1, -gameH * 0.18, "1200c", 3)
+          .setOrigin(1, 0.5),
+        this.add.gameTextButton(
+          gameW * 0.34,
+          gameH * 0.27,
+          "Next",
+          2,
+          null,
+          () => {
+            // only start this transition if all transitions have finished
+            if (this.tweens.getTweens().length > 0) return;
+
+            this.add.tween({
+              targets: [this.results, this.shop, this.contracts],
+              x: `-=${gameW}`,
+              duration: this.transitionTime,
+              ease: "cubic.out",
+            });
+          }
+        ),
+      ]);
+  }
+
+  createShopMenu() {
+    this.shop = this.prefab
+      .instantiate(
+        Prefab.Object.Menu,
+        gameW * 1.5,
+        gameH * 0.4,
+        gameW * 0.8,
+        gameH * 0.7
+      )
+      .add([
+        this.add
+          .gameText(-gameW * 0.39, -gameH * 0.34, "Shop", 6)
+          .setOrigin(0, 0),
+        this.add
+          .gameText(-gameW * 0.32, -gameH * 0.18, "Buy some upgrades", 3)
+          .setOrigin(0, 0.5),
+        this.add
+          .gameText(gameW * 0.1, -gameH * 0.18, "1000c", 3)
+          .setOrigin(1, 0.5),
+        this.add.gameTextButton(
+          gameW * 0.34,
+          gameH * 0.27,
+          "Next",
+          2,
+          null,
+          () => {
+            // only start this transition if all transitions have finished
+            if (this.tweens.getTweens().length > 0) return;
+
+            this.add.tween({
+              targets: [this.results, this.shop, this.contracts],
+              x: `-=${gameW}`,
+              duration: this.transitionTime,
+              ease: "cubic.out",
+            });
+          }
+        ),
+        this.add.gameTextButton(
+          -gameW * 0.34,
+          gameH * 0.27,
+          "Back",
+          2,
+          null,
+          () => {
+            // only start this transition if all transitions have finished
+            if (this.tweens.getTweens().length > 0) return;
+
+            this.add.tween({
+              targets: [this.results, this.shop, this.contracts],
+              x: `+=${gameW}`,
+              duration: this.transitionTime,
+              ease: "cubic.out",
+            });
+          }
+        ),
+      ]);
+  }
+
+  createContractsMenu() {
+    this.contracts = this.prefab
+      .instantiate(
+        Prefab.Object.Menu,
+        gameW * 2.5,
+        gameH * 0.4,
+        gameW * 0.8,
+        gameH * 0.7
+      )
+      .add([
+        this.add
+          .gameText(-gameW * 0.39, -gameH * 0.34, "Contracts", 6)
+          .setOrigin(0, 0),
+        this.add
+          .gameText(
+            -gameW * 0.32,
+            -gameH * 0.18,
+            "Heavily dangerous asteroid",
+            3
+          )
+          .setOrigin(0, 0.5),
+        this.add
+          .gameText(gameW * 0.1, -gameH * 0.18, "1800c", 3)
+          .setOrigin(1, 0.5),
+        this.add.gameTextButton(
+          gameW * 0.34,
+          gameH * 0.27,
+          "Start!",
+          2,
+          null,
+          () => this.endScene()
+        ),
+        this.add.gameTextButton(
+          -gameW * 0.34,
+          gameH * 0.27,
+          "Back",
+          2,
+          null,
+          () => {
+            // only start this transition if all transitions have finished
+            if (this.tweens.getTweens().length > 0) return;
+
+            this.add.tween({
+              targets: [this.results, this.shop, this.contracts],
+              x: `+=${gameW}`,
+              duration: this.transitionTime,
+              ease: "cubic.out",
+            });
+          }
+        ),
+      ]);
+  }
+
+  endScene() {
+    this.input.enabled = false; // stop all further player input
+
+    const duration = 1000;
+    this.cameras.main.fade(duration);
+    this.time.delayedCall(duration, () => {
+      // this.scene.start() has a visual glitch
+      // so this is the solution instead
+      this.scene.launch("Game");
+      this.time.delayedCall(0, () => this.scene.stop());
+    });
   }
 
   createResolution() {
@@ -1423,7 +1586,7 @@ class GameText extends Phaser.GameObjects.Text {
       },
     });
 
-    this.setOrigin(0, 0).setFontFamily("Lexend");
+    this.setOrigin(0.5, 0.5).setFontFamily("Lexend");
   }
 
   preUpdate(delta, time) {}
@@ -1520,8 +1683,8 @@ class Prefab extends Phaser.GameObjects.GameObject {
   colors = {
     ship: 0xe9c46a,
     menu: {
-      fill: 0x001233,
-      stroke: 0xa2d2ff,
+      fill: 0x001f54,
+      stroke: 0x1e6091,
     },
     drone: {
       fill: 0xca6702,
@@ -1554,7 +1717,11 @@ class Prefab extends Phaser.GameObjects.GameObject {
               .postFX.addGradient(
                 this.colors.menu.fill,
                 this.colors.menu.stroke,
-                0.5
+                0.1,
+                0,
+                0,
+                0,
+                1
               ).gameObject,
           ])
           .setDepth(2);
