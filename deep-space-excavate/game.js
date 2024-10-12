@@ -5,7 +5,7 @@ const DEV_MODE = false; // turns on physics debug mode
 const gameW = 1920;
 const gameH = 1080;
 
-const START_SCENE = "Shop"; // for testing different scenes
+const START_SCENE = "Game"; // for testing different scenes
 
 const FONTS = ["Lexend"];
 
@@ -222,6 +222,9 @@ class Game extends Phaser.Scene {
   tileW;
   selectedObj; // what object the mouse is holding
   prefab; // to instantiate our custom game objects
+  path; // the path that the drone is mining, used by aliens
+  threatLevel; // increases as drone mines and grabs more minerals
+  portal; // the alien portal is located wherever the drone lands
 
   constructor() {
     super("Game");
@@ -231,7 +234,7 @@ class Game extends Phaser.Scene {
     this.prefab = new Prefab(this);
     this.createResolution();
 
-    this.cameras.main.fadeIn();
+    //this.cameras.main.fadeIn();
 
     this.createAsteroidGrid();
     this.centerAsteroidGrid();
@@ -531,6 +534,7 @@ class Game extends Phaser.Scene {
 
   createMiningDrone(x, y) {
     let start = this.grid[x][y];
+    this.portal = start;
 
     const miner = this.prefab
       .instantiate(
@@ -547,7 +551,7 @@ class Game extends Phaser.Scene {
       "loop",
       this.time.addEvent({
         loop: true,
-        delay: 100, //800,
+        delay: 400, //800,
         callback: () => this.updateMiningDrone(miner),
       })
     );
@@ -625,6 +629,24 @@ class Game extends Phaser.Scene {
     );
 
     if (nextTile.alpha <= 0) {
+      // add tile onto the path for the aliens to follow
+      if (!this.path) this.path = new Phaser.Structs.List();
+      this.path.add(nextTile);
+
+      // "filled" = undefined means was an empty space
+      // "filled" = false means was an asteroid piece
+      // increase threatLevel as we mine into the asteroid
+      if (nextTile.getData("filled") === false) {
+        if (!this.threatLevel) {
+          this.threatLevel = 1;
+          this.startAliens();
+        } else {
+          // ore adds more threat
+          if (nextTile.getData("ore")) this.threatLevel += 2;
+          else this.threatLevel += 1;
+        }
+      }
+
       miner.setPosition(nextTile.x, nextTile.y);
       miner.setData("x", nextTile.getData("x"));
       miner.setData("y", nextTile.getData("y"));
@@ -1077,6 +1099,63 @@ class Game extends Phaser.Scene {
     }
 
     return turrets;
+  }
+
+  startAliens() {
+    // this.portal was instantiated during createMiningDrone()
+    this.portal
+      .setStrokeStyle(6, 0xffd6ff, 1)
+      .setFillStyle(0x7209b7, 0.9)
+      .setScale(0)
+      .setAlpha(0.7)
+      .setDepth(1);
+
+    const c1 = Phaser.Display.Color.HexStringToColor("0x7209b7");
+    const c2 = Phaser.Display.Color.HexStringToColor("0xf72585");
+
+    const colorTween = [];
+    const numColors = 50;
+
+    // colorTweens is an array of size numColors * 2
+    // the first half is a gradient from c1 -> c2,
+    // and the second half is a gradient back from c2 -> c1
+    // so the transition is smooth when we "tween" over the array
+    for (let i = 0; i < numColors * 2; i++) {
+      if (i < numColors) {
+        colorTween.push(
+          Phaser.Display.Color.Interpolate.ColorWithColor(c1, c2, numColors, i)
+        );
+      } else {
+        const j = i - numColors; // adjust since i > numColors
+        colorTween.push(
+          Phaser.Display.Color.Interpolate.ColorWithColor(c2, c1, numColors, j)
+        );
+      }
+    }
+
+    this.tweens.add({
+      targets: this.portal,
+      scale: 2,
+      alpha: 1,
+      angle: `+=270`,
+      duration: 1600,
+      //delay: 800,
+      //ease: "sine.out",
+      onComplete: () => {
+        this.tweens.add({
+          targets: this.portal,
+          angle: `+=270`,
+          duration: 2000,
+          loop: -1,
+          onUpdate: (tween) => {
+            const index = Math.floor(colorTween.length * tween.progress);
+            const rgb = colorTween[index];
+            const color = Phaser.Display.Color.GetColor(rgb.r, rgb.g, rgb.b);
+            this.portal.fillColor = color;
+          },
+        });
+      },
+    });
   }
 
   createKeyboardControls() {
