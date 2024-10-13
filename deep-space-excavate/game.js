@@ -482,7 +482,7 @@ class Game extends Phaser.Scene {
     // create num ore deposits
     // algorithm will spawn new ore deposits away from edges and other ore deposits
 
-    const num = 1; //2; //Phaser.Math.Between(8, 12);
+    const num = 8; //Phaser.Math.Between(8, 12);
     this.oreTiles = new Phaser.Structs.List();
 
     for (let i = 1; i <= num; i++) {
@@ -533,6 +533,8 @@ class Game extends Phaser.Scene {
   }
 
   createMiningDrone(x, y) {
+    const mineSpeed = 800;
+
     let start = this.grid[x][y];
     this.portal = start;
 
@@ -551,7 +553,7 @@ class Game extends Phaser.Scene {
       "loop",
       this.time.addEvent({
         loop: true,
-        delay: 400, //800,
+        delay: mineSpeed, //800,
         callback: () => this.updateMiningDrone(miner),
       })
     );
@@ -630,8 +632,8 @@ class Game extends Phaser.Scene {
 
     if (nextTile.alpha <= 0) {
       // add tile onto the path for the aliens to follow
-      if (!this.path) this.path = new Phaser.Structs.List();
-      this.path.add(nextTile);
+      if (!this.path) this.path = [];
+      this.path.push(nextTile);
 
       // "filled" = undefined means was an empty space
       // "filled" = false means was an asteroid piece
@@ -1102,19 +1104,20 @@ class Game extends Phaser.Scene {
   }
 
   startAliens() {
-    // this.portal was instantiated during createMiningDrone()
+    // this.portal was set during createMiningDrone()
     this.portal
-      .setStrokeStyle(6, 0xffd6ff, 1)
+      .setStrokeStyle(6, 0xe7c6ff, 1)
       .setFillStyle(0x7209b7, 0.9)
       .setScale(0)
       .setAlpha(0.7)
       .setDepth(1);
 
+    // portal will shift between these two colors
     const c1 = Phaser.Display.Color.HexStringToColor("0x7209b7");
     const c2 = Phaser.Display.Color.HexStringToColor("0xf72585");
 
     const colorTween = [];
-    const numColors = 50;
+    const numColors = 50; // this directly influences how fast the gradient is
 
     // colorTweens is an array of size numColors * 2
     // the first half is a gradient from c1 -> c2,
@@ -1135,23 +1138,67 @@ class Game extends Phaser.Scene {
 
     this.tweens.add({
       targets: this.portal,
-      scale: 2,
+      scale: 1.8,
       alpha: 1,
-      angle: `+=270`,
-      duration: 1600,
-      //delay: 800,
-      //ease: "sine.out",
+      angle: `+=${Phaser.Math.Between(270, 360)}`,
+      duration: 400, //2000,
+      //delay: 3000,
       onComplete: () => {
+        this.generateAlien();
+
+        // originally this was tied to tween.progress in onUpdate,
+        // but I decided to untie it so it doesn't look like the
+        // tween was restarting every loop (even though it is)
+        let colorIndex = 0;
+
         this.tweens.add({
           targets: this.portal,
-          angle: `+=270`,
+          angle: "+=270",
           duration: 2000,
           loop: -1,
-          onUpdate: (tween) => {
-            const index = Math.floor(colorTween.length * tween.progress);
-            const rgb = colorTween[index];
+          onUpdate: () => {
+            colorIndex++;
+            const rgb = colorTween[colorIndex % colorTween.length];
             const color = Phaser.Display.Color.GetColor(rgb.r, rgb.g, rgb.b);
             this.portal.fillColor = color;
+          },
+        });
+      },
+    });
+  }
+
+  generateAlien() {
+    // start alien at the portal and move to the first item in this.path
+
+    let pathIndex = 0;
+
+    const alien = this.add
+      .circle(this.portal.x, this.portal.y, this.tileW * 0.5, 0x00ff00, 1)
+      .setScale(0.8)
+      .setDepth(1)
+      .setData("pathIndex", 0);
+
+    const updateSpeed = 500;
+
+    const updateLoop = this.time.addEvent({
+      loop: true,
+      delay: updateSpeed,
+      startAt: updateSpeed,
+      callback: () => {
+        const nextTile = this.path[pathIndex];
+
+        this.tweens.add({
+          targets: alien,
+          x: nextTile.x,
+          y: nextTile.y,
+          onComplete: () => {
+            pathIndex++;
+
+            if (pathIndex > this.path.length) {
+              console.log("hit");
+              updateLoop.remove();
+              alien.destroy();
+            }
           },
         });
       },
