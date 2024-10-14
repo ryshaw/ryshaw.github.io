@@ -1,4 +1,4 @@
-const VERSION = "Deep Space Excavate v0.1";
+const VERSION = "Astropiercer v0.2";
 
 const DEV_MODE = false; // turns on physics debug mode
 
