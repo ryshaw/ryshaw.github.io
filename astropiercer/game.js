@@ -1,6 +1,6 @@
 const VERSION = "Astropiercer v0.2";
 
-const DEV_MODE = false; // turns on physics debug mode
+const DEV_MODE = true; // turns on physics debug mode
 
 const gameW = 1920;
 const gameH = 1080;
@@ -226,6 +226,8 @@ class Game extends Phaser.Scene {
   threatLevel; // increases as drone mines and grabs more minerals
   portal; // the alien portal is located wherever the drone lands
   gameOver; // true if turtle escaping asteroid, or destroyed by aliens
+  alienGroup; // physics group with all the aliens
+  turretGroup; // physics group with all turrets for determining
 
   constructor() {
     super("Game");
@@ -242,6 +244,8 @@ class Game extends Phaser.Scene {
 
     this.createOreDeposits();
     this.createMouseControls();
+
+    this.createPhysics();
 
     WebFont.load({
       google: {
@@ -483,7 +487,7 @@ class Game extends Phaser.Scene {
     // create num ore deposits
     // algorithm will spawn new ore deposits away from edges and other ore deposits
 
-    const num = 2; //Phaser.Math.Between(8, 12);
+    const num = 8; //Phaser.Math.Between(8, 12);
     this.oreTiles = new Phaser.Structs.List();
 
     for (let i = 1; i <= num; i++) {
@@ -534,7 +538,7 @@ class Game extends Phaser.Scene {
   }
 
   createMiningDrone(x, y) {
-    const mineSpeed = 800;
+    const mineSpeed = 300;
 
     let start = this.grid[x][y];
     this.portal = start;
@@ -642,7 +646,7 @@ class Game extends Phaser.Scene {
       if (nextTile.getData("filled") === false) {
         if (!this.threatLevel) {
           this.threatLevel = 1;
-          this.startAliens();
+          this.openAlienPortal();
         } else {
           // ore adds more threat
           if (nextTile.getData("ore")) this.threatLevel += 2;
@@ -833,29 +837,42 @@ class Game extends Phaser.Scene {
 
       if (this.selectedObj.name == "turtle") this.deployMiningDrone(pos);
       else {
-        // turret
-        if (this.selectedObj.alpha == 1) {
-          // valid position
-          this.grid[pos.x][pos.y].setData("turret", true);
+        // turret, either build it or don't
+        if (this.selectedObj.alpha == 1)
+          this.buildTurret(pos, this.selectedObj); // valid position
+        else this.selectedObj.destroy(); // invalid position, just cancel it
 
-          // set 3x3 grid around cornerTile to be turreted
-          // so it leaves room for mining turtle to move around
-          for (let angle = 0; angle < 360; angle += 45) {
-            const v = new Phaser.Math.Vector2(1, 0);
-
-            v.setAngle(Phaser.Math.DegToRad(angle));
-            v.x = Math.round(v.x) + pos.x;
-            v.y = Math.round(v.y) + pos.y;
-
-            this.grid[v.x][v.y].setData("turretAdjacent", true);
-          }
-        } else {
-          this.selectedObj.destroy();
-        }
-
-        this.selectedObj = null;
+        this.selectedObj = null; // turret was built or canceled
       }
     });
+  }
+
+  buildTurret(pos, turret) {
+    // first, adjust the tiles around it so we can't build turrets near it
+    this.grid[pos.x][pos.y].setData("turret", true);
+
+    // set 3x3 grid around cornerTile to be turreted
+    // so it leaves room for mining turtle to move around
+    for (let angle = 0; angle < 360; angle += 45) {
+      const v = new Phaser.Math.Vector2(1, 0);
+
+      v.setAngle(Phaser.Math.DegToRad(angle));
+      v.x = Math.round(v.x) + pos.x;
+      v.y = Math.round(v.y) + pos.y;
+
+      this.grid[v.x][v.y].setData("turretAdjacent", true);
+    }
+
+    // add to physics group so it can detect aliens entering
+    this.turretGroup.add(turret);
+
+    // set up range
+    const range = this.tileW * 6;
+    turret.body.setSize(range, range);
+    turret.body.isCircle = true;
+
+    // add targets List so it can track what aliens to target within range
+    turret.setData("targets", new Phaser.Structs.List());
   }
 
   deployMiningDrone(pos) {
@@ -1111,7 +1128,7 @@ class Game extends Phaser.Scene {
     return turrets;
   }
 
-  startAliens() {
+  openAlienPortal() {
     // this.portal was set during createMiningDrone()
     this.portal
       .setStrokeStyle(6, 0xe7c6ff, 1)
@@ -1125,7 +1142,7 @@ class Game extends Phaser.Scene {
     const c2 = Phaser.Display.Color.HexStringToColor("0xf72585");
 
     const colorTween = [];
-    const numColors = 50; // this directly influences how fast the gradient is
+    const numColors = 100; // this directly influences how fast the gradient is
 
     // colorTweens is an array of size numColors * 2
     // the first half is a gradient from c1 -> c2,
@@ -1149,8 +1166,8 @@ class Game extends Phaser.Scene {
       scale: 1.8,
       alpha: 1,
       angle: `+=${Phaser.Math.Between(270, 360)}`,
-      duration: 2000,
-      delay: 3000,
+      duration: 100, // 2000,
+      //delay: 3000,
       onComplete: () => {
         this.generateAlien();
 
@@ -1183,10 +1200,14 @@ class Game extends Phaser.Scene {
     const alien = this.add
       .circle(this.portal.x, this.portal.y, this.tileW * 0.5, 0xaffc41, 1)
       .setStrokeStyle(10, 0x857c8d, 1)
-      .setScale(0.8)
+      .setScale(0.75)
       .setDepth(1)
       .setData("pathIndex", 0)
-      .setAlpha(0);
+      .setAlpha(0)
+      .setName("alien");
+
+    this.alienGroup.add(alien); // add to physics group so it can be detected by turrets
+    alien.body.isCircle = true;
 
     const updateSpeed = 1000;
 
@@ -1230,6 +1251,43 @@ class Game extends Phaser.Scene {
     });
 
     this.time.delayedCall(3000, () => this.generateAlien());
+  }
+
+  createPhysics() {
+    this.alienGroup = this.physics.add.group();
+    this.turretGroup = this.physics.add.staticGroup();
+
+    this.physics.add.overlap(
+      this.alienGroup,
+      this.turretGroup,
+      (alien, turret) => {
+        const targets = turret.getData("targets");
+
+        console.log(targets.length);
+        if (targets.exists(alien)) return;
+
+        targets.add(alien);
+        alien.fillColor = 0xff0000;
+      }
+    );
+
+    /*
+    this.physics.world.on("worldbounds", (body) => {
+      switch (body.gameObject.name) {
+        case "fish":
+          this.fishes.remove(body.gameObject, true, true);
+          break;
+        case "spear":
+          this.spears.remove(body.gameObject, true, true);
+          break;
+        case "shark":
+          this.sharks.remove(body.gameObject, true, true);
+          break;
+      }
+    });*/
+
+    // this.physics.world.setBounds(-48, 0, this.width + 96, this.height + 32);
+    //this.physics.world.setBounds(0, 0, this.width, this.height + 16);
   }
 
   createKeyboardControls() {
