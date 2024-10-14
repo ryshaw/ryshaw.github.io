@@ -225,8 +225,7 @@ class Game extends Phaser.Scene {
   path; // the path that the drone is mining, used by aliens
   threatLevel; // increases as drone mines and grabs more minerals
   portal; // the alien portal is located wherever the drone lands
-  ///////////////////
-  escaping; // mining drone is leaving, the procession of aliens
+  gameOver; // true if turtle escaping asteroid, or destroyed by aliens
 
   constructor() {
     super("Game");
@@ -484,7 +483,7 @@ class Game extends Phaser.Scene {
     // create num ore deposits
     // algorithm will spawn new ore deposits away from edges and other ore deposits
 
-    const num = 8; //Phaser.Math.Between(8, 12);
+    const num = 2; //Phaser.Math.Between(8, 12);
     this.oreTiles = new Phaser.Structs.List();
 
     for (let i = 1; i <= num; i++) {
@@ -535,7 +534,7 @@ class Game extends Phaser.Scene {
   }
 
   createMiningDrone(x, y) {
-    const mineSpeed = 400;
+    const mineSpeed = 800;
 
     let start = this.grid[x][y];
     this.portal = start;
@@ -651,7 +650,13 @@ class Game extends Phaser.Scene {
         }
       }
 
-      miner.setPosition(nextTile.x, nextTile.y);
+      //miner.setPosition(nextTile.x, nextTile.y);
+      this.add.tween({
+        targets: miner,
+        x: nextTile.x,
+        y: nextTile.y,
+        duration: 50,
+      });
       miner.setData("x", nextTile.getData("x"));
       miner.setData("y", nextTile.getData("y"));
 
@@ -710,8 +715,9 @@ class Game extends Phaser.Scene {
   }
 
   escapeMiningDrone(miner, tile) {
-    // stop update loop
-    miner.getData("loop").remove();
+    // turtle successfully completed mission, now close out the scene
+    this.gameOver = true; // stop processing game events
+    miner.getData("loop").remove(); // stop update loop
 
     // spawn ship somewhere outside of the map
     // ship will spawn at point, pick up drone, then go to point2
@@ -1143,8 +1149,8 @@ class Game extends Phaser.Scene {
       scale: 1.8,
       alpha: 1,
       angle: `+=${Phaser.Math.Between(270, 360)}`,
-      duration: 600, //2000,
-      //delay: 3000,
+      duration: 2000,
+      delay: 3000,
       onComplete: () => {
         this.generateAlien();
 
@@ -1175,13 +1181,14 @@ class Game extends Phaser.Scene {
     let pathIndex = 0;
 
     const alien = this.add
-      .circle(this.portal.x, this.portal.y, this.tileW * 0.5, 0x00ff00, 1)
+      .circle(this.portal.x, this.portal.y, this.tileW * 0.5, 0xaffc41, 1)
+      .setStrokeStyle(10, 0x857c8d, 1)
       .setScale(0.8)
       .setDepth(1)
       .setData("pathIndex", 0)
       .setAlpha(0);
 
-    const updateSpeed = 800;
+    const updateSpeed = 1000;
 
     const updateLoop = this.time.addEvent({
       loop: true,
@@ -1191,7 +1198,7 @@ class Game extends Phaser.Scene {
           this.tweens.add({
             targets: alien,
             alpha: 1,
-            duration: updateSpeed * 2,
+            duration: updateSpeed * 1.5,
           });
         }
 
@@ -1202,10 +1209,14 @@ class Game extends Phaser.Scene {
         pathIndex++; // prepare for the next loop
         // if we've hit the end of the path, we've hit the drone
         // so inflict damage and destroy alien
+        // unless the drone is escaping to the ship, then just stop
         if (pathIndex > this.path.length) {
-          console.log("damaged");
-          updateLoop.remove();
-          alien.destroy();
+          updateLoop.remove(); // stop moving forward
+          if (!this.gameOver) {
+            // if drone hasn't escaped yet, apply damage
+            console.log("damaged");
+            alien.destroy();
+          }
           return; // return immediately so we don't invoke the tween
         }
 
@@ -1213,13 +1224,12 @@ class Game extends Phaser.Scene {
           targets: alien,
           x: nextTile.x,
           y: nextTile.y,
-          //alpha: 1,
           duration: updateSpeed,
         });
       },
     });
 
-    this.time.delayedCall(5000, () => this.generateAlien());
+    this.time.delayedCall(3000, () => this.generateAlien());
   }
 
   createKeyboardControls() {
