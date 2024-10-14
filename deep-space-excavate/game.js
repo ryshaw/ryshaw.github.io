@@ -225,6 +225,8 @@ class Game extends Phaser.Scene {
   path; // the path that the drone is mining, used by aliens
   threatLevel; // increases as drone mines and grabs more minerals
   portal; // the alien portal is located wherever the drone lands
+  ///////////////////
+  escaping; // mining drone is leaving, the procession of aliens
 
   constructor() {
     super("Game");
@@ -533,7 +535,7 @@ class Game extends Phaser.Scene {
   }
 
   createMiningDrone(x, y) {
-    const mineSpeed = 800;
+    const mineSpeed = 400;
 
     let start = this.grid[x][y];
     this.portal = start;
@@ -1141,7 +1143,7 @@ class Game extends Phaser.Scene {
       scale: 1.8,
       alpha: 1,
       angle: `+=${Phaser.Math.Between(270, 360)}`,
-      duration: 400, //2000,
+      duration: 600, //2000,
       //delay: 3000,
       onComplete: () => {
         this.generateAlien();
@@ -1176,33 +1178,48 @@ class Game extends Phaser.Scene {
       .circle(this.portal.x, this.portal.y, this.tileW * 0.5, 0x00ff00, 1)
       .setScale(0.8)
       .setDepth(1)
-      .setData("pathIndex", 0);
+      .setData("pathIndex", 0)
+      .setAlpha(0);
 
-    const updateSpeed = 500;
+    const updateSpeed = 800;
 
     const updateLoop = this.time.addEvent({
       loop: true,
       delay: updateSpeed,
-      startAt: updateSpeed,
       callback: () => {
+        if (alien.alpha == 0) {
+          this.tweens.add({
+            targets: alien,
+            alpha: 1,
+            duration: updateSpeed * 2,
+          });
+        }
+
+        // alien will move to this tile
         const nextTile = this.path[pathIndex];
+        // may be undefined if we're already at the end, see below
+
+        pathIndex++; // prepare for the next loop
+        // if we've hit the end of the path, we've hit the drone
+        // so inflict damage and destroy alien
+        if (pathIndex > this.path.length) {
+          console.log("damaged");
+          updateLoop.remove();
+          alien.destroy();
+          return; // return immediately so we don't invoke the tween
+        }
 
         this.tweens.add({
           targets: alien,
           x: nextTile.x,
           y: nextTile.y,
-          onComplete: () => {
-            pathIndex++;
-
-            if (pathIndex > this.path.length) {
-              console.log("hit");
-              updateLoop.remove();
-              alien.destroy();
-            }
-          },
+          //alpha: 1,
+          duration: updateSpeed,
         });
       },
     });
+
+    this.time.delayedCall(5000, () => this.generateAlien());
   }
 
   createKeyboardControls() {
