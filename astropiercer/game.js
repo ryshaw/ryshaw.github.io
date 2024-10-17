@@ -868,11 +868,39 @@ class Game extends Phaser.Scene {
 
     // set up range
     const range = this.tileW * 6;
-    turret.body.setSize(range, range);
+    turret.body.setSize(range, range); // diameter
     turret.body.isCircle = true;
 
     // add targets List so it can track what aliens to target within range
-    turret.setData("targets", new Phaser.Structs.List());
+    turret.setData("targets", []);
+    turret.setData("target", null);
+    turret.setData("range", range / 2); // use the radius, not diameter
+
+    const updateSpeed = 1000;
+
+    turret.setData(
+      "loop",
+      this.time.addEvent({
+        loop: true,
+        delay: updateSpeed,
+        callback: () => {
+          let target = turret.getData("target");
+
+          if (target) {
+            const dist = Phaser.Math.Distance.BetweenPoints(turret, target);
+            if (dist > turret.getData("range")) target = null;
+          }
+
+          if (!target) target = turret.getData("targets").shift();
+
+          if (target) {
+            target.fillColor = 0xff0000;
+            this.time.delayedCall(400, () => (target.fillColor = 0xffffff));
+            turret.setData("target", target);
+          }
+        },
+      })
+    );
   }
 
   deployMiningDrone(pos) {
@@ -1257,17 +1285,14 @@ class Game extends Phaser.Scene {
     this.alienGroup = this.physics.add.group();
     this.turretGroup = this.physics.add.staticGroup();
 
+    // if alien goes within turret's range,
+    // add it to the turret's target list
     this.physics.add.overlap(
       this.alienGroup,
       this.turretGroup,
       (alien, turret) => {
         const targets = turret.getData("targets");
-
-        console.log(targets.length);
-        if (targets.exists(alien)) return;
-
-        targets.add(alien);
-        alien.fillColor = 0xff0000;
+        if (!targets.includes(alien)) targets.push(alien);
       }
     );
 
