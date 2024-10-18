@@ -227,7 +227,8 @@ class Game extends Phaser.Scene {
   portal; // the alien portal is located wherever the drone lands
   gameOver; // true if turtle escaping asteroid, or destroyed by aliens
   alienGroup; // physics group with all the aliens
-  turretGroup; // physics group with all turrets for determining
+  turretGroup; // physics group with all turrets (turret body is their range)
+  bulletGroup; // physics group with all bullets for hitting the aliens
 
   constructor() {
     super("Game");
@@ -538,7 +539,7 @@ class Game extends Phaser.Scene {
   }
 
   createMiningDrone(x, y) {
-    const mineSpeed = 300;
+    const mineSpeed = 500;
 
     let start = this.grid[x][y];
     this.portal = start;
@@ -885,22 +886,57 @@ class Game extends Phaser.Scene {
         delay: updateSpeed,
         callback: () => {
           let target = turret.getData("target");
+          let targets = turret.getData("targets");
 
+          // if we already have a target chosen,
+          // check if it's still alive & within range
+          // if not, then we'll need to choose a new one
           if (target) {
-            const dist = Phaser.Math.Distance.BetweenPoints(turret, target);
-            if (dist > turret.getData("range")) target = null;
+            if (!target.body) target = null; // already ded
+            else {
+              // check distance
+              const dist = Phaser.Math.Distance.BetweenPoints(turret, target);
+              if (dist > turret.getData("range")) target = null;
+            }
           }
 
-          if (!target) target = turret.getData("targets").shift();
+          // if we need to choose another target,
+          // look at what aliens went into our range.
+          // if they're dead or outside of our range, disregard them
+          // otherwise, we have our new target
+          while (!target && targets.length > 0) {
+            target = targets.shift();
 
-          if (target) {
-            target.fillColor = 0xff0000;
-            this.time.delayedCall(400, () => (target.fillColor = 0xffffff));
-            turret.setData("target", target);
+            if (!target.body) target = null; // already ded
+            else {
+              // check distance
+              const dist = Phaser.Math.Distance.BetweenPoints(turret, target);
+              if (dist > turret.getData("range")) target = null;
+            }
           }
+
+          // fire at our target
+          if (target) this.fireProjectile(turret, target);
+
+          // set our new target, may be null
+          turret.setData("target", target);
         },
       })
     );
+  }
+
+  fireProjectile(turret, alien) {
+    const bullet = this.add
+      .circle(turret.x, turret.y, 6, 0xfefae0)
+      .setStrokeStyle(4, 0xffffff)
+      .setDepth(1)
+      .setName("bullet");
+
+    this.bulletGroup.add(bullet);
+    bullet.body.isCircle = true;
+    bullet.body.onWorldBounds = true;
+
+    this.physics.moveToObject(bullet, alien, 400);
   }
 
   deployMiningDrone(pos) {
@@ -1231,6 +1267,7 @@ class Game extends Phaser.Scene {
       .setScale(0.75)
       .setDepth(1)
       .setData("pathIndex", 0)
+      .setData("health", 5)
       .setAlpha(0)
       .setName("alien");
 
@@ -1239,44 +1276,47 @@ class Game extends Phaser.Scene {
 
     const updateSpeed = 1000;
 
-    const updateLoop = this.time.addEvent({
-      loop: true,
-      delay: updateSpeed,
-      callback: () => {
-        if (alien.alpha == 0) {
+    alien.setData(
+      "loop",
+      this.time.addEvent({
+        loop: true,
+        delay: updateSpeed,
+        callback: () => {
+          if (alien.alpha == 0) {
+            this.tweens.add({
+              targets: alien,
+              alpha: 1,
+              duration: updateSpeed * 1.5,
+            });
+          }
+
+          // alien will move to this tile
+          const nextTile = this.path[pathIndex];
+          // may be undefined if we're already at the end, see below
+
+          pathIndex++; // prepare for the next loop
+          // if we've hit the end of the path, we've hit the drone
+          // so inflict damage and destroy alien
+          // unless the drone is escaping to the ship, then just stop
+          if (pathIndex > this.path.length) {
+            alien.getData("loop").remove(); // stop moving forward
+            if (!this.gameOver) {
+              // if drone hasn't escaped yet, apply damage
+              console.log("damaged");
+              alien.destroy();
+            }
+            return; // return immediately so we don't invoke the tween
+          }
+
           this.tweens.add({
             targets: alien,
-            alpha: 1,
-            duration: updateSpeed * 1.5,
+            x: nextTile.x,
+            y: nextTile.y,
+            duration: updateSpeed,
           });
-        }
-
-        // alien will move to this tile
-        const nextTile = this.path[pathIndex];
-        // may be undefined if we're already at the end, see below
-
-        pathIndex++; // prepare for the next loop
-        // if we've hit the end of the path, we've hit the drone
-        // so inflict damage and destroy alien
-        // unless the drone is escaping to the ship, then just stop
-        if (pathIndex > this.path.length) {
-          updateLoop.remove(); // stop moving forward
-          if (!this.gameOver) {
-            // if drone hasn't escaped yet, apply damage
-            console.log("damaged");
-            alien.destroy();
-          }
-          return; // return immediately so we don't invoke the tween
-        }
-
-        this.tweens.add({
-          targets: alien,
-          x: nextTile.x,
-          y: nextTile.y,
-          duration: updateSpeed,
-        });
-      },
-    });
+        },
+      })
+    );
 
     this.time.delayedCall(3000, () => this.generateAlien());
   }
@@ -1284,6 +1324,7 @@ class Game extends Phaser.Scene {
   createPhysics() {
     this.alienGroup = this.physics.add.group();
     this.turretGroup = this.physics.add.staticGroup();
+    this.bulletGroup = this.physics.add.group({ collideWorldBounds: true });
 
     // if alien goes within turret's range,
     // add it to the turret's target list
@@ -1296,23 +1337,31 @@ class Game extends Phaser.Scene {
       }
     );
 
-    /*
-    this.physics.world.on("worldbounds", (body) => {
-      switch (body.gameObject.name) {
-        case "fish":
-          this.fishes.remove(body.gameObject, true, true);
-          break;
-        case "spear":
-          this.spears.remove(body.gameObject, true, true);
-          break;
-        case "shark":
-          this.sharks.remove(body.gameObject, true, true);
-          break;
-      }
-    });*/
+    // pew pew
+    this.physics.add.collider(
+      this.bulletGroup,
+      this.alienGroup,
+      (bullet, alien) => {
+        this.bulletGroup.remove(bullet, true, true);
 
-    // this.physics.world.setBounds(-48, 0, this.width + 96, this.height + 32);
-    //this.physics.world.setBounds(0, 0, this.width, this.height + 16);
+        let health = alien.getData("health");
+        health -= 1;
+        alien.setData("health", health);
+
+        if (health <= 0) {
+          alien.getData("loop").remove(); // stop update loop
+          this.alienGroup.remove(alien, true, true);
+        }
+      }
+    );
+
+    this.physics.world.on("worldbounds", (body) => {
+      if (this.bulletGroup.contains(body.gameObject)) {
+        this.bulletGroup.remove(body.gameObject, true, true);
+      }
+    });
+
+    this.physics.world.setBounds(0, 0, gameW, gameH);
   }
 
   createKeyboardControls() {
