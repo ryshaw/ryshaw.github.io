@@ -1,6 +1,6 @@
 const VERSION = "Astropiercer v0.2";
 
-const DEV_MODE = true; // turns on physics debug mode
+const DEV_MODE = false; // turns on physics debug mode
 
 const gameW = 1920;
 const gameH = 1080;
@@ -539,7 +539,7 @@ class Game extends Phaser.Scene {
   }
 
   createMiningDrone(x, y) {
-    const mineSpeed = 500;
+    const mineSpeed = 300;
 
     let start = this.grid[x][y];
     this.portal = start;
@@ -1308,12 +1308,14 @@ class Game extends Phaser.Scene {
             return; // return immediately so we don't invoke the tween
           }
 
+          this.physics.moveToObject(alien, nextTile, null, updateSpeed);
+          /*
           this.tweens.add({
             targets: alien,
             x: nextTile.x,
             y: nextTile.y,
             duration: updateSpeed,
-          });
+          });*/
         },
       })
     );
@@ -1338,19 +1340,31 @@ class Game extends Phaser.Scene {
     );
 
     // pew pew
-    this.physics.add.collider(
+    this.physics.add.overlap(
       this.bulletGroup,
       this.alienGroup,
       (bullet, alien) => {
         this.bulletGroup.remove(bullet, true, true);
 
-        let health = alien.getData("health");
-        health -= 1;
-        alien.setData("health", health);
+        alien.incData("health", -1);
 
-        if (health <= 0) {
+        alien.strokeColor = 0xbc4749;
+        this.time.delayedCall(100, () => (alien.strokeColor = 0x857c8d));
+
+        // decreases fillAlpha by 1 / starting health of alien
+        // e.g. if starting health was 5, will decrease it by 1/5 = 0.2
+        alien.fillAlpha -=
+          (1 - (1 - alien.fillAlpha)) / (alien.getData("health") + 1);
+
+        if (alien.getData("health") <= 0) {
           alien.getData("loop").remove(); // stop update loop
-          this.alienGroup.remove(alien, true, true);
+          this.tweens.add({
+            targets: alien,
+            alpha: 0,
+            scale: alien.scale + 0.2,
+            duration: 100,
+            onComplete: () => this.alienGroup.remove(alien, true, true),
+          });
         }
       }
     );
