@@ -539,7 +539,7 @@ class Game extends Phaser.Scene {
   }
 
   createMiningDrone(x, y) {
-    const mineSpeed = 200;
+    const mineSpeed = 800;
 
     let start = this.grid[x][y];
     this.portal = start;
@@ -647,7 +647,7 @@ class Game extends Phaser.Scene {
       if (nextTile.getData("filled") === false) {
         if (!this.threatLevel) {
           this.threatLevel = 1;
-          this.openAlienPortal();
+          this.openAlienPortal(miner);
         } else {
           // ore adds more threat
           if (nextTile.getData("ore")) this.threatLevel += 2;
@@ -1195,7 +1195,7 @@ class Game extends Phaser.Scene {
     return turrets;
   }
 
-  openAlienPortal() {
+  openAlienPortal(drone) {
     // this.portal was set during createMiningDrone()
     this.portal
       .setStrokeStyle(6, 0xe7c6ff, 1)
@@ -1233,10 +1233,10 @@ class Game extends Phaser.Scene {
       scale: 1.6,
       alpha: 1,
       angle: `+=${Phaser.Math.Between(270, 360)}`,
-      duration: 100, // 2000,
-      //delay: 3000,
+      duration: 2000,
+      delay: 3000,
       onComplete: () => {
-        this.generateAlien();
+        this.generateAlien(drone);
 
         // originally this was tied to tween.progress in onUpdate,
         // but I decided to untie it so it doesn't look like the
@@ -1259,7 +1259,7 @@ class Game extends Phaser.Scene {
     });
   }
 
-  generateAlien() {
+  generateAlien(drone) {
     // start alien at the portal and move to the first item in this.path
 
     let pathIndex = 0;
@@ -1270,6 +1270,7 @@ class Game extends Phaser.Scene {
       .setScale(0.75)
       .setDepth(1)
       .setData("pathIndex", 0)
+      .setData("target", drone)
       .setData("health", 5)
       .setAlpha(0)
       .setName("alien");
@@ -1277,7 +1278,7 @@ class Game extends Phaser.Scene {
     this.alienGroup.add(alien); // add to physics group so it can be detected by turrets
     alien.body.isCircle = true;
 
-    const updateSpeed = 1000;
+    const updateSpeed = 700;
 
     alien.setData(
       "loop",
@@ -1303,27 +1304,89 @@ class Game extends Phaser.Scene {
           // unless the drone is escaping to the ship, then just stop
           if (pathIndex > this.path.length) {
             alien.getData("loop").remove(); // stop moving forward
+            alien.body.stop(); // stop moving forward
+
             if (!this.gameOver) {
               // if drone hasn't escaped yet, apply damage
-              console.log("damaged");
+              const drone = alien.getData("target").incData("health", -1);
+              if (drone.getData("health") <= 0) this.destroyMiningDrone(drone);
+
               alien.destroy();
             }
-            return; // return immediately so we don't invoke the tween
+            return; // return immediately so we don't invoke moveToObject
           }
 
           this.physics.moveToObject(alien, nextTile, null, updateSpeed);
-          /*
-          this.tweens.add({
-            targets: alien,
-            x: nextTile.x,
-            y: nextTile.y,
-            duration: updateSpeed,
-          });*/
         },
       })
     );
 
-    this.time.delayedCall(3000, () => this.generateAlien());
+    if (this.gameOver) return; // no need to generate more aliens
+    this.time.delayedCall(3000, () => this.generateAlien(drone));
+  }
+
+  destroyMiningDrone(drone) {
+    // turtle destroyed, now close out the scene
+    this.gameOver = true; // stop processing game events
+    drone.getData("loop").remove(); // stop update loop
+
+    /*     this.alienGroup.getChildren().forEach((alien) => {
+      alien.getData("loop").remove();
+      alien.body.stop();
+    }); */
+
+    this.tweens.add({
+      targets: drone,
+      scale: 2,
+      angle: 1080,
+      delay: 200,
+      duration: 2000,
+      ease: "sine.inout",
+      onComplete: () => {
+        this.add.tween({
+          targets: drone,
+          alpha: 0,
+          angle: 1080,
+          duration: 200,
+        });
+
+        /*         this.alienGroup.getChildren().forEach((alien) => {
+          this.tweens.add({
+            targets: alien,
+            alpha: 0.01, // lmao yeah this avoids the alpha -> 1 tween
+            scale: alien.scale + 0.3,
+            duration: 300,
+          });
+        }); */
+
+        for (let i = 0; i < 4; i++) {
+          const circle = this.add
+            .circle(drone.x, drone.y, 0)
+            .setStrokeStyle(16, 0xffffff, 0.8)
+            .setAlpha(0);
+
+          this.add.tween({
+            targets: circle,
+            radius: this.tileW * 20,
+            duration: 1500,
+            delay: i * 400,
+            onStart: () => circle.setAlpha(1),
+            onComplete: () => {
+              this.add.tween({
+                targets: circle,
+                radius: this.tileW * 30,
+                duration: 1000,
+                alpha: 0,
+                onComplete: () => {
+                  if (i == 3) this.endScene();
+                },
+                completeDelay: 1500,
+              });
+            },
+          });
+        }
+      },
+    });
   }
 
   createPhysics() {
@@ -2031,6 +2094,7 @@ class Prefab extends Phaser.GameObjects.GameObject {
         return this.scene.add
           .rectangle(x, y, w, h, this.colors.drone.fill)
           .setStrokeStyle(4, this.colors.drone.stroke)
+          .setData("health", 5)
           .setName("turtle");
       case 3:
         return this.scene.add
