@@ -539,7 +539,7 @@ class Game extends Phaser.Scene {
   }
 
   createMiningDrone(x, y) {
-    const mineSpeed = 300;
+    const mineSpeed = 200;
 
     let start = this.grid[x][y];
     this.portal = start;
@@ -1064,6 +1064,9 @@ class Game extends Phaser.Scene {
           }
         }
 
+        // emit a pointermove event so the turtle will move onto the grid
+        this.input.emit("pointermove", p);
+
         c.destroy();
       }
     );
@@ -1150,7 +1153,7 @@ class Game extends Phaser.Scene {
 
           if (c.listenerCount("pointerup") < 1) {
             c.on("pointerup", (p) => {
-              const turretSize = this.tileW * 0.9;
+              const turretSize = this.tileW * 0.75;
 
               switch (c.getData("number")) {
                 case 0:
@@ -1227,7 +1230,7 @@ class Game extends Phaser.Scene {
 
     this.tweens.add({
       targets: this.portal,
-      scale: 1.8,
+      scale: 1.6,
       alpha: 1,
       angle: `+=${Phaser.Math.Between(270, 360)}`,
       duration: 100, // 2000,
@@ -1346,22 +1349,22 @@ class Game extends Phaser.Scene {
       (bullet, alien) => {
         this.bulletGroup.remove(bullet, true, true);
 
-        alien.incData("health", -1);
+        if (alien.getData("health") <= 0) return; // already ded
+
+        const health = alien.incData("health", -1).getData("health");
 
         alien.strokeColor = 0xbc4749;
-        this.time.delayedCall(100, () => (alien.strokeColor = 0x857c8d));
+        this.time.delayedCall(80, () => (alien.strokeColor = 0x857c8d));
 
-        // decreases fillAlpha by 1 / starting health of alien
-        // e.g. if starting health was 5, will decrease it by 1/5 = 0.2
-        alien.fillAlpha -=
-          (1 - (1 - alien.fillAlpha)) / (alien.getData("health") + 1);
+        // chops off an equal portion of the arc each time
+        alien.endAngle -= (alien.endAngle - 150) / (health + 1);
 
-        if (alien.getData("health") <= 0) {
+        if (health <= 0) {
           alien.getData("loop").remove(); // stop update loop
           this.tweens.add({
             targets: alien,
             alpha: 0,
-            scale: alien.scale + 0.2,
+            scale: alien.scale + 0.3,
             duration: 100,
             onComplete: () => this.alienGroup.remove(alien, true, true),
           });
@@ -1907,7 +1910,7 @@ class GameTextButton extends Phaser.GameObjects.Container {
       .text(0, 0, string, {
         font: `${size * 8 + 24}px`,
         fontStyle: "bold",
-        padding: 30,
+        padding: 24,
         lineSpacing: 32,
         fill: "#fff",
         align: "left",
