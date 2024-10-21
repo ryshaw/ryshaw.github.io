@@ -5,7 +5,7 @@ const DEV_MODE = false; // turns on physics debug mode
 const gameW = 1920;
 const gameH = 1080;
 
-const START_SCENE = "Game"; // for testing different scenes
+const START_SCENE = "Shop"; // for testing different scenes
 
 const FONTS = ["Lexend"];
 
@@ -255,6 +255,7 @@ class Game extends Phaser.Scene {
       active: () => {
         this.createDeployButton();
         this.createMenu();
+        this.createFpsText();
       },
     });
   }
@@ -1094,6 +1095,19 @@ class Game extends Phaser.Scene {
       .add(this.createTurretButtons());
   }
 
+  createFpsText() {
+    const fpsText = this.add.gameText(0, gameH, "FPS", 2).setOrigin(0, 1);
+
+    this.time.addEvent({
+      delay: 500,
+      loop: true,
+      callbackScope: this,
+      callback: () => {
+        fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`);
+      },
+    });
+  }
+
   createTurretButtons() {
     const turrets = [];
 
@@ -1694,6 +1708,7 @@ class Shop extends Phaser.Scene {
         this.createResultsMenu();
         this.createShopMenu();
         this.createContractsMenu();
+        this.createFpsText();
       },
     });
   }
@@ -1849,6 +1864,19 @@ class Shop extends Phaser.Scene {
       ]);
   }
 
+  createFpsText() {
+    const fpsText = this.add.gameText(0, gameH, "FPS", 2).setOrigin(0, 1);
+
+    this.time.addEvent({
+      delay: 500,
+      loop: true,
+      callbackScope: this,
+      callback: () => {
+        fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`);
+      },
+    });
+  }
+
   endScene() {
     this.input.enabled = false; // stop all further player input
 
@@ -1929,7 +1957,7 @@ const config = {
         y: 0,
       },
       debug: DEV_MODE,
-      fps: 300,
+      //fps: 300,
     },
   },
   title: VERSION,
