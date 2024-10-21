@@ -235,7 +235,7 @@ class Game extends Phaser.Scene {
   }
 
   create() {
-    this.prefab = new Prefab(this);
+    this.initVariables();
     this.createResolution();
 
     //this.cameras.main.fadeIn();
@@ -281,6 +281,17 @@ class Game extends Phaser.Scene {
     this.cameras.main.centerOn(gameW / 2, gameH / 2);
 
     this.scale.on("resize", this.resize, this);
+  }
+
+  initVariables() {
+    // clears variables if game scene is restarted
+    // there's gotta be a better way to do this
+    this.prefab = new Prefab(this);
+    this.selectedObj = null;
+    this.path = null;
+    this.threatLevel = null;
+    this.portal = null;
+    this.gameOver = null;
   }
 
   createAsteroidGrid() {
@@ -539,7 +550,7 @@ class Game extends Phaser.Scene {
   }
 
   createMiningDrone(x, y) {
-    const mineSpeed = 800;
+    const mineSpeed = 500;
 
     let start = this.grid[x][y];
     this.portal = start;
@@ -770,8 +781,7 @@ class Game extends Phaser.Scene {
     const duration = 1000;
     this.cameras.main.fade(duration);
     this.time.delayedCall(duration, () => {
-      // this.scene.start() has a visual glitch
-      // so this is the solution instead
+      // this.scene.start() has a visual glitch, so this is the workaround
       this.scene.launch("Shop");
       this.time.delayedCall(0, () => this.scene.stop());
     });
@@ -1233,8 +1243,8 @@ class Game extends Phaser.Scene {
       scale: 1.6,
       alpha: 1,
       angle: `+=${Phaser.Math.Between(270, 360)}`,
-      duration: 2000,
-      delay: 3000,
+      duration: 200, //2000,
+      //delay: 3000,
       onComplete: () => {
         this.generateAlien(drone);
 
@@ -1278,7 +1288,7 @@ class Game extends Phaser.Scene {
     this.alienGroup.add(alien); // add to physics group so it can be detected by turrets
     alien.body.isCircle = true;
 
-    const updateSpeed = 700;
+    const updateSpeed = 1000;
 
     alien.setData(
       "loop",
@@ -1362,12 +1372,13 @@ class Game extends Phaser.Scene {
         for (let i = 0; i < 4; i++) {
           const circle = this.add
             .circle(drone.x, drone.y, 0)
-            .setStrokeStyle(16, 0xffffff, 0.8)
+            .setStrokeStyle(32, 0xffffff, 0.8)
             .setAlpha(0);
 
           this.add.tween({
             targets: circle,
             radius: this.tileW * 20,
+            lineWidth: 4,
             duration: 1500,
             delay: i * 400,
             onStart: () => circle.setAlpha(1),
@@ -1376,6 +1387,7 @@ class Game extends Phaser.Scene {
                 targets: circle,
                 radius: this.tileW * 30,
                 duration: 1000,
+                lineWidth: 1,
                 alpha: 0,
                 onComplete: () => {
                   if (i == 3) this.endScene();
@@ -1843,8 +1855,7 @@ class Shop extends Phaser.Scene {
     const duration = 1000;
     this.cameras.main.fade(duration);
     this.time.delayedCall(duration, () => {
-      // this.scene.start() has a visual glitch
-      // so this is the solution instead
+      // this.scene.start() has a visual glitch, so this is the workaround
       this.scene.launch("Game");
       this.time.delayedCall(0, () => this.scene.stop());
     });
