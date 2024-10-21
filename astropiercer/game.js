@@ -1747,6 +1747,8 @@ class Shop extends Phaser.Scene {
               x: `-=${gameW}`,
               duration: this.transitionTime,
               ease: "cubic.out",
+              onStart: () => this.shop.setVisible(true),
+              onComplete: () => this.results.setVisible(false),
             });
           }
         ),
@@ -1762,6 +1764,7 @@ class Shop extends Phaser.Scene {
         gameW * 0.8,
         gameH * 0.7
       )
+      .setVisible(false)
       .add([
         this.add
           .gameText(-gameW * 0.39, -gameH * 0.34, "Shop", 6)
@@ -1787,6 +1790,8 @@ class Shop extends Phaser.Scene {
               x: `-=${gameW}`,
               duration: this.transitionTime,
               ease: "cubic.out",
+              onStart: () => this.contracts.setVisible(true),
+              onComplete: () => this.shop.setVisible(false),
             });
           }
         ),
@@ -1805,6 +1810,8 @@ class Shop extends Phaser.Scene {
               x: `+=${gameW}`,
               duration: this.transitionTime,
               ease: "cubic.out",
+              onStart: () => this.results.setVisible(true),
+              onComplete: () => this.shop.setVisible(false),
             });
           }
         ),
@@ -1820,6 +1827,7 @@ class Shop extends Phaser.Scene {
         gameW * 0.8,
         gameH * 0.7
       )
+      .setVisible(false)
       .add([
         this.add
           .gameText(-gameW * 0.39, -gameH * 0.34, "Contracts", 6)
@@ -1858,6 +1866,8 @@ class Shop extends Phaser.Scene {
               x: `+=${gameW}`,
               duration: this.transitionTime,
               ease: "cubic.out",
+              onStart: () => this.shop.setVisible(true),
+              onComplete: () => this.contracts.setVisible(false),
             });
           }
         ),
