@@ -7,7 +7,9 @@ const gameH = 1080;
 
 const START_SCENE = "Game"; // for testing different scenes
 
-const FONTS = ["Lexend"];
+const FONTS = ["Oxanium", "Saira"];
+
+const FONT = "Oxanium";
 
 const CLRS = {
   topGradient: 0x0c1821, // for background
@@ -1148,6 +1150,24 @@ class Game extends Phaser.Scene {
     const speed = this.add.gameTextButton(
       0,
       bounds.height / 2 - 305,
+      "1x",
+      1,
+      null,
+      () => {}
+    );
+
+    const speed2 = this.add.gameTextButton(
+      0,
+      bounds.height / 2 - 305,
+      "1x Speed",
+      1,
+      null,
+      () => {}
+    );
+
+    const speed3 = this.add.gameTextButton(
+      0,
+      bounds.height / 2 - 305,
       "1x Speed",
       1,
       null,
@@ -2074,7 +2094,7 @@ class GameText extends Phaser.GameObjects.Text {
       },
     });
 
-    this.setOrigin(0.5, 0.5).setFontFamily("Lexend");
+    this.setOrigin(0.5, 0.5).setFontFamily(FONT);
   }
 
   preUpdate(delta, time) {}
@@ -2111,7 +2131,7 @@ class GameTextButton extends Phaser.GameObjects.Container {
         },
       })
       .setOrigin(0.5, 0.5)
-      .setFontFamily("Lexend");
+      .setFontFamily(FONT);
 
     const bg = scene.add
       .rectangle(
