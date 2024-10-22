@@ -5,7 +5,7 @@ const DEV_MODE = false; // turns on physics debug mode
 const gameW = 1920;
 const gameH = 1080;
 
-const START_SCENE = "Shop"; // for testing different scenes
+const START_SCENE = "Game"; // for testing different scenes
 
 const FONTS = ["Lexend"];
 
@@ -76,6 +76,16 @@ class Background extends Phaser.Scene {
     );
 
     this.loadSpaceSpritesheet();
+    this.loadGameIcons();
+  }
+
+  loadGameIcons() {
+    this.load.setPath("assets/kenney_simplified-platformer-pack/PNG/Items/");
+    this.load.image("gem", "platformPack_item007.png");
+    this.load.image("heart", "platformPack_item017.png");
+
+    this.load.setPath("assets/kenney_game-icons/PNG/White/2x/");
+    this.load.image("gear", "gear.png");
   }
 
   loadSpaceSpritesheet() {
@@ -820,12 +830,22 @@ class Game extends Phaser.Scene {
       } else {
         // turret
 
+        // check if we're still not hovering over the grid
+        const pos2 = this.convertWorldToGrid(p.worldX, p.worldY, false);
+        if (!this.checkIfInGrid(pos2.x, pos2.y)) {
+          // just match the mouse cursor since we're not on the grid
+          this.selectedObj.setPosition(p.worldX, p.worldY);
+          // invalid build position, obviously
+          this.selectedObj.setAlpha(0.7).strokeColor = 0xff5714;
+          return;
+        }
+
         const tile = this.grid[pos.x][pos.y];
 
         this.selectedObj.setPosition(tile.x, tile.y);
 
         // reset these properties (could be changed later down)
-        this.selectedObj.setAlpha(1).strokeColor = 0xffffff;
+        this.selectedObj.setAlpha(1).strokeColor = 0x6eeb83;
 
         // check for any invalid conditions
         if (
@@ -834,7 +854,7 @@ class Game extends Phaser.Scene {
           tile.getData("turret") ||
           tile.getData("turretAdjacent")
         ) {
-          this.selectedObj.setAlpha(0.7).strokeColor = 0xff0000;
+          this.selectedObj.setAlpha(0.7).strokeColor = 0xff5714;
         }
       }
     });
@@ -862,6 +882,9 @@ class Game extends Phaser.Scene {
   buildTurret(pos, turret) {
     // first, adjust the tiles around it so we can't build turrets near it
     this.grid[pos.x][pos.y].setData("turret", true);
+
+    // was green, now color it white
+    turret.strokeColor = 0xffffff;
 
     // set 3x3 grid around cornerTile to be turreted
     // so it leaves room for mining turtle to move around
@@ -1029,14 +1052,19 @@ class Game extends Phaser.Scene {
     }
   }
 
-  convertWorldToGrid(x, y) {
-    const v = new Phaser.Math.Vector2(x, y);
+  convertWorldToGrid(x, y, clamp = true) {
+    // clamp will clamp the given coordinates inside the grid bounds
+    // if clamp = false, the coordinates may be outside of the grid
+    let v = new Phaser.Math.Vector2(x, y);
     const topLeft = this.grid[0][0].getTopLeft();
 
     v.subtract({ x: topLeft.x, y: topLeft.y }).scale(1 / this.tileW);
+    v = { x: Math.floor(v.x), y: Math.floor(v.y) };
 
-    v.x = Phaser.Math.Clamp(Math.floor(v.x), 0, this.grid.length - 1);
-    v.y = Phaser.Math.Clamp(Math.floor(v.y), 0, this.grid[0].length - 1);
+    if (!clamp) return v;
+
+    v.x = Phaser.Math.Clamp(v.x, 0, this.grid.length - 1);
+    v.y = Phaser.Math.Clamp(v.y, 0, this.grid[0].length - 1);
 
     return v;
   }
@@ -1084,15 +1112,58 @@ class Game extends Phaser.Scene {
   }
 
   createMenu() {
-    const menu = this.prefab
-      .instantiate(
-        Prefab.Object.Menu,
-        gameW * 0.9,
-        gameH * 0.5,
-        gameW * 0.2,
-        gameH - 16
-      )
-      .add(this.createTurretButtons());
+    const menu = this.prefab.instantiate(
+      Prefab.Object.Menu,
+      gameW * 0.915,
+      gameH * 0.5,
+      gameW * 0.18 - 24,
+      gameH - 24
+    );
+
+    const bounds = menu.getBounds();
+
+    menu
+      .add(this.createTurretButtons())
+      .add(this.add.gameText(0, 50 - bounds.height / 2, VERSION, 1.2));
+
+    const gem = this.add.image(-90, 45, "gem").setScale(1.25);
+    const gemText = this.add.gameText(-60, 50, "6501", 4).setOrigin(0, 0.5);
+
+    menu.add([gem, gemText]);
+
+    const heart = this.add.image(-90, 115, "heart").setScale(1.25);
+    const heartText = this.add.gameText(-60, 120, "12", 4).setOrigin(0, 0.5);
+
+    menu.add([heart, heartText]);
+
+    const pause = this.add.gameTextButton(
+      0,
+      bounds.height / 2 - 190,
+      "Pause",
+      2,
+      null,
+      () => {}
+    );
+
+    const speed = this.add.gameTextButton(
+      0,
+      bounds.height / 2 - 305,
+      "1x Speed",
+      1,
+      null,
+      () => {}
+    );
+
+    const options = this.add.gameTextButton(
+      0,
+      bounds.height / 2 - 70,
+      "Options",
+      2,
+      null,
+      () => {}
+    );
+
+    menu.add([options, pause, speed]);
   }
 
   createFpsText() {
@@ -1112,12 +1183,12 @@ class Game extends Phaser.Scene {
     const turrets = [];
 
     for (let i = 0; i < 6; i++) {
-      const x = (i % 2) * 180 - 90;
-      const y = Math.floor(i / 2) * 180 - 400;
+      const x = (i % 2) * 150 - 70;
+      const y = Math.floor(i / 2) * 150 - 370;
 
       const bg = this.add
-        .rectangle(0, 0, 144, 144, 0xffffff, 0.3)
-        .setStrokeStyle(6, 0xffffff, 0.8);
+        .rectangle(0, 0, 120, 120, 0xffffff, 0.3)
+        .setStrokeStyle(6, 0xffffff, 1);
 
       let turret = this.add.rectangle();
 
@@ -1139,8 +1210,6 @@ class Game extends Phaser.Scene {
           break;
       }
 
-      let colorMatrix;
-
       const c = this.add
         .container(x, y, [bg, turret])
         .setData("number", i)
@@ -1150,19 +1219,22 @@ class Game extends Phaser.Scene {
           this.tweens.add({
             targets: bg,
             fillAlpha: 0.5,
+            lineWidth: 8,
             duration: 100,
           });
           this.tweens.add({
             targets: turret,
-            scale: 1.85,
+            scale: 1.75,
             duration: 100,
           });
         })
         .on("pointerout", () => {
-          colorMatrix.brightness(1);
+          bg.fillColor = 0xffffff;
+
           this.tweens.add({
             targets: bg,
             fillAlpha: 0.3,
+            lineWidth: 6,
             duration: 100,
           });
           this.tweens.add({
@@ -1173,7 +1245,7 @@ class Game extends Phaser.Scene {
           c.off("pointerup");
         })
         .on("pointerdown", () => {
-          colorMatrix.brightness(0.85);
+          bg.fillColor = 0xe1e1e1;
 
           if (c.listenerCount("pointerup") < 1) {
             c.on("pointerup", (p) => {
@@ -1190,7 +1262,7 @@ class Game extends Phaser.Scene {
                       turretSize
                     )
                     .setAlpha(0.9)
-                    .setDepth(1);
+                    .setDepth(2);
 
                   break;
                 case 1:
@@ -1205,13 +1277,15 @@ class Game extends Phaser.Scene {
                   break;
               }
 
-              colorMatrix.brightness(1);
+              bg.fillColor = 0xffffff;
+
               c.off("pointerup");
+
+              // emit a pointermove event so the turret will adjust accordingly
+              this.input.emit("pointermove", p);
             });
           }
         });
-
-      colorMatrix = c.postFX.addColorMatrix();
 
       turrets.push(c);
     }
@@ -2053,8 +2127,6 @@ class GameTextButton extends Phaser.GameObjects.Container {
       CLRS.textButton.fill,
       CLRS.textButton.stroke
     );
-    const bgColorMatrix = bg.postFX.addColorMatrix();
-    const textColorMatrix = text.postFX.addColorMatrix();
 
     this.add([bg, text])
       .setSize(bg.width, bg.height)
@@ -2062,18 +2134,14 @@ class GameTextButton extends Phaser.GameObjects.Container {
       .on("pointerover", () => (bgGradient.alpha = 0.35))
       .on("pointerout", () => {
         bgGradient.alpha = 0.2;
-        bgColorMatrix.brightness(1);
-        textColorMatrix.brightness(1);
         this.off("pointerup");
       })
       .on("pointerdown", () => {
-        bgColorMatrix.brightness(0.7);
-        textColorMatrix.brightness(0.7);
+        bgGradient.alpha = 0.5;
 
         if (this.listenerCount("pointerup") < 1) {
           this.on("pointerup", (p) => {
-            bgColorMatrix.brightness(1);
-            textColorMatrix.brightness(1);
+            bgGradient.alpha = 0.2;
             callback(p); // bro... why
           });
         }
