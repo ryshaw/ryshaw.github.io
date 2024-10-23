@@ -1182,31 +1182,8 @@ class Game extends Phaser.Scene {
 
     menu.add([risk, this.display.risk]);
 
-    const y = 340;
-    const scale = 0.55;
-    const x = 100;
-
-    this.display.pause = this.add.gameImageButton(-x, y, "pause", scale, () =>
-      this.pauseOrResume()
-    );
-
-    this.display.play = this.add.gameImageButton(
-      0,
-      y,
-      "right",
-      scale,
-      () => {}
-    );
-
-    this.display.fastForward = this.add.gameImageButton(
-      x,
-      y,
-      "fastForward",
-      scale,
-      () => {}
-    );
-
-    menu.add([this.display.pause, this.display.play, this.display.fastForward]);
+    // create pause, play, and fastForward
+    this.scene.get("PausePlay").createButtons(menu.x, menu.y + 340, 0.55);
 
     const options = this.add.gameTextButton(
       0,
@@ -1345,16 +1322,6 @@ class Game extends Phaser.Scene {
     }
 
     return turrets;
-  }
-
-  // transfer this to pause scene
-  pauseOrResume() {
-    console.log(this.scene.isPaused());
-    if (!this.scene.isPaused()) {
-      this.scene.pause();
-    } else {
-      this.scene.resume();
-    }
   }
 
   openAlienPortal(drone) {
@@ -1737,10 +1704,45 @@ class PausePlay extends Phaser.Scene {
 
   create() {
     this.createResolution();
-    this.createButtons();
   }
 
-  createButtons() {}
+  // called by Game during createMenu() so it can get the correct positions
+  createButtons(x, y, scale) {
+    this.pause = this.add.gameImageButton(x - 100, y, "pause", scale, () =>
+      this.pauseOrResume()
+    );
+
+    this.play = this.add.gameImageButton(x, y, "right", scale, () =>
+      this.pauseOrResume()
+    );
+
+    this.fastForward = this.add.gameImageButton(
+      x + 100,
+      y,
+      "fastForward",
+      scale,
+      () => {}
+    );
+
+    this.play.keepPressedDown();
+  }
+
+  pauseOrResume() {
+    const game = this.scene.get("Game").scene;
+    const stars = this.scene.get("Stars").scene;
+
+    if (!game.isPaused()) {
+      game.pause();
+      stars.pause();
+      this.pause.keepPressedDown();
+      this.play.letUp();
+    } else {
+      game.resume();
+      stars.resume();
+      this.pause.letUp();
+      this.play.keepPressedDown();
+    }
+  }
 
   createResolution() {
     // I don't know how this code works but it's magic. I also stole it from here:
@@ -2301,6 +2303,9 @@ class GameTextButton extends Phaser.GameObjects.Container {
 }
 
 class GameImageButton extends Phaser.GameObjects.Container {
+  gradient;
+  keepPressed;
+
   constructor(
     scene, // always "this" in the scene class
     x,
@@ -2331,12 +2336,17 @@ class GameImageButton extends Phaser.GameObjects.Container {
       CLRS.button.stroke
     );
 
+    this.gradient = bgGradient; // used for keepPressed() and letUp()
+    this.keepPressed = false;
+
     const tweenTime = 80;
 
     this.add([bg, image])
       .setSize(bg.width, bg.height)
       .setInteractive()
       .on("pointerover", () => {
+        if (this.keepPressed) return;
+
         scene.add.tween({
           targets: bgGradient,
           alpha: 0.35,
@@ -2344,12 +2354,14 @@ class GameImageButton extends Phaser.GameObjects.Container {
         });
       })
       .on("pointerout", () => {
+        this.off("pointerup");
+
+        if (this.keepPressed) return;
         scene.add.tween({
           targets: bgGradient,
           alpha: 0.2,
           duration: tweenTime,
         });
-        this.off("pointerup");
       })
       .on("pointerdown", () => {
         scene.add.tween({
@@ -2370,6 +2382,45 @@ class GameImageButton extends Phaser.GameObjects.Container {
           });
         }
       });
+  }
+
+  keepPressedDown() {
+    // keep button pressed down (like on a tape recorder)
+    this.keepPressed = true;
+
+    this.scene.tweens.add({
+      targets: this.gradient,
+      alpha: 0.5,
+      duration: 150,
+    });
+  }
+
+  letUp() {
+    // let button come back up
+    this.keepPressed = false;
+
+    // if pointer currently over this object,
+    // set alpha gradient to 0.35, otherwise 0.2
+    const currentlyOver = this.scene.input.hitTestPointer(
+      this.scene.input.activePointer
+    );
+
+    for (let i = 0; i < currentlyOver.length; i++) {
+      if (currentlyOver[i] == this) {
+        this.scene.add.tween({
+          targets: this.gradient,
+          alpha: 0.35,
+          duration: 150,
+        });
+        return;
+      }
+    }
+
+    this.scene.add.tween({
+      targets: this.gradient,
+      alpha: 0.2,
+      duration: 150,
+    });
   }
 
   preUpdate(delta, time) {}
