@@ -94,35 +94,34 @@ class Background extends Phaser.Scene {
   }
 
   loadGameIcons() {
-    this.load.setPath("assets/kenney_simplified-platformer-pack/PNG/Items/");
-    this.load.image("gem", "platformPack_item007.png");
-    this.load.image("heart", "platformPack_item017.png");
-
     this.load.setPath("assets/kenney_game-icons/PNG/White/2x/");
     this.load.image("gear", "gear.png");
     this.load.image("fastForward", "fastForward.png");
     this.load.image("pause", "pause.png");
     this.load.image("right", "right.png");
 
-    this.load.setPath("assets/kenney_board-game-icons/PNG/Double (128px)/");
-    this.load.image("fire", "fire.png");
-    this.load.image("dollar", "dollar.png");
-    this.load.image("skull", "skull.png");
-    this.load.image("suit_diamonds", "suit_diamonds.png");
-    this.load.image("suit_hearts", "suit_hearts.png");
+    this.load.setPath("assets/kenney_simplified-platformer-pack/Tilesheet/");
 
-    this.load.setPath("");
-    /*
-    this.load.image(
-      "diamond",
-      "assets/kenney_game-icons-expansion/PNG/White/2x/diamond.png"
-    );*/
+    this.load.spritesheet("risk", "platformPack_tilesheet@2.png", {
+      frameWidth: 128,
+      frameHeight: 128,
+      startFrame: 37,
+      endFrame: 37,
+    });
 
-    this.load.svg(
-      "tile",
-      "assets/kenney_simplified-platformer-pack/Vector/platformPack_tile_vector.svg",
-      { scale: 3 }
-    );
+    this.load.spritesheet("gem", "platformPack_tilesheet@2.png", {
+      frameWidth: 128,
+      frameHeight: 128,
+      startFrame: 49,
+      endFrame: 49,
+    });
+
+    this.load.spritesheet("heart", "platformPack_tilesheet@2.png", {
+      frameWidth: 128,
+      frameHeight: 128,
+      startFrame: 67,
+      endFrame: 67,
+    });
   }
 
   loadSpaceSpritesheet() {
@@ -1163,18 +1162,18 @@ class Game extends Phaser.Scene {
       .add(this.createTurretButtons())
       .add(this.add.gameText(0, 50 - bounds.height / 2, VERSION, 1.5));
 
-    const gem = this.add.image(-95, 50, "suit_diamonds").setScale(0.5);
-    const gemText = this.add.gameText(-60, 50, "6501", 5).setOrigin(0, 0.5);
+    const gem = this.add.image(-95, 50, "gem");
+    const gemText = this.add.gameText(-55, 50, "6501", 5).setOrigin(0, 0.5);
 
     menu.add([gem, gemText]);
 
-    const heart = this.add.image(-95, 140, "suit_hearts").setScale(0.5);
-    const heartText = this.add.gameText(-60, 140, "12", 5).setOrigin(0, 0.5);
+    const heart = this.add.image(-95, 140, "heart");
+    const heartText = this.add.gameText(-55, 140, "12", 5).setOrigin(0, 0.5);
 
     menu.add([heart, heartText]);
 
-    const risk = this.add.image(-95, 230, "fire").setScale(0.5);
-    const riskText = this.add.gameText(-60, 230, "35%", 5).setOrigin(0, 0.5);
+    const risk = this.add.image(-95, 230, "risk");
+    const riskText = this.add.gameText(-55, 230, "37%", 5).setOrigin(0, 0.5);
 
     menu.add([risk, riskText]);
 
@@ -1204,8 +1203,6 @@ class Game extends Phaser.Scene {
     );
 
     menu.add([options, pause, play, fastForward]);
-
-    this.add.image(0, 0, "tile"); //.setScale(2);
   }
 
   createFpsText() {
