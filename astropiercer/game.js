@@ -20,7 +20,7 @@ const CLRS = {
   tileColor: 0x272635,
   edgeColor: 0xa6a6a8,
   oreColor: 0x00b4d8,
-  textButton: {
+  button: {
     fill: 0x023e7d, //0x2a9134,
     stroke: 0xffffff,
     shadow: "#023e7d", //"#00a8e8",
@@ -67,6 +67,18 @@ class Background extends Phaser.Scene {
         return t;
       }
     );
+
+    Phaser.GameObjects.GameObjectFactory.register(
+      "gameImageButton",
+      function (x, y, key, scale, callback) {
+        let t = new GameImageButton(this.scene, x, y, key, scale, callback);
+
+        this.displayList.add(t);
+        this.updateList.add(t);
+
+        return t;
+      }
+    );
   }
 
   // preload everything for the game
@@ -88,6 +100,29 @@ class Background extends Phaser.Scene {
 
     this.load.setPath("assets/kenney_game-icons/PNG/White/2x/");
     this.load.image("gear", "gear.png");
+    this.load.image("fastForward", "fastForward.png");
+    this.load.image("pause", "pause.png");
+    this.load.image("right", "right.png");
+
+    this.load.setPath("assets/kenney_board-game-icons/PNG/Double (128px)/");
+    this.load.image("fire", "fire.png");
+    this.load.image("dollar", "dollar.png");
+    this.load.image("skull", "skull.png");
+    this.load.image("suit_diamonds", "suit_diamonds.png");
+    this.load.image("suit_hearts", "suit_hearts.png");
+
+    this.load.setPath("");
+    /*
+    this.load.image(
+      "diamond",
+      "assets/kenney_game-icons-expansion/PNG/White/2x/diamond.png"
+    );*/
+
+    this.load.svg(
+      "tile",
+      "assets/kenney_simplified-platformer-pack/Vector/platformPack_tile_vector.svg",
+      { scale: 3 }
+    );
   }
 
   loadSpaceSpritesheet() {
@@ -1116,7 +1151,7 @@ class Game extends Phaser.Scene {
   createMenu() {
     const menu = this.prefab.instantiate(
       Prefab.Object.Menu,
-      gameW * 0.915,
+      gameW * 0.91,
       gameH * 0.5,
       gameW * 0.18 - 24,
       gameH - 24
@@ -1126,51 +1161,36 @@ class Game extends Phaser.Scene {
 
     menu
       .add(this.createTurretButtons())
-      .add(this.add.gameText(0, 50 - bounds.height / 2, VERSION, 1.2));
+      .add(this.add.gameText(0, 50 - bounds.height / 2, VERSION, 1.5));
 
-    const gem = this.add.image(-90, 45, "gem").setScale(1.25);
-    const gemText = this.add.gameText(-60, 50, "6501", 4).setOrigin(0, 0.5);
+    const gem = this.add.image(-95, 50, "suit_diamonds").setScale(0.5);
+    const gemText = this.add.gameText(-60, 50, "6501", 5).setOrigin(0, 0.5);
 
     menu.add([gem, gemText]);
 
-    const heart = this.add.image(-90, 115, "heart").setScale(1.25);
-    const heartText = this.add.gameText(-60, 120, "12", 4).setOrigin(0, 0.5);
+    const heart = this.add.image(-95, 140, "suit_hearts").setScale(0.5);
+    const heartText = this.add.gameText(-60, 140, "12", 5).setOrigin(0, 0.5);
 
     menu.add([heart, heartText]);
 
-    const pause = this.add.gameTextButton(
-      0,
-      bounds.height / 2 - 190,
-      "Pause",
-      2,
-      null,
-      () => {}
-    );
+    const risk = this.add.image(-95, 230, "fire").setScale(0.5);
+    const riskText = this.add.gameText(-60, 230, "35%", 5).setOrigin(0, 0.5);
 
-    const speed = this.add.gameTextButton(
-      0,
-      bounds.height / 2 - 305,
-      "1x",
-      1,
-      null,
-      () => {}
-    );
+    menu.add([risk, riskText]);
 
-    const speed2 = this.add.gameTextButton(
-      0,
-      bounds.height / 2 - 305,
-      "1x Speed",
-      1,
-      null,
-      () => {}
-    );
+    const y = 340;
+    const scale = 0.55;
+    const x = 100;
 
-    const speed3 = this.add.gameTextButton(
-      0,
-      bounds.height / 2 - 305,
-      "1x Speed",
-      1,
-      null,
+    const pause = this.add.gameImageButton(-x, y, "pause", scale, () => {});
+
+    const play = this.add.gameImageButton(0, y, "right", scale, () => {});
+
+    const fastForward = this.add.gameImageButton(
+      x,
+      y,
+      "fastForward",
+      scale,
       () => {}
     );
 
@@ -1183,7 +1203,9 @@ class Game extends Phaser.Scene {
       () => {}
     );
 
-    menu.add([options, pause, speed]);
+    menu.add([options, pause, play, fastForward]);
+
+    this.add.image(0, 0, "tile"); //.setScale(2);
   }
 
   createFpsText() {
@@ -2124,7 +2146,7 @@ class GameTextButton extends Phaser.GameObjects.Container {
         shadow: {
           offsetX: 2,
           offsetY: 2,
-          color: CLRS.textButton.shadow,
+          color: CLRS.button.shadow,
           blur: 5,
           stroke: true,
           fill: true,
@@ -2139,16 +2161,69 @@ class GameTextButton extends Phaser.GameObjects.Container {
         0,
         text.getBounds().width,
         text.getBounds().height,
-        CLRS.textButton.fill
+        CLRS.button.fill
       )
-      .setStrokeStyle(8, CLRS.textButton.stroke);
+      .setStrokeStyle(8, CLRS.button.stroke);
 
     const bgGradient = bg.postFX.addGradient(
-      CLRS.textButton.fill,
-      CLRS.textButton.stroke
+      CLRS.button.fill,
+      CLRS.button.stroke
     );
 
     this.add([bg, text])
+      .setSize(bg.width, bg.height)
+      .setInteractive()
+      .on("pointerover", () => (bgGradient.alpha = 0.35))
+      .on("pointerout", () => {
+        bgGradient.alpha = 0.2;
+        this.off("pointerup");
+      })
+      .on("pointerdown", () => {
+        bgGradient.alpha = 0.5;
+
+        if (this.listenerCount("pointerup") < 1) {
+          this.on("pointerup", (p) => {
+            bgGradient.alpha = 0.2;
+            callback(p); // bro... why
+          });
+        }
+      });
+  }
+
+  preUpdate(delta, time) {}
+}
+
+class GameImageButton extends Phaser.GameObjects.Container {
+  constructor(
+    scene, // always "this" in the scene class
+    x,
+    y,
+    key = "",
+    scale = 1,
+    callback
+  ) {
+    super(scene, x, y);
+
+    const image = scene.add.image(0, 0, key).setScale(scale);
+
+    const padding = 24;
+
+    const bg = scene.add
+      .rectangle(
+        0,
+        0,
+        image.displayWidth + padding,
+        image.displayHeight + padding,
+        CLRS.button.fill
+      )
+      .setStrokeStyle(8, CLRS.button.stroke);
+
+    const bgGradient = bg.postFX.addGradient(
+      CLRS.button.fill,
+      CLRS.button.stroke
+    );
+
+    this.add([bg, image])
       .setSize(bg.width, bg.height)
       .setInteractive()
       .on("pointerover", () => (bgGradient.alpha = 0.35))
