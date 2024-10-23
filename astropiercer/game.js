@@ -241,6 +241,7 @@ class Background extends Phaser.Scene {
 
     this.scene.launch("Stars"); // stars background behind every scene
     this.scene.launch(START_SCENE);
+    if (START_SCENE == "Game") this.scene.launch("PausePlay");
 
     this.scale.on("resize", this.resize, this);
   }
@@ -275,6 +276,7 @@ class Game extends Phaser.Scene {
   alienGroup; // physics group with all the aliens
   turretGroup; // physics group with all turrets (turret body is their range)
   bulletGroup; // physics group with all bullets for hitting the aliens
+  display; // all interactable icons in the menu, for updating and changing
 
   constructor() {
     super("Game");
@@ -339,6 +341,7 @@ class Game extends Phaser.Scene {
     this.threatLevel = null;
     this.portal = null;
     this.gameOver = null;
+    this.display = {};
   }
 
   createAsteroidGrid() {
@@ -1163,29 +1166,39 @@ class Game extends Phaser.Scene {
       .add(this.add.gameText(0, 50 - bounds.height / 2, VERSION, 1.5));
 
     const gem = this.add.image(-95, 50, "gem");
-    const gemText = this.add.gameText(-55, 50, "6501", 5).setOrigin(0, 0.5);
+    this.display.gems = this.add.gameText(-55, 50, "6501", 5).setOrigin(0, 0.5);
 
-    menu.add([gem, gemText]);
+    menu.add([gem, this.display.gems]);
 
     const heart = this.add.image(-95, 140, "heart");
-    const heartText = this.add.gameText(-55, 140, "12", 5).setOrigin(0, 0.5);
+    this.display.hearts = this.add
+      .gameText(-55, 140, "12", 5)
+      .setOrigin(0, 0.5);
 
-    menu.add([heart, heartText]);
+    menu.add([heart, this.display.hearts]);
 
     const risk = this.add.image(-95, 230, "risk");
-    const riskText = this.add.gameText(-55, 230, "37%", 5).setOrigin(0, 0.5);
+    this.display.risk = this.add.gameText(-55, 230, "37%", 5).setOrigin(0, 0.5);
 
-    menu.add([risk, riskText]);
+    menu.add([risk, this.display.risk]);
 
     const y = 340;
     const scale = 0.55;
     const x = 100;
 
-    const pause = this.add.gameImageButton(-x, y, "pause", scale, () => {});
+    this.display.pause = this.add.gameImageButton(-x, y, "pause", scale, () =>
+      this.pauseOrResume()
+    );
 
-    const play = this.add.gameImageButton(0, y, "right", scale, () => {});
+    this.display.play = this.add.gameImageButton(
+      0,
+      y,
+      "right",
+      scale,
+      () => {}
+    );
 
-    const fastForward = this.add.gameImageButton(
+    this.display.fastForward = this.add.gameImageButton(
       x,
       y,
       "fastForward",
@@ -1193,16 +1206,18 @@ class Game extends Phaser.Scene {
       () => {}
     );
 
+    menu.add([this.display.pause, this.display.play, this.display.fastForward]);
+
     const options = this.add.gameTextButton(
       0,
-      bounds.height / 2 - 70,
+      bounds.height / 2 - 75,
       "Options",
-      2,
-      null,
+      3,
+      275,
       () => {}
     );
 
-    menu.add([options, pause, play, fastForward]);
+    menu.add(options);
   }
 
   createFpsText() {
@@ -1330,6 +1345,16 @@ class Game extends Phaser.Scene {
     }
 
     return turrets;
+  }
+
+  // transfer this to pause scene
+  pauseOrResume() {
+    console.log(this.scene.isPaused());
+    if (!this.scene.isPaused()) {
+      this.scene.pause();
+    } else {
+      this.scene.resume();
+    }
   }
 
   openAlienPortal(drone) {
@@ -1696,6 +1721,71 @@ class Game extends Phaser.Scene {
     if (!camera) return;
 
     camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
+    camera.setZoom(Math.max(scaleX, scaleY));
+    camera.centerOn(camera.midPoint.x, camera.midPoint.y);
+  }
+}
+
+class PausePlay extends Phaser.Scene {
+  pause;
+  play;
+  fastForward;
+
+  constructor() {
+    super("PausePlay");
+  }
+
+  create() {
+    this.createResolution();
+    this.createButtons();
+  }
+
+  createButtons() {}
+
+  createResolution() {
+    // I don't know how this code works but it's magic. I also stole it from here:
+    // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
+    const width = this.scale.gameSize.width;
+    const height = this.scale.gameSize.height;
+
+    this.parent = new Phaser.Structs.Size(width, height);
+
+    this.sizer = new Phaser.Structs.Size(
+      gameW,
+      gameH,
+      Phaser.Structs.Size.FIT,
+      this.parent
+    );
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+    this.cameras.main.centerOn(gameW / 2, gameH / 2);
+
+    this.scale.on("resize", this.resize, this);
+  }
+
+  resize(gameSize) {
+    const width = gameSize.width;
+    const height = gameSize.height;
+
+    this.parent.setSize(width, height);
+    this.sizer.setSize(width, height);
+
+    this.updateCamera();
+  }
+
+  updateCamera() {
+    const camera = this.cameras.main;
+
+    const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
+    const y = 0;
+    const scaleX = this.sizer.width / gameW;
+    const scaleY = this.sizer.height / gameH;
+
+    if (!camera) return;
+    camera.setViewport(x, y, this.sizer.width, this.parent.height);
     camera.setZoom(Math.max(scaleX, scaleY));
     camera.centerOn(camera.midPoint.x, camera.midPoint.y);
   }
@@ -2071,7 +2161,7 @@ const config = {
     width: gameW,
     height: gameH,
   },
-  scene: [Background, Stars, Shop, Game],
+  scene: [Background, Stars, Shop, Game, PausePlay],
   physics: {
     default: "arcade",
     arcade: {
@@ -2139,7 +2229,6 @@ class GameTextButton extends Phaser.GameObjects.Container {
         lineSpacing: 32,
         fill: "#fff",
         align: "left",
-        wordWrap: { width: width ? width : gameW, useAdvancedWrap: true },
         shadow: {
           offsetX: 2,
           offsetY: 2,
@@ -2152,14 +2241,14 @@ class GameTextButton extends Phaser.GameObjects.Container {
       .setOrigin(0.5, 0.5)
       .setFontFamily(FONT);
 
+    // width fixes the button to be a certain width,
+    // but you can leave it for a dynamic width (widens or shortens with the text)
+
+    let w = text.getBounds().width; // dynamic width
+    if (width) w = width; // fixed width, must be given
+
     const bg = scene.add
-      .rectangle(
-        0,
-        0,
-        text.getBounds().width,
-        text.getBounds().height,
-        CLRS.button.fill
-      )
+      .rectangle(0, 0, w, text.getBounds().height, CLRS.button.fill)
       .setStrokeStyle(8, CLRS.button.stroke);
 
     const bgGradient = bg.postFX.addGradient(
@@ -2167,20 +2256,41 @@ class GameTextButton extends Phaser.GameObjects.Container {
       CLRS.button.stroke
     );
 
+    const tweenTime = 80;
+
     this.add([bg, text])
       .setSize(bg.width, bg.height)
       .setInteractive()
-      .on("pointerover", () => (bgGradient.alpha = 0.35))
+      .on("pointerover", () => {
+        scene.add.tween({
+          targets: bgGradient,
+          alpha: 0.35,
+          duration: tweenTime,
+        });
+      })
       .on("pointerout", () => {
-        bgGradient.alpha = 0.2;
+        scene.add.tween({
+          targets: bgGradient,
+          alpha: 0.2,
+          duration: tweenTime,
+        });
         this.off("pointerup");
       })
       .on("pointerdown", () => {
-        bgGradient.alpha = 0.5;
+        scene.add.tween({
+          targets: bgGradient,
+          alpha: 0.5,
+          duration: tweenTime,
+        });
 
         if (this.listenerCount("pointerup") < 1) {
           this.on("pointerup", (p) => {
-            bgGradient.alpha = 0.2;
+            scene.add.tween({
+              targets: bgGradient,
+              alpha: 0.35,
+              duration: tweenTime,
+            });
+
             callback(p); // bro... why
           });
         }
@@ -2202,6 +2312,7 @@ class GameImageButton extends Phaser.GameObjects.Container {
     super(scene, x, y);
 
     const image = scene.add.image(0, 0, key).setScale(scale);
+    image.preFX.addShadow(-2, -2, 0.1, 0.3, CLRS.button.shadow);
 
     const padding = 24;
 
@@ -2220,20 +2331,41 @@ class GameImageButton extends Phaser.GameObjects.Container {
       CLRS.button.stroke
     );
 
+    const tweenTime = 80;
+
     this.add([bg, image])
       .setSize(bg.width, bg.height)
       .setInteractive()
-      .on("pointerover", () => (bgGradient.alpha = 0.35))
+      .on("pointerover", () => {
+        scene.add.tween({
+          targets: bgGradient,
+          alpha: 0.35,
+          duration: tweenTime,
+        });
+      })
       .on("pointerout", () => {
-        bgGradient.alpha = 0.2;
+        scene.add.tween({
+          targets: bgGradient,
+          alpha: 0.2,
+          duration: tweenTime,
+        });
         this.off("pointerup");
       })
       .on("pointerdown", () => {
-        bgGradient.alpha = 0.5;
+        scene.add.tween({
+          targets: bgGradient,
+          alpha: 0.5,
+          duration: tweenTime,
+        });
 
         if (this.listenerCount("pointerup") < 1) {
           this.on("pointerup", (p) => {
-            bgGradient.alpha = 0.2;
+            scene.add.tween({
+              targets: bgGradient,
+              alpha: 0.35,
+              duration: tweenTime,
+            });
+
             callback(p); // bro... why
           });
         }
