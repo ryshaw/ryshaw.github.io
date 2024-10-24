@@ -241,7 +241,6 @@ class Background extends Phaser.Scene {
 
     this.scene.launch("Stars"); // stars background behind every scene
     this.scene.launch(START_SCENE);
-    if (START_SCENE == "Game") this.scene.launch("PausePlay");
 
     this.scale.on("resize", this.resize, this);
   }
@@ -277,6 +276,7 @@ class Game extends Phaser.Scene {
   turretGroup; // physics group with all turrets (turret body is their range)
   bulletGroup; // physics group with all bullets for hitting the aliens
   display; // all interactable icons in the menu, for updating and changing
+  paused; // we gotta implement our own pause system, so here's the variable
 
   constructor() {
     super("Game");
@@ -293,8 +293,13 @@ class Game extends Phaser.Scene {
 
     this.createOreDeposits();
     this.createMouseControls();
+    this.createKeyboardControls();
 
     this.createPhysics();
+
+    this.add
+      .rectangle(gameW * 0.5, gameH * 0.5, gameW, gameH)
+      .setStrokeStyle(3, 0xffffff, 0.8);
 
     WebFont.load({
       google: {
@@ -342,6 +347,7 @@ class Game extends Phaser.Scene {
     this.portal = null;
     this.gameOver = null;
     this.display = {};
+    this.paused = false;
   }
 
   createAsteroidGrid() {
@@ -351,10 +357,10 @@ class Game extends Phaser.Scene {
 
     const shapes = [];
 
-    const num = 32; // how many circles to spawn
+    const num = 36; // how many circles to spawn
     for (let i = 0; i < num; i++) {
       const x = Phaser.Math.Between(gameW * 0.275, gameW * 0.725);
-      const y = Phaser.Math.Between(gameH * 0.275, gameH * 0.725);
+      const y = Phaser.Math.Between(gameH * 0.28, gameH * 0.72);
       const w = Phaser.Math.Between(40, 400);
 
       const c = this.add.circle(x, y, w * 0.5, 0xff0000, 0).setDepth(1);
@@ -371,7 +377,7 @@ class Game extends Phaser.Scene {
 
     // top left corner
     const startX = gameW * 0.4 - gridX * this.tileW * 0.5;
-    const startY = gameH * 0.48 - gridY * this.tileW * 0.5;
+    const startY = gameH * 0.5 - gridY * this.tileW * 0.5;
 
     for (let i = 0; i < gridX; i++) {
       this.grid[i] = [];
@@ -621,6 +627,7 @@ class Game extends Phaser.Scene {
       this.time.addEvent({
         loop: true,
         delay: mineSpeed, //800,
+        paused: this.paused,
         callback: () => this.updateMiningDrone(miner),
       })
     );
@@ -957,6 +964,7 @@ class Game extends Phaser.Scene {
       this.time.addEvent({
         loop: true,
         delay: updateSpeed,
+        paused: this.paused,
         callback: () => {
           let target = turret.getData("target");
           let targets = turret.getData("targets");
@@ -1182,8 +1190,28 @@ class Game extends Phaser.Scene {
 
     menu.add([risk, this.display.risk]);
 
-    // create pause, play, and fastForward
-    this.scene.get("PausePlay").createButtons(menu.x, menu.y + 340, 0.55);
+    const y = 340;
+    const scale = 0.55;
+
+    this.display.pause = this.add.gameImageButton(-100, y, "pause", scale, () =>
+      this.pauseOrResume()
+    );
+
+    this.display.play = this.add.gameImageButton(0, y, "right", scale, () =>
+      this.pauseOrResume()
+    );
+
+    this.display.fastForward = this.add.gameImageButton(
+      +100,
+      y,
+      "fastForward",
+      scale,
+      () => {}
+    );
+
+    this.display.play.keepPressedDown();
+
+    menu.add([this.display.pause, this.display.play, this.display.fastForward]);
 
     const options = this.add.gameTextButton(
       0,
@@ -1195,6 +1223,12 @@ class Game extends Phaser.Scene {
     );
 
     menu.add(options);
+
+    this.display.pauseText = this.add
+      .gameText(gameW * 0.4, 0, "- Paused -", 2, null, () => {})
+      .setOrigin(0.5, 0)
+      .setFontStyle("bold");
+    //.setShadow(0, 0, "#a9def9", 8, true, true);
   }
 
   createFpsText() {
@@ -1208,6 +1242,42 @@ class Game extends Phaser.Scene {
         fpsText.setText(`${Math.round(this.sys.game.loop.actualFps)}`);
       },
     });
+  }
+
+  pauseOrResume() {
+    this.paused = !this.paused;
+
+    if (this.paused) {
+      this.children.each((c) => {
+        if (c.getData("loop")) {
+          c.getData("loop").paused = true;
+        }
+      });
+
+      this.physics.pause();
+
+      // pause portal animation
+      this.tweens.getTweensOf(this.portal).forEach((tween) => tween.pause());
+
+      this.scene.get("Stars").scene.pause();
+      this.display.pause.keepPressedDown();
+      this.display.play.letUp();
+    } else {
+      this.children.each((c) => {
+        if (c.getData("loop")) {
+          c.getData("loop").paused = false;
+        }
+      });
+
+      this.physics.resume();
+
+      // resume portal animation
+      this.tweens.getTweensOf(this.portal).forEach((tween) => tween.resume());
+
+      this.scene.get("Stars").scene.resume();
+      this.display.pause.letUp();
+      this.display.play.keepPressedDown();
+    }
   }
 
   createTurretButtons() {
@@ -1362,10 +1432,10 @@ class Game extends Phaser.Scene {
       scale: 1.6,
       alpha: 1,
       angle: `+=${Phaser.Math.Between(270, 360)}`,
-      duration: 200, //2000,
-      //delay: 3000,
+      duration: 3000, //2000,
+      delay: 3000,
       onComplete: () => {
-        this.generateAlien(drone);
+        this.alienWaveHandler(drone);
 
         // originally this was tied to tween.progress in onUpdate,
         // but I decided to untie it so it doesn't look like the
@@ -1386,6 +1456,24 @@ class Game extends Phaser.Scene {
         });
       },
     });
+  }
+
+  alienWaveHandler(target) {
+    const updateSpeed = 3000;
+
+    this.portal.setData(
+      "loop",
+      this.time.addEvent({
+        loop: true,
+        delay: updateSpeed,
+        startAt: updateSpeed * 0.9,
+        paused: this.paused,
+        callback: () => {
+          //if (Math.random() > 0.75) return;
+          this.generateAlien(target);
+        },
+      })
+    );
   }
 
   generateAlien(drone) {
@@ -1414,6 +1502,7 @@ class Game extends Phaser.Scene {
       this.time.addEvent({
         loop: true,
         delay: updateSpeed,
+        paused: this.paused,
         callback: () => {
           if (alien.alpha == 0) {
             this.tweens.add({
@@ -1451,7 +1540,6 @@ class Game extends Phaser.Scene {
     );
 
     if (this.gameOver) return; // no need to generate more aliens
-    this.time.delayedCall(3000, () => this.generateAlien(drone));
   }
 
   destroyMiningDrone(drone) {
@@ -1576,82 +1664,9 @@ class Game extends Phaser.Scene {
   }
 
   createKeyboardControls() {
-    this.keysDown = new Phaser.Structs.List();
-
-    this.input.keyboard.on("keydown-W", (event) => {
-      this.keysDown.add(Phaser.Math.Vector2.UP);
+    this.input.keyboard.on("keydown-SPACE", (e) => {
+      this.pauseOrResume();
     });
-
-    this.input.keyboard.on("keyup-W", (event) => {
-      this.keysDown.remove(Phaser.Math.Vector2.UP);
-    });
-
-    this.input.keyboard.on("keydown-UP", (event) => {
-      this.keysDown.add(Phaser.Math.Vector2.UP);
-    });
-
-    this.input.keyboard.on("keyup-UP", (event) => {
-      this.keysDown.remove(Phaser.Math.Vector2.UP);
-    });
-
-    this.input.keyboard.on("keydown-S", (event) => {
-      this.keysDown.add(Phaser.Math.Vector2.DOWN);
-    });
-
-    this.input.keyboard.on("keyup-S", (event) => {
-      this.keysDown.remove(Phaser.Math.Vector2.DOWN);
-    });
-
-    this.input.keyboard.on("keydown-DOWN", (event) => {
-      this.keysDown.add(Phaser.Math.Vector2.DOWN);
-    });
-
-    this.input.keyboard.on("keyup-DOWN", (event) => {
-      this.keysDown.remove(Phaser.Math.Vector2.DOWN);
-    });
-
-    this.input.keyboard.on("keydown-A", (event) => {
-      this.keysDown.add(Phaser.Math.Vector2.LEFT);
-    });
-
-    this.input.keyboard.on("keyup-A", (event) => {
-      this.keysDown.remove(Phaser.Math.Vector2.LEFT);
-    });
-
-    this.input.keyboard.on("keydown-LEFT", (event) => {
-      this.keysDown.add(Phaser.Math.Vector2.LEFT);
-    });
-
-    this.input.keyboard.on("keyup-LEFT", (event) => {
-      this.keysDown.remove(Phaser.Math.Vector2.LEFT);
-    });
-
-    this.input.keyboard.on("keydown-D", (event) => {
-      this.keysDown.add(Phaser.Math.Vector2.RIGHT);
-    });
-
-    this.input.keyboard.on("keyup-D", (event) => {
-      this.keysDown.remove(Phaser.Math.Vector2.RIGHT);
-    });
-
-    this.input.keyboard.on("keydown-RIGHT", (event) => {
-      this.keysDown.add(Phaser.Math.Vector2.RIGHT);
-    });
-
-    this.input.keyboard.on("keyup-RIGHT", (event) => {
-      this.keysDown.remove(Phaser.Math.Vector2.RIGHT);
-    });
-
-    /*
-    this.input.keyboard.on("keydown-M", () => {
-      const track1 = this.sound.get("track1");
-      track1.isPlaying ? track1.pause() : track1.resume();
-    });
-  
-    this.input.keyboard.on("keydown-N", () => {
-      this.soundVolume > 0 ? (this.soundVolume = 0) : (this.soundVolume = 0.8);
-      Object.values(this.soundEffects).forEach((sound) => sound.stop());
-    });*/
   }
 
   resize(gameSize) {
@@ -1688,106 +1703,6 @@ class Game extends Phaser.Scene {
     if (!camera) return;
 
     camera.setViewport(x, y, this.sizer.width, this.sizer.height * offset);
-    camera.setZoom(Math.max(scaleX, scaleY));
-    camera.centerOn(camera.midPoint.x, camera.midPoint.y);
-  }
-}
-
-class PausePlay extends Phaser.Scene {
-  pause;
-  play;
-  fastForward;
-
-  constructor() {
-    super("PausePlay");
-  }
-
-  create() {
-    this.createResolution();
-  }
-
-  // called by Game during createMenu() so it can get the correct positions
-  createButtons(x, y, scale) {
-    this.pause = this.add.gameImageButton(x - 100, y, "pause", scale, () =>
-      this.pauseOrResume()
-    );
-
-    this.play = this.add.gameImageButton(x, y, "right", scale, () =>
-      this.pauseOrResume()
-    );
-
-    this.fastForward = this.add.gameImageButton(
-      x + 100,
-      y,
-      "fastForward",
-      scale,
-      () => {}
-    );
-
-    this.play.keepPressedDown();
-  }
-
-  pauseOrResume() {
-    const game = this.scene.get("Game").scene;
-    const stars = this.scene.get("Stars").scene;
-
-    if (!game.isPaused()) {
-      game.pause();
-      stars.pause();
-      this.pause.keepPressedDown();
-      this.play.letUp();
-    } else {
-      game.resume();
-      stars.resume();
-      this.pause.letUp();
-      this.play.keepPressedDown();
-    }
-  }
-
-  createResolution() {
-    // I don't know how this code works but it's magic. I also stole it from here:
-    // https://labs.phaser.io/view.html?src=src/scalemanager\mobile%20game%20example.js
-    const width = this.scale.gameSize.width;
-    const height = this.scale.gameSize.height;
-
-    this.parent = new Phaser.Structs.Size(width, height);
-
-    this.sizer = new Phaser.Structs.Size(
-      gameW,
-      gameH,
-      Phaser.Structs.Size.FIT,
-      this.parent
-    );
-
-    this.parent.setSize(width, height);
-    this.sizer.setSize(width, height);
-
-    this.updateCamera();
-    this.cameras.main.centerOn(gameW / 2, gameH / 2);
-
-    this.scale.on("resize", this.resize, this);
-  }
-
-  resize(gameSize) {
-    const width = gameSize.width;
-    const height = gameSize.height;
-
-    this.parent.setSize(width, height);
-    this.sizer.setSize(width, height);
-
-    this.updateCamera();
-  }
-
-  updateCamera() {
-    const camera = this.cameras.main;
-
-    const x = Math.ceil((this.parent.width - this.sizer.width) * 0.5);
-    const y = 0;
-    const scaleX = this.sizer.width / gameW;
-    const scaleY = this.sizer.height / gameH;
-
-    if (!camera) return;
-    camera.setViewport(x, y, this.sizer.width, this.parent.height);
     camera.setZoom(Math.max(scaleX, scaleY));
     camera.centerOn(camera.midPoint.x, camera.midPoint.y);
   }
@@ -2163,7 +2078,7 @@ const config = {
     width: gameW,
     height: gameH,
   },
-  scene: [Background, Stars, Shop, Game, PausePlay],
+  scene: [Background, Stars, Shop, Game],
   physics: {
     default: "arcade",
     arcade: {
@@ -2354,33 +2269,31 @@ class GameImageButton extends Phaser.GameObjects.Container {
         });
       })
       .on("pointerout", () => {
-        this.off("pointerup");
-
         if (this.keepPressed) return;
+
         scene.add.tween({
           targets: bgGradient,
           alpha: 0.2,
           duration: tweenTime,
         });
       })
-      .on("pointerdown", () => {
+      .on("pointerdown", (p) => {
         scene.add.tween({
           targets: bgGradient,
           alpha: 0.5,
           duration: tweenTime,
         });
 
-        if (this.listenerCount("pointerup") < 1) {
-          this.on("pointerup", (p) => {
-            scene.add.tween({
-              targets: bgGradient,
-              alpha: 0.35,
-              duration: tweenTime,
-            });
+        callback(p); // invoke on pointerdown for better responsiveness
+      })
+      .on("pointerup", () => {
+        if (this.keepPressed) return;
 
-            callback(p); // bro... why
-          });
-        }
+        scene.add.tween({
+          targets: bgGradient,
+          alpha: 0.35,
+          duration: tweenTime,
+        });
       });
   }
 
