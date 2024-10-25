@@ -277,6 +277,7 @@ class Game extends Phaser.Scene {
   bulletGroup; // physics group with all bullets for hitting the aliens
   display; // all interactable icons in the menu, for updating and changing
   paused; // we gotta implement our own pause system, so here's the variable
+  gameStats; // gems, hearts, danger, updateSpeeds, all the stats for this level
 
   constructor() {
     super("Game");
@@ -338,16 +339,26 @@ class Game extends Phaser.Scene {
   }
 
   initVariables() {
-    // clears variables if game scene is restarted
-    // there's gotta be a better way to do this
+    // initialize and reset variables, helpful if game scene is restarted
     this.prefab = new Prefab(this);
     this.selectedObj = null;
     this.path = null;
     this.threatLevel = null;
     this.portal = null;
     this.gameOver = null;
-    this.display = {};
+    this.display = { gems: null, hearts: null, danger: null };
     this.paused = false;
+    this.gameStats = {
+      gems: 500,
+      hearts: 5,
+      danger: 0,
+      speed: {
+        turtle: 800,
+        alien: 300,
+        railgun: 1500,
+        alienSpawn: 500,
+      },
+    };
   }
 
   createAsteroidGrid() {
@@ -1181,21 +1192,25 @@ class Game extends Phaser.Scene {
       .add(this.add.gameText(0, 50 - bounds.height / 2, VERSION, 1.5));
 
     const gem = this.add.image(-95, 50, "gem");
-    this.display.gems = this.add.gameText(-55, 50, "6501", 5).setOrigin(0, 0.5);
+    this.display.gems = this.add
+      .gameText(-55, 50, this.gameStats.gems, 5)
+      .setOrigin(0, 0.5);
 
     menu.add([gem, this.display.gems]);
 
     const heart = this.add.image(-95, 140, "heart");
     this.display.hearts = this.add
-      .gameText(-55, 140, "12", 5)
+      .gameText(-55, 140, this.gameStats.hearts, 5)
       .setOrigin(0, 0.5);
 
     menu.add([heart, this.display.hearts]);
 
     const risk = this.add.image(-95, 230, "risk");
-    this.display.risk = this.add.gameText(-55, 230, "37%", 5).setOrigin(0, 0.5);
+    this.display.danger = this.add
+      .gameText(-55, 230, this.gameStats.danger + "%", 5)
+      .setOrigin(0, 0.5);
 
-    menu.add([risk, this.display.risk]);
+    menu.add([risk, this.display.danger]);
 
     const y = 340;
     const scale = 0.55;
@@ -1237,7 +1252,7 @@ class Game extends Phaser.Scene {
     menu.add(options);
 
     this.display.pauseText = this.add
-      .gameText(gameW * 0.4, 0, "- Paused -", 3, null, () => {})
+      .gameText(gameW * 0.4, 0, "- Paused -", 3)
       .setOrigin(0.5, 0)
       .setFontStyle("bold")
       .setVisible(false);
@@ -1324,6 +1339,16 @@ class Game extends Phaser.Scene {
       this.time.timeScale = 1;
       this.physics.world.timeScale = 1;
     }
+  }
+
+  updateGameStat(stat, change) {
+    // stat is hearts, gems, or danger
+    this.gameStats[stat] += change;
+    this.display[stat].text = this.gameStats[stat];
+    if (stat == "danger") this.display[stat].text += "%";
+
+    /////////////////////////////
+    // if (stat == "hearts" && this.gameStats[stat] <= 0) this.destroyMiningDrone()
   }
 
   createTurretButtons() {
@@ -1481,8 +1506,8 @@ class Game extends Phaser.Scene {
       scale: 1.6,
       alpha: 1,
       angle: `+=${Phaser.Math.Between(270, 360)}`,
-      duration: 3000, //2000,
-      delay: 3000,
+      duration: 500, //2000,
+      //delay: 3000,
       onComplete: () => {
         this.alienWaveHandler(drone);
 
@@ -1508,7 +1533,7 @@ class Game extends Phaser.Scene {
   }
 
   alienWaveHandler(target) {
-    const updateSpeed = 3000;
+    const updateSpeed = this.gameStats.speed.alienSpawn; //3000;
 
     this.portal.setData(
       "loop",
@@ -1544,7 +1569,7 @@ class Game extends Phaser.Scene {
     this.alienGroup.add(alien); // add to physics group so it can be detected by turrets
     alien.body.isCircle = true;
 
-    const updateSpeed = 1000;
+    const updateSpeed = this.gameStats.speed.alien;
 
     alien.setData(
       "loop",
@@ -1575,8 +1600,9 @@ class Game extends Phaser.Scene {
 
             if (!this.gameOver) {
               // if drone hasn't escaped yet, apply damage
-              const drone = alien.getData("target").incData("health", -1);
-              if (drone.getData("health") <= 0) this.destroyMiningDrone(drone);
+              this.updateGameStat("hearts", -1);
+              //const drone = alien.getData("target").incData("health", -1);
+              //if (drone.getData("health") <= 0) this.destroyMiningDrone(drone);
 
               alien.destroy();
             }
