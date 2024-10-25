@@ -906,6 +906,10 @@ class Game extends Phaser.Scene {
     });
 
     this.input.on("pointerdown", (p) => {
+      // if we're over a button, the player intends to interact with it
+      // so don't mess with selectedObj just yet
+      if (this.input.hitTestPointer(p).length > 0) return;
+
       if (!this.selectedObj) return;
 
       const pos = this.convertWorldToGrid(
@@ -1022,6 +1026,9 @@ class Game extends Phaser.Scene {
 
   deployMiningDrone(pos) {
     const tile = this.grid[pos.x][pos.y];
+
+    // move pauseText to bottom so it won't overlap with this stuff going on
+    if (pos.y == 0) this.display.pauseText.setOrigin(0.5, 1).y = gameH;
 
     // spawn in player ship to drop off turtle
     const point = Phaser.Geom.Circle.CircumferencePoint(
@@ -1197,16 +1204,21 @@ class Game extends Phaser.Scene {
       this.pauseOrResume()
     );
 
-    this.display.play = this.add.gameImageButton(0, y, "right", scale, () =>
-      this.pauseOrResume()
-    );
+    this.display.play = this.add.gameImageButton(0, y, "right", scale, () => {
+      // we're at double speed, flip back to normal game speed
+      if (this.time.timeScale == 2) this.flipGameSpeed();
+      else this.pauseOrResume(); // otherwise, pause
+    });
 
     this.display.fastForward = this.add.gameImageButton(
       +100,
       y,
       "fastForward",
       scale,
-      () => {}
+      () => {
+        if (this.paused && this.time.timeScale == 2) this.pauseOrResume();
+        else this.flipGameSpeed();
+      }
     );
 
     this.display.play.keepPressedDown();
@@ -1225,10 +1237,10 @@ class Game extends Phaser.Scene {
     menu.add(options);
 
     this.display.pauseText = this.add
-      .gameText(gameW * 0.4, 0, "- Paused -", 2, null, () => {})
+      .gameText(gameW * 0.4, 0, "- Paused -", 3, null, () => {})
       .setOrigin(0.5, 0)
-      .setFontStyle("bold");
-    //.setShadow(0, 0, "#a9def9", 8, true, true);
+      .setFontStyle("bold")
+      .setVisible(false);
   }
 
   createFpsText() {
@@ -1262,6 +1274,9 @@ class Game extends Phaser.Scene {
       this.scene.get("Stars").scene.pause();
       this.display.pause.keepPressedDown();
       this.display.play.letUp();
+      this.display.fastForward.letUp();
+
+      this.display.pauseText.setVisible(true);
     } else {
       this.children.each((c) => {
         if (c.getData("loop")) {
@@ -1276,7 +1291,38 @@ class Game extends Phaser.Scene {
 
       this.scene.get("Stars").scene.resume();
       this.display.pause.letUp();
+
+      if (this.time.timeScale == 1) {
+        this.display.play.keepPressedDown();
+        this.display.fastForward.letUp();
+      } else {
+        this.display.play.letUp();
+        this.display.fastForward.keepPressedDown();
+      }
+
+      this.display.pauseText.setVisible(false);
+    }
+  }
+
+  flipGameSpeed() {
+    if (this.paused) this.pauseOrResume(); // automatically resume
+
+    if (this.time.timeScale == 1) {
+      // activate double speed
+      this.display.play.letUp();
+      this.display.fastForward.keepPressedDown();
+
+      this.tweens.timeScale = 2;
+      this.time.timeScale = 2;
+      this.physics.world.timeScale = 0.5;
+    } else {
+      // return to normal speed
       this.display.play.keepPressedDown();
+      this.display.fastForward.letUp();
+
+      this.tweens.timeScale = 1;
+      this.time.timeScale = 1;
+      this.physics.world.timeScale = 1;
     }
   }
 
@@ -1350,6 +1396,11 @@ class Game extends Phaser.Scene {
 
           if (c.listenerCount("pointerup") < 1) {
             c.on("pointerup", (p) => {
+              bg.fillColor = 0xffffff;
+
+              // don't grab another object if we're still holding something
+              if (this.selectedObj) return;
+
               const turretSize = this.tileW * 0.75;
 
               switch (c.getData("number")) {
@@ -1377,8 +1428,6 @@ class Game extends Phaser.Scene {
                 case 5:
                   break;
               }
-
-              bg.fillColor = 0xffffff;
 
               c.off("pointerup");
 
@@ -1664,8 +1713,12 @@ class Game extends Phaser.Scene {
   }
 
   createKeyboardControls() {
+    // apparently this is all you need for the "JustDown" check,
+    // but I added the JustDown if statement anyway.
+    const s = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
     this.input.keyboard.on("keydown-SPACE", (e) => {
-      this.pauseOrResume();
+      if (Phaser.Input.Keyboard.JustDown(s)) this.pauseOrResume();
     });
   }
 
