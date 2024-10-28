@@ -302,9 +302,6 @@ class Game extends Phaser.Scene {
       .rectangle(gameW * 0.5, gameH * 0.5, gameW, gameH)
       .setStrokeStyle(3, 0xffffff, 0.8);
 
-    new GameImageButton(this, 200, 200, "pause", 2, () => {}).setDepth(2);
-    new GameTextButton(this, 100, 100, "hello", 2, null, () => {});
-
     WebFont.load({
       google: {
         families: FONTS,
@@ -2339,7 +2336,8 @@ class GameImageButton extends Phaser.GameObjects.Container {
     super(scene, x, y);
 
     const image = scene.add.image(0, 0, key).setScale(scale);
-    image.preFX.addShadow(-2, -2, 0.1, 0.3, CLRS.button.shadow);
+    // preFX had a bug where the image would be blank, so postFX instead
+    image.postFX.addShadow(-2, -2, 0.1, 0.3, CLRS.button.shadow);
 
     const padding = 24;
 
