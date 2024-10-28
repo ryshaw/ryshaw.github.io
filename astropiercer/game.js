@@ -302,6 +302,9 @@ class Game extends Phaser.Scene {
       .rectangle(gameW * 0.5, gameH * 0.5, gameW, gameH)
       .setStrokeStyle(3, 0xffffff, 0.8);
 
+    new GameImageButton(this, 200, 200, "pause", 2, () => {}).setDepth(2);
+    new GameTextButton(this, 100, 100, "hello", 2, null, () => {});
+
     WebFont.load({
       google: {
         families: FONTS,
@@ -359,7 +362,12 @@ class Game extends Phaser.Scene {
       },
     };
     this.costs = {
-      railgun: 100,
+      railgun: 10,
+      plasmaBurst: 1,
+      teslaCoil: 1,
+      ionCannon: 1,
+      lrLaser: 1,
+      refinery: 1,
     };
   }
 
@@ -1362,133 +1370,131 @@ class Game extends Phaser.Scene {
     for (let i = 0; i < 6; i++) {
       const x = (i % 2) * 150 - 70;
       const y = Math.floor(i / 2) * 150 - 370;
-
-      const bg = this.add
-        .rectangle(0, 0, 120, 120, 0xffffff, 0.3)
-        .setStrokeStyle(6, 0xffffff, 1);
-
-      let turret = this.add.rectangle();
+      let prefab;
+      let name;
 
       switch (i) {
         case 0:
-          turret = this.prefab
-            .instantiate(Prefab.Object.Railgun, 0, 0, this.tileW, this.tileW)
-            .setScale(1.5);
+          prefab = Prefab.Object.Railgun;
+          name = "railgun";
           break;
         case 1:
+          prefab = Prefab.Object.PlasmaBurst;
+          name = "plasmaBurst";
           break;
         case 2:
+          prefab = Prefab.Object.TeslaCoil;
+          name = "teslaCoil";
           break;
         case 3:
+          prefab = Prefab.Object.IonCannon;
+          name = "ionCannon";
           break;
         case 4:
+          prefab = Prefab.Object.LRLaser;
+          name = "lrLaser";
           break;
         case 5:
+          prefab = Prefab.Object.Refinery;
+          name = "refinery";
           break;
       }
 
-      const c = this.add
-        .container(x, y, [bg, turret])
-        .setData("number", i)
-        .setSize(bg.width, bg.height)
-        .setInteractive()
-        .on("pointerover", () => {
-          this.tweens.add({
-            targets: bg,
-            fillAlpha: 0.5,
-            lineWidth: 8,
-            duration: 100,
-          });
-          this.tweens.add({
-            targets: turret,
-            scale: 1.75,
-            duration: 100,
-          });
-        })
-        .on("pointerout", () => {
-          bg.fillColor = 0xffffff;
-
-          this.tweens.add({
-            targets: bg,
-            fillAlpha: 0.3,
-            lineWidth: 6,
-            duration: 100,
-          });
-          this.tweens.add({
-            targets: turret,
-            scale: 1.5,
-            duration: 100,
-          });
-          c.off("pointerup");
-        })
-        .on("pointerdown", () => {
-          bg.fillColor = 0xe1e1e1;
-
-          if (c.listenerCount("pointerup") < 1) {
-            c.on("pointerup", (p) => {
-              bg.fillColor = 0xffffff;
-
-              // don't grab another object if we're still holding something
-              if (this.selectedObj) return;
-
-              const turretSize = this.tileW * 0.75;
-
-              switch (c.getData("number")) {
-                case 0:
-                  if (this.gameStats.gems >= this.costs.railgun) {
-                    this.selectedObj = this.prefab
-                      .instantiate(
-                        Prefab.Object.Railgun,
-                        p.worldX,
-                        p.worldY,
-                        turretSize,
-                        turretSize
-                      )
-                      .setAlpha(0.9)
-                      .setDepth(2);
-                  } else {
-                    this.tweens.killTweensOf(this.display.gems);
-                    this.display.gems.setTint(0xffffff).setAlpha(1);
-                    this.tweens.add({
-                      targets: this.display.gems,
-                      alpha: 0.4,
-                      yoyo: true,
-                      repeat: 1,
-                      duration: 120,
-                      onStart: () => {
-                        this.display.gems.setTint(0xe63946);
-                      },
-                      onComplete: () => {
-                        this.display.gems.setTint(0xffffff);
-                      },
-                    });
-                  }
-
-                  break;
-                case 1:
-                  break;
-                case 2:
-                  break;
-                case 3:
-                  break;
-                case 4:
-                  break;
-                case 5:
-                  break;
-              }
-
-              c.off("pointerup");
-
-              // emit a pointermove event so the turret will adjust accordingly
-              this.input.emit("pointermove", p);
-            });
-          }
-        });
-
-      turrets.push(c);
+      turrets.push(this.createTurretButton(x, y, prefab, name));
     }
 
     return turrets;
+  }
+
+  createTurretButton(x, y, prefab, name) {
+    const bg = this.add
+      .rectangle(0, 0, 120, 120, 0xffffff, 0.3)
+      .setStrokeStyle(6, 0xffffff, 1);
+
+    let turret = this.prefab
+      .instantiate(prefab, 0, 0, this.tileW, this.tileW)
+      .setScale(1.5);
+
+    const c = this.add
+      .container(x, y, [bg, turret])
+      .setSize(bg.width, bg.height)
+      .setInteractive()
+      .on("pointerover", () => {
+        this.tweens.add({
+          targets: bg,
+          fillAlpha: 0.5,
+          lineWidth: 8,
+          duration: 100,
+        });
+        this.tweens.add({
+          targets: turret,
+          scale: 1.75,
+          duration: 100,
+        });
+      })
+      .on("pointerout", () => {
+        bg.fillColor = 0xffffff;
+
+        this.tweens.add({
+          targets: bg,
+          fillAlpha: 0.3,
+          lineWidth: 6,
+          duration: 100,
+        });
+        this.tweens.add({
+          targets: turret,
+          scale: 1.5,
+          duration: 100,
+        });
+        c.off("pointerup");
+      })
+      .on("pointerdown", () => {
+        bg.fillColor = 0xe1e1e1;
+
+        if (c.listenerCount("pointerup") < 1) {
+          c.on("pointerup", (p) => {
+            bg.fillColor = 0xffffff;
+
+            // don't grab another object if we're still holding something
+            if (this.selectedObj) return;
+
+            const size = this.tileW * 0.75;
+
+            if (this.gameStats.gems >= this.costs[name]) {
+              this.selectedObj = this.prefab
+                .instantiate(prefab, p.worldX, p.worldY, size, size)
+                .setAlpha(0.9)
+                .setDepth(2);
+            } else this.brokeAlert();
+
+            c.off("pointerup");
+
+            // emit a pointermove event so the turret will adjust accordingly
+            this.input.emit("pointermove", p);
+          });
+        }
+      });
+
+    return c;
+  }
+
+  brokeAlert() {
+    // you already know what this is
+    this.tweens.killTweensOf(this.display.gems);
+    this.display.gems.setTint(0xffffff).setAlpha(1);
+    this.tweens.add({
+      targets: this.display.gems,
+      alpha: 0.5,
+      yoyo: true,
+      repeat: 1,
+      duration: 120,
+      onStart: () => {
+        this.display.gems.setTint(0xe63946);
+      },
+      onComplete: () => {
+        this.display.gems.setTint(0xffffff);
+      },
+    });
   }
 
   openAlienPortal() {
@@ -2449,6 +2455,11 @@ class Prefab extends Phaser.GameObjects.GameObject {
     Menu: 1,
     Drone: 2,
     Railgun: 3,
+    PlasmaBurst: 4,
+    TeslaCoil: 5,
+    IonCannon: 6,
+    LRLaser: 7,
+    Refinery: 8,
   };
 
   colors = {
@@ -2461,7 +2472,14 @@ class Prefab extends Phaser.GameObjects.GameObject {
       fill: 0xca6702,
       stroke: 0xe9d8a6,
     },
-    railgun: 0xff9f1c,
+    turrets: {
+      railgun: 0xff9f1c,
+      plasmaBurst: 0xa100f2,
+      teslaCoil: 0xfdc500,
+      ionCannon: 0x00509d,
+      lrLaser: 0xa70b0b,
+      refinery: 0x548c2f,
+    },
     turretStroke: 0xffffff,
   };
 
@@ -2504,9 +2522,42 @@ class Prefab extends Phaser.GameObjects.GameObject {
           .setName("turtle");
       case 3:
         return this.scene.add
-          .rectangle(x, y, w, h, this.colors.railgun, 1)
-          .setStrokeStyle(6, this.colors.turretStroke, 1)
+          .rectangle(x, y, w, h, this.colors.turrets.railgun, 1)
+          .setStrokeStyle(4, this.colors.turretStroke, 1)
           .setName("railgun");
+      case 4:
+        return this.scene.add
+          .ellipse(x, y, w, h, this.colors.turrets.plasmaBurst, 1)
+          .setStrokeStyle(4, this.colors.turretStroke, 1)
+          .setSmoothness(8)
+          .setAngle(180 / 8)
+          .setName("plasmaBurst");
+      case 5:
+        return this.scene.add
+          .ellipse(x, y, w, h, this.colors.turrets.teslaCoil, 1)
+          .setStrokeStyle(4, this.colors.turretStroke, 1)
+          .setSmoothness(6)
+          .setName("teslaCoil");
+      case 6:
+        return this.scene.add
+          .circle(x, y, w / 2, this.colors.turrets.ionCannon, 1)
+          .setStrokeStyle(4, this.colors.turretStroke, 1)
+          .setIterations(0.2)
+          .setAngle(270 / 5)
+          .setName("ionCannon");
+      case 7:
+        y += w * 0.2;
+        return this.scene.add
+          .ellipse(x, y, w * 1.2, h * 1.2, this.colors.turrets.lrLaser, 1)
+          .setStrokeStyle(4, this.colors.turretStroke, 1)
+          .setSmoothness(3)
+          .setAngle(270)
+          .setName("lrLaser");
+      case 8:
+        return this.scene.add
+          .circle(x, y, w * 0.5, this.colors.turrets.refinery, 1)
+          .setStrokeStyle(4, this.colors.turretStroke, 1)
+          .setName("refinery");
     }
   }
 }
