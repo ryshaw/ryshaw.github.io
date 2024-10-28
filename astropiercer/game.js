@@ -269,7 +269,6 @@ class Game extends Phaser.Scene {
   selectedObj; // what object the mouse is holding
   prefab; // to instantiate our custom game objects
   path; // the path that the drone is mining, used by aliens
-  threatLevel; // increases as drone mines and grabs more minerals
   portal; // the alien portal is located wherever the drone lands
   gameOver; // true if turtle escaping asteroid, or destroyed by aliens
   alienGroup; // physics group with all the aliens
@@ -277,7 +276,8 @@ class Game extends Phaser.Scene {
   bulletGroup; // physics group with all bullets for hitting the aliens
   display; // all interactable icons in the menu, for updating and changing
   paused; // we gotta implement our own pause system, so here's the variable
-  gameStats; // gems, hearts, danger, updateSpeeds, all the stats for this level
+  gameStats; // gems, hearts, danger, update speeds, all stats for this level
+  costs; // how much everything costs I guess
 
   constructor() {
     super("Game");
@@ -343,21 +343,23 @@ class Game extends Phaser.Scene {
     this.prefab = new Prefab(this);
     this.selectedObj = null;
     this.path = null;
-    this.threatLevel = null;
     this.portal = null;
     this.gameOver = null;
     this.display = { gems: null, hearts: null, danger: null };
     this.paused = false;
     this.gameStats = {
-      gems: 500,
-      hearts: 5,
+      gems: 100,
+      hearts: 10,
       danger: 0,
       speed: {
         turtle: 800,
-        alien: 300,
-        railgun: 1500,
-        alienSpawn: 500,
+        alien: 600,
+        railgun: 1200,
+        alienSpawn: 3000,
       },
+    };
+    this.costs = {
+      railgun: 100,
     };
   }
 
@@ -617,8 +619,6 @@ class Game extends Phaser.Scene {
   }
 
   createMiningDrone(x, y) {
-    const mineSpeed = 500;
-
     let start = this.grid[x][y];
     this.portal = start;
 
@@ -631,13 +631,14 @@ class Game extends Phaser.Scene {
         this.tileW
       )
       .setData("x", start.getData("x"))
-      .setData("y", start.getData("y"));
+      .setData("y", start.getData("y"))
+      .setDepth(1);
 
     miner.setData(
       "loop",
       this.time.addEvent({
         loop: true,
-        delay: mineSpeed, //800,
+        delay: this.gameStats.speed.turtle,
         paused: this.paused,
         callback: () => this.updateMiningDrone(miner),
       })
@@ -645,16 +646,20 @@ class Game extends Phaser.Scene {
   }
 
   updateMiningDrone(miner) {
+    // if ded then die
+    if (this.gameStats.hearts <= 0) {
+      this.destroyMiningDrone(miner);
+      return;
+    }
+
     // pick next target to head to
     // could be ore, or if there's no more ore left,
     // the miner will leave to space through
     // the shorest path
     let target;
 
-    if (this.oreTiles.length <= 0) {
-      // no more ore to mine, escape from the asteroid
-      target = this.returnMiningDrone(miner);
-    }
+    // if no more ore to mine, escape from the asteroid
+    if (this.oreTiles.length <= 0) target = this.returnMiningDrone(miner);
 
     // if ore, find closest ore target to head to
     let targetDist;
@@ -722,15 +727,15 @@ class Game extends Phaser.Scene {
 
       // "filled" = undefined means was an empty space
       // "filled" = false means was an asteroid piece
-      // increase threatLevel as we mine into the asteroid
+      // increase danger level as we mine into the asteroid
       if (nextTile.getData("filled") === false) {
-        if (!this.threatLevel) {
-          this.threatLevel = 1;
-          this.openAlienPortal(miner);
+        if (this.gameStats.danger == 0) {
+          this.updateGameStat("danger", 1);
+          this.openAlienPortal();
         } else {
           // ore adds more threat
-          if (nextTile.getData("ore")) this.threatLevel += 2;
-          else this.threatLevel += 1;
+          if (nextTile.getData("ore")) this.updateGameStat("danger", 2);
+          else this.updateGameStat("danger", 1);
         }
       }
 
@@ -941,6 +946,9 @@ class Game extends Phaser.Scene {
   }
 
   buildTurret(pos, turret) {
+    // subtract gems
+    this.updateGameStat("gems", -1 * this.costs[turret.name]);
+
     // first, adjust the tiles around it so we can't build turrets near it
     this.grid[pos.x][pos.y].setData("turret", true);
 
@@ -1346,9 +1354,6 @@ class Game extends Phaser.Scene {
     this.gameStats[stat] += change;
     this.display[stat].text = this.gameStats[stat];
     if (stat == "danger") this.display[stat].text += "%";
-
-    /////////////////////////////
-    // if (stat == "hearts" && this.gameStats[stat] <= 0) this.destroyMiningDrone()
   }
 
   createTurretButtons() {
@@ -1430,16 +1435,34 @@ class Game extends Phaser.Scene {
 
               switch (c.getData("number")) {
                 case 0:
-                  this.selectedObj = this.prefab
-                    .instantiate(
-                      Prefab.Object.Railgun,
-                      p.worldX,
-                      p.worldY,
-                      turretSize,
-                      turretSize
-                    )
-                    .setAlpha(0.9)
-                    .setDepth(2);
+                  if (this.gameStats.gems >= this.costs.railgun) {
+                    this.selectedObj = this.prefab
+                      .instantiate(
+                        Prefab.Object.Railgun,
+                        p.worldX,
+                        p.worldY,
+                        turretSize,
+                        turretSize
+                      )
+                      .setAlpha(0.9)
+                      .setDepth(2);
+                  } else {
+                    this.tweens.killTweensOf(this.display.gems);
+                    this.display.gems.setTint(0xffffff).setAlpha(1);
+                    this.tweens.add({
+                      targets: this.display.gems,
+                      alpha: 0.4,
+                      yoyo: true,
+                      repeat: 1,
+                      duration: 120,
+                      onStart: () => {
+                        this.display.gems.setTint(0xe63946);
+                      },
+                      onComplete: () => {
+                        this.display.gems.setTint(0xffffff);
+                      },
+                    });
+                  }
 
                   break;
                 case 1:
@@ -1468,7 +1491,7 @@ class Game extends Phaser.Scene {
     return turrets;
   }
 
-  openAlienPortal(drone) {
+  openAlienPortal() {
     // this.portal was set during createMiningDrone()
     this.portal
       .setStrokeStyle(6, 0xe7c6ff, 1)
@@ -1509,7 +1532,7 @@ class Game extends Phaser.Scene {
       duration: 500, //2000,
       //delay: 3000,
       onComplete: () => {
-        this.alienWaveHandler(drone);
+        this.alienWaveHandler();
 
         // originally this was tied to tween.progress in onUpdate,
         // but I decided to untie it so it doesn't look like the
@@ -1532,7 +1555,7 @@ class Game extends Phaser.Scene {
     });
   }
 
-  alienWaveHandler(target) {
+  alienWaveHandler() {
     const updateSpeed = this.gameStats.speed.alienSpawn; //3000;
 
     this.portal.setData(
@@ -1543,30 +1566,34 @@ class Game extends Phaser.Scene {
         startAt: updateSpeed * 0.9,
         paused: this.paused,
         callback: () => {
+          // if drone is escaping or destroyed, stop makin aliens
+          if (this.gameOver) {
+            this.portal.getData("loop").remove();
+            return;
+          }
+
           //if (Math.random() > 0.75) return;
-          this.generateAlien(target);
+          this.generateAlien();
         },
       })
     );
   }
 
-  generateAlien(drone) {
+  generateAlien() {
     // start alien at the portal and move to the first item in this.path
-
     let pathIndex = 0;
 
     const alien = this.add
       .circle(this.portal.x, this.portal.y, this.tileW * 0.5, 0xaffc41, 1)
       .setStrokeStyle(10, 0x857c8d, 1)
       .setScale(0.75)
-      .setDepth(1)
       .setData("pathIndex", 0)
-      .setData("target", drone)
       .setData("health", 5)
       .setAlpha(0)
       .setName("alien");
 
-    this.alienGroup.add(alien); // add to physics group so it can be detected by turrets
+    // add to physics group so it can be detected by turrets
+    this.alienGroup.add(alien);
     alien.body.isCircle = true;
 
     const updateSpeed = this.gameStats.speed.alien;
@@ -1601,9 +1628,6 @@ class Game extends Phaser.Scene {
             if (!this.gameOver) {
               // if drone hasn't escaped yet, apply damage
               this.updateGameStat("hearts", -1);
-              //const drone = alien.getData("target").incData("health", -1);
-              //if (drone.getData("health") <= 0) this.destroyMiningDrone(drone);
-
               alien.destroy();
             }
             return; // return immediately so we don't invoke moveToObject
@@ -1613,8 +1637,6 @@ class Game extends Phaser.Scene {
         },
       })
     );
-
-    if (this.gameOver) return; // no need to generate more aliens
   }
 
   destroyMiningDrone(drone) {
