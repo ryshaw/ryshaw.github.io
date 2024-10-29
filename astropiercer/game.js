@@ -352,7 +352,7 @@ class Game extends Phaser.Scene {
       hearts: 10,
       danger: 0,
       speed: {
-        turtle: 800,
+        turtle: 500,
         alien: 600,
         railgun: 1200,
         alienSpawn: 3000,
@@ -377,9 +377,9 @@ class Game extends Phaser.Scene {
 
     const num = 36; // how many circles to spawn
     for (let i = 0; i < num; i++) {
-      const x = Phaser.Math.Between(gameW * 0.275, gameW * 0.725);
-      const y = Phaser.Math.Between(gameH * 0.28, gameH * 0.72);
-      const w = Phaser.Math.Between(40, 400);
+      const x = Phaser.Math.Between(gameW * 0.2, gameW * 0.7);
+      const y = Phaser.Math.Between(gameH * 0.3, gameH * 0.7);
+      const w = Phaser.Math.Between(100, 400);
 
       const c = this.add.circle(x, y, w * 0.5, 0xff0000, 0).setDepth(1);
 
@@ -389,9 +389,9 @@ class Game extends Phaser.Scene {
     this.grid = [];
     this.filledTiles = new Phaser.Structs.List();
 
-    const gridX = 42; // how wide is the grid
-    const gridY = 30; // height of the grid
-    this.tileW = 32; // width of each tile in pixels
+    const gridX = 38; // how wide is the grid
+    const gridY = 26; // height of the grid
+    this.tileW = 36; // width of each tile in pixels
 
     // top left corner
     const startX = gameW * 0.4 - gridX * this.tileW * 0.5;
@@ -420,7 +420,7 @@ class Game extends Phaser.Scene {
             this.fillInTile(rectangle);
         });
 
-        // fill in middle 1/3 of the map always
+        /*     // fill in middle 1/3 of the map always
         if (
           i >= Math.round((gridX * 1) / 3) &&
           i <= Math.round((gridX * 2) / 3) &&
@@ -428,7 +428,7 @@ class Game extends Phaser.Scene {
           j <= Math.round((gridY * 2) / 3)
         ) {
           this.fillInTile(rectangle);
-        }
+        } */
 
         this.grid[i][j] = rectangle;
       }
@@ -1077,6 +1077,7 @@ class Game extends Phaser.Scene {
       angle: `+=90`,
       duration: 600,
       ease: "sine.inout",
+      onStart: () => tile.setDepth(1),
     });
 
     this.tweens.add({
@@ -1408,12 +1409,31 @@ class Game extends Phaser.Scene {
       .rectangle(0, 0, 120, 120, 0xffffff, 0.3)
       .setStrokeStyle(6, 0xffffff, 1);
 
-    let turret = this.prefab
+    const turret = this.prefab
       .instantiate(prefab, 0, 0, this.tileW, this.tileW)
       .setScale(1.5);
 
+    const tooltip = this.add.container(-225, 0, [
+      this.add
+        .rectangle(0, 138, 300, 400, 0x000000, 0.9)
+        .setStrokeStyle(2, 0xffffff, 1),
+      this.add.gameText(-145, -55, "Railgun", 2.5).setOrigin(0, 0),
+      this.add
+        .gameText(-145, 20, "High speed bullets.\nMade for action.", 0.5, 250)
+        .setOrigin(0, 0)
+        .setLineSpacing(16),
+      this.add
+        .gameText(-145, 125, "Damage: 10 dps\nRange: 3 tiles", 1.5)
+        .setOrigin(0, 0)
+        .setLineSpacing(16),
+      this.add.image(0, 285, "gem").setScale(0.75).setOrigin(1, 0.5),
+      this.add.gameText(-20, 285, "10", 3).setOrigin(0, 0.5),
+    ]);
+
+    if (name != "railgun") tooltip.setVisible(false);
+
     const c = this.add
-      .container(x, y, [bg, turret])
+      .container(x, y, [bg, turret, tooltip])
       .setSize(bg.width, bg.height)
       .setInteractive()
       .on("pointerover", () => {
@@ -1455,7 +1475,7 @@ class Game extends Phaser.Scene {
             // don't grab another object if we're still holding something
             if (this.selectedObj) return;
 
-            const size = this.tileW * 0.75;
+            const size = this.tileW * 1.1;
 
             if (this.gameStats.gems >= this.costs[name]) {
               this.selectedObj = this.prefab
@@ -1587,7 +1607,7 @@ class Game extends Phaser.Scene {
     let pathIndex = 0;
 
     const alien = this.add
-      .circle(this.portal.x, this.portal.y, this.tileW * 0.5, 0xaffc41, 1)
+      .circle(this.portal.x, this.portal.y, this.tileW * 0.4, 0xaffc41, 1)
       .setStrokeStyle(10, 0x857c8d, 1)
       .setScale(0.75)
       .setData("pathIndex", 0)
@@ -2493,7 +2513,7 @@ class Prefab extends Phaser.GameObjects.GameObject {
           .image(x, y, "advancedShip", 5)
           .setScale(1.5)
           .setAngle(90)
-          .setDepth(1)
+          .setDepth(2)
           .setTint(this.colors.ship);
       case 1:
         return this.scene.add
@@ -2511,7 +2531,7 @@ class Prefab extends Phaser.GameObjects.GameObject {
                 1
               ).gameObject,
           ])
-          .setDepth(2);
+          .setDepth(3);
       case 2:
         return this.scene.add
           .rectangle(x, y, w, h, this.colors.drone.fill)
@@ -2521,40 +2541,49 @@ class Prefab extends Phaser.GameObjects.GameObject {
       case 3:
         return this.scene.add
           .rectangle(x, y, w, h, this.colors.turrets.railgun, 1)
-          .setStrokeStyle(4, this.colors.turretStroke, 1)
+          .setStrokeStyle(5, this.colors.turretStroke, 1)
           .setName("railgun");
       case 4:
         return this.scene.add
           .ellipse(x, y, w, h, this.colors.turrets.plasmaBurst, 1)
-          .setStrokeStyle(4, this.colors.turretStroke, 1)
+          .setStrokeStyle(5, this.colors.turretStroke, 1)
           .setSmoothness(8)
           .setAngle(180 / 8)
           .setName("plasmaBurst");
       case 5:
         return this.scene.add
           .ellipse(x, y, w, h, this.colors.turrets.teslaCoil, 1)
-          .setStrokeStyle(4, this.colors.turretStroke, 1)
+          .setStrokeStyle(5, this.colors.turretStroke, 1)
           .setSmoothness(6)
           .setName("teslaCoil");
       case 6:
         return this.scene.add
           .circle(x, y, w / 2, this.colors.turrets.ionCannon, 1)
-          .setStrokeStyle(4, this.colors.turretStroke, 1)
+          .setStrokeStyle(5, this.colors.turretStroke, 1)
           .setIterations(0.2)
           .setAngle(270 / 5)
           .setName("ionCannon");
       case 7:
-        y += w * 0.2;
         return this.scene.add
-          .ellipse(x, y, w * 1.2, h * 1.2, this.colors.turrets.lrLaser, 1)
-          .setStrokeStyle(4, this.colors.turretStroke, 1)
-          .setSmoothness(3)
-          .setAngle(270)
+          .triangle(
+            x,
+            y,
+            -w * 0.5,
+            h * 0.4,
+            0,
+            -h * 0.5,
+            w * 0.5,
+            h * 0.4,
+            this.colors.turrets.lrLaser,
+            1
+          )
+          .setOrigin(0, 0)
+          .setStrokeStyle(5, this.colors.turretStroke, 1)
           .setName("lrLaser");
       case 8:
         return this.scene.add
           .circle(x, y, w * 0.5, this.colors.turrets.refinery, 1)
-          .setStrokeStyle(4, this.colors.turretStroke, 1)
+          .setStrokeStyle(5, this.colors.turretStroke, 1)
           .setName("refinery");
     }
   }
