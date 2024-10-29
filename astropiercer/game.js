@@ -420,7 +420,7 @@ class Game extends Phaser.Scene {
             this.fillInTile(rectangle);
         });
 
-        /*     // fill in middle 1/3 of the map always
+        // fill in middle 1/3 of the map always
         if (
           i >= Math.round((gridX * 1) / 3) &&
           i <= Math.round((gridX * 2) / 3) &&
@@ -428,7 +428,7 @@ class Game extends Phaser.Scene {
           j <= Math.round((gridY * 2) / 3)
         ) {
           this.fillInTile(rectangle);
-        } */
+        }
 
         this.grid[i][j] = rectangle;
       }
@@ -1413,22 +1413,26 @@ class Game extends Phaser.Scene {
       .instantiate(prefab, 0, 0, this.tileW, this.tileW)
       .setScale(1.5);
 
-    const tooltip = this.add.container(-225, 0, [
-      this.add
-        .rectangle(0, 138, 300, 400, 0x000000, 0.9)
-        .setStrokeStyle(2, 0xffffff, 1),
-      this.add.gameText(-145, -55, "Railgun", 2.5).setOrigin(0, 0),
-      this.add
-        .gameText(-145, 20, "High speed bullets.\nMade for action.", 0.5, 250)
-        .setOrigin(0, 0)
-        .setLineSpacing(16),
-      this.add
-        .gameText(-145, 125, "Damage: 10 dps\nRange: 3 tiles", 1.5)
-        .setOrigin(0, 0)
-        .setLineSpacing(16),
-      this.add.image(0, 285, "gem").setScale(0.75).setOrigin(1, 0.5),
-      this.add.gameText(-20, 285, "10", 3).setOrigin(0, 0.5),
-    ]);
+    const tooltip = this.add
+      .container(-270, 0, [
+        this.add
+          .rectangle(0, 118, 400, 360, 0x000000, 0.9)
+          .setStrokeStyle(2, 0xffffff, 1),
+        this.add.gameText(-195, -55, "Railgun", 3).setOrigin(0, 0),
+        this.add
+          .gameText(
+            -195,
+            20,
+            "Fires high speed bullets. Moderate range and decent damage, but only tracks one target at a time.",
+            0.5,
+            380
+          )
+          .setOrigin(0, 0)
+          .setLineSpacing(14),
+        this.add.image(0, 250, "gem").setScale(0.9).setOrigin(1, 0.5),
+        this.add.gameText(-30, 250, "100", 4).setOrigin(0, 0.5),
+      ])
+      .setAlpha(0);
 
     if (name != "railgun") tooltip.setVisible(false);
 
@@ -1448,9 +1452,16 @@ class Game extends Phaser.Scene {
           scale: 1.75,
           duration: 100,
         });
+        this.tweens.add({
+          targets: tooltip,
+          alpha: 1,
+          duration: 100,
+          delay: 300,
+        });
       })
       .on("pointerout", () => {
         bg.fillColor = 0xffffff;
+        c.off("pointerup");
 
         this.tweens.add({
           targets: bg,
@@ -1463,7 +1474,12 @@ class Game extends Phaser.Scene {
           scale: 1.5,
           duration: 100,
         });
-        c.off("pointerup");
+        this.tweens.killTweensOf(tooltip);
+        this.tweens.add({
+          targets: tooltip,
+          alpha: 0,
+          duration: 100,
+        });
       })
       .on("pointerdown", () => {
         bg.fillColor = 0xe1e1e1;
