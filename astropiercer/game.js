@@ -1414,14 +1414,15 @@ class Game extends Phaser.Scene {
       .setScale(1.5);
 
     const tooltip = this.add
-      .container(-270, 0, [
+      .container(-70, 0, [
         this.add
           .rectangle(0, 118, 400, 360, 0x000000, 0.9)
-          .setStrokeStyle(2, 0xffffff, 1),
-        this.add.gameText(-195, -55, "Railgun", 3).setOrigin(0, 0),
+          .setStrokeStyle(2, 0xffffff, 1)
+          .setOrigin(1, 0.5),
+        this.add.gameText(-390, -55, "Railgun", 3).setOrigin(0, 0),
         this.add
           .gameText(
-            -195,
+            -390,
             20,
             "Fires high speed bullets. Moderate range and decent damage, but only tracks one target at a time.",
             0.5,
@@ -1429,12 +1430,14 @@ class Game extends Phaser.Scene {
           )
           .setOrigin(0, 0)
           .setLineSpacing(14),
-        this.add.image(0, 250, "gem").setScale(0.9).setOrigin(1, 0.5),
-        this.add.gameText(-30, 250, "100", 4).setOrigin(0, 0.5),
+        this.add.image(-155, 250, "gem").setScale(0.9),
+        this.add.gameText(-190, 250, "100", 4).setOrigin(1, 0.5),
       ])
-      .setAlpha(0);
+      .setDepth(5);
 
-    if (name != "railgun") tooltip.setVisible(false);
+    tooltip.each((child) => child.setAlpha(0));
+
+    //if (name != "railgun") tooltip.setVisible(false);
 
     const c = this.add
       .container(x, y, [bg, turret, tooltip])
@@ -1452,11 +1455,40 @@ class Game extends Phaser.Scene {
           scale: 1.75,
           duration: 100,
         });
-        this.tweens.add({
-          targets: tooltip,
-          alpha: 1,
-          duration: 100,
-          delay: 300,
+
+        tooltip.each((child) => {
+          const delay = 500;
+          const duration = 100;
+
+          if (child.type == "Rectangle") {
+            this.tweens.add({
+              targets: child,
+              scaleX: 1,
+              duration: duration,
+              delay: delay * 0.8,
+              onStart: () => child.setScale(0, 1).setAlpha(1),
+              ease: "exp.inout",
+            });
+          } else if (child.type == "Text") {
+            this.tweens.add({
+              targets: child,
+              alpha: 1,
+              duration: duration,
+              delay: delay,
+            });
+            child.typeOut(duration * 4, delay);
+          } else if (child.type == "Image") {
+            this.tweens.add({
+              targets: child,
+              alpha: 1,
+              duration: duration,
+              delay: delay,
+              repeat: 1,
+              yoyo: true,
+              ease: "exp.inout",
+              onComplete: () => child.setAlpha(1),
+            });
+          }
         });
       })
       .on("pointerout", () => {
@@ -1474,11 +1506,15 @@ class Game extends Phaser.Scene {
           scale: 1.5,
           duration: 100,
         });
-        this.tweens.killTweensOf(tooltip);
-        this.tweens.add({
-          targets: tooltip,
-          alpha: 0,
-          duration: 100,
+
+        tooltip.each((child) => {
+          this.tweens.killTweensOf(child);
+
+          this.tweens.add({
+            targets: child,
+            alpha: 0,
+            duration: 50,
+          });
         });
       })
       .on("pointerdown", () => {
@@ -2235,6 +2271,8 @@ const config = {
 };
 
 class GameText extends Phaser.GameObjects.Text {
+  originalText;
+
   constructor(
     scene, // always "this" in the scene class
     x,
@@ -2260,7 +2298,23 @@ class GameText extends Phaser.GameObjects.Text {
       },
     });
 
+    this.originalText = text; // for typeOut()
+
     this.setOrigin(0.5, 0.5).setFontFamily(FONT);
+  }
+
+  typeOut(duration, delay) {
+    const tween = this.scene.tweens.addCounter({
+      from: 0,
+      to: this.originalText.length,
+      duration: duration,
+      delay: delay,
+      onUpdate: () => {
+        this.text = this.originalText.slice(0, tween.getValue());
+      },
+    });
+
+    return this; // for method chaining
   }
 
   preUpdate(delta, time) {}
