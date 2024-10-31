@@ -1,6 +1,6 @@
 const VERSION = "Astropiercer v0.2";
 
-const DEV_MODE = false; // turns on physics debug mode
+const DEV_MODE = true; // turns on physics debug mode
 
 const gameW = 1920;
 const gameH = 1080;
@@ -276,8 +276,9 @@ class Game extends Phaser.Scene {
   bulletGroup; // physics group with all bullets for hitting the aliens
   display; // all interactable icons in the menu, for updating and changing
   paused; // we gotta implement our own pause system, so here's the variable
-  gameStats; // gems, hearts, danger, update speeds, all stats for this level
+  gameStats; // keeps track of the stats: gems, hearts, danger
   costs; // how much everything costs I guess
+  gameData; // our "save file" containing all game data
 
   constructor() {
     super("Game");
@@ -348,23 +349,94 @@ class Game extends Phaser.Scene {
     this.display = { gems: null, hearts: null, danger: null };
     this.paused = false;
     this.gameStats = {
-      gems: 100,
+      gems: 1000,
       hearts: 10,
       danger: 0,
-      speed: {
-        turtle: 500,
-        alien: 600,
-        railgun: 1200,
-        alienSpawn: 3000,
-      },
     };
-    this.costs = {
-      railgun: 10,
-      plasmaBurst: 1,
-      teslaCoil: 1,
-      ionCannon: 1,
-      lrLaser: 1,
-      refinery: 1,
+    this.gameData = {
+      turtleSpeed: 500,
+      alien: {
+        spawnRate: 3000,
+        base: {
+          speed: 600,
+          health: 5,
+          damage: 1,
+        },
+      },
+      turrets: {
+        railgun: {
+          tooltip: {
+            title: "Railgun",
+            desc: "Fires high speed bullets. Moderate range and decent damage, but only tracks one target at a time.",
+          },
+          base: {
+            speed: 1200,
+            damage: 1,
+            range: 4,
+            cost: 50,
+          },
+        },
+        plasmaBurst: {
+          tooltip: {
+            title: "Plasma Burst",
+            desc: "Fires short-range bursts of plasma energy. Good damage and hits all targets around turret.",
+          },
+          base: {
+            speed: 1200,
+            damage: 2,
+            range: 2,
+            cost: 75,
+          },
+        },
+        teslaCoil: {
+          tooltip: {
+            title: "Tesla Coil",
+            desc: "Fires bursts of lightning that can chain across enemies. Deadly powerful if upgraded.",
+          },
+          base: {
+            speed: 1200,
+            damage: 2,
+            range: 5,
+            cost: 150,
+          },
+        },
+        ionCannon: {
+          tooltip: {
+            title: "Ion Cannon",
+            desc: "Fires blasts of crippling ion particles that can slow down and even stun enemies.",
+          },
+          base: {
+            speed: 1200,
+            damage: 2,
+            range: 3,
+            cost: 150,
+          },
+        },
+        lrLaser: {
+          tooltip: {
+            title: "LR Laser",
+            desc: "Fires long-range laser beams. Slow, but can hit from anywhere on the map.",
+          },
+          base: {
+            speed: 1200,
+            damage: 2,
+            range: 0,
+            cost: 200,
+          },
+        },
+        refinery: {
+          tooltip: {
+            title: "Refinery",
+            desc: "Unable to attack enemies, but instead can buff up turrets in its radius.",
+          },
+          base: {
+            speed: 1200,
+            damage: 2,
+            range: 4,
+            cost: 200,
+          },
+        },
+      },
     };
   }
 
@@ -643,7 +715,7 @@ class Game extends Phaser.Scene {
       "loop",
       this.time.addEvent({
         loop: true,
-        delay: this.gameStats.speed.turtle,
+        delay: this.gameData.turtleSpeed,
         paused: this.paused,
         callback: () => this.updateMiningDrone(miner),
       })
@@ -896,23 +968,29 @@ class Game extends Phaser.Scene {
         this.selectedObj.setPosition(tile.x, tile.y);
       } else {
         // turret
+        // get range indicator
+        const range = this.selectedObj.getData("rangeIndicator");
 
         // check if we're still not hovering over the grid
         const pos2 = this.convertWorldToGrid(p.worldX, p.worldY, false);
         if (!this.checkIfInGrid(pos2.x, pos2.y)) {
           // just match the mouse cursor since we're not on the grid
           this.selectedObj.setPosition(p.worldX, p.worldY);
+          range.setPosition(p.worldX, p.worldY);
           // invalid build position, obviously
           this.selectedObj.setAlpha(0.7).strokeColor = 0xff5714;
+          range.fillColor = 0xff5714;
           return;
         }
 
         const tile = this.grid[pos.x][pos.y];
 
         this.selectedObj.setPosition(tile.x, tile.y);
+        range.setPosition(tile.x, tile.y);
 
         // reset these properties (could be changed later down)
         this.selectedObj.setAlpha(1).strokeColor = 0x6eeb83;
+        range.fillColor = 0x6eeb83;
 
         // check for any invalid conditions
         if (
@@ -922,6 +1000,7 @@ class Game extends Phaser.Scene {
           tile.getData("turretAdjacent")
         ) {
           this.selectedObj.setAlpha(0.7).strokeColor = 0xff5714;
+          range.fillColor = 0xff5714;
         }
       }
     });
@@ -952,13 +1031,20 @@ class Game extends Phaser.Scene {
 
   buildTurret(pos, turret) {
     // subtract gems
-    this.updateGameStat("gems", -1 * this.costs[turret.name]);
+    const cost = this.gameData.turrets[turret.name].base.cost;
+    this.updateGameStat("gems", -1 * cost);
 
     // first, adjust the tiles around it so we can't build turrets near it
     this.grid[pos.x][pos.y].setData("turret", true);
 
     // was green, now color it white
     turret.strokeColor = 0xffffff;
+
+    // set depth lower so it won't overlap with the tooltips
+    turret.setDepth(2);
+
+    // turn range indicator off and put it behind turret
+    turret.getData("rangeIndicator").setDepth(1).setVisible(false);
 
     // set 3x3 grid around cornerTile to be turreted
     // so it leaves room for mining turtle to move around
@@ -976,7 +1062,9 @@ class Game extends Phaser.Scene {
     this.turretGroup.add(turret);
 
     // set up range
-    const range = this.tileW * 6;
+    const range =
+      this.gameData.turrets[turret.name].base.range * this.tileW * 2;
+
     turret.body.setSize(range, range); // diameter
     turret.body.isCircle = true;
 
@@ -1413,33 +1501,31 @@ class Game extends Phaser.Scene {
       .instantiate(prefab, 0, 0, this.tileW, this.tileW)
       .setScale(1.5);
 
-    const tooltip = this.add
-      .container(-70, 0, [
-        this.add
-          .rectangle(0, 118, 400, 360, 0x000000, 0.9)
-          .setStrokeStyle(2, 0xffffff, 1)
-          .setOrigin(1, 0.5),
-        this.add.gameText(-390, -55, "Railgun", 3).setOrigin(0, 0),
-        this.add
-          .gameText(
-            -390,
-            20,
-            "Fires high speed bullets. Moderate range and decent damage, but only tracks one target at a time.",
-            0.5,
-            380
-          )
-          .setOrigin(0, 0)
-          .setLineSpacing(14),
-        this.add.image(-155, 250, "gem").setScale(0.9),
-        this.add.gameText(-190, 250, "100", 4).setOrigin(1, 0.5),
-      ])
-      .setDepth(5);
+    let turretData = this.gameData.turrets[name];
+
+    if (!turretData) turretData = this.gameData.turrets["railgun"];
+
+    const tooltip = this.add.container(-70, 0, [
+      this.add
+        .rectangle(0, 118, 400, 360, 0x000000, 0.9)
+        .setStrokeStyle(2, 0xffffff, 1)
+        .setOrigin(1, 0.5),
+      this.add
+        .gameText(-390, -55, String(turretData.tooltip.title), 3)
+        .setOrigin(0, 0),
+      this.add
+        .gameText(-390, 20, String(turretData.tooltip.desc), 0.5, 380)
+        .setOrigin(0, 0)
+        .setLineSpacing(14),
+      this.add.image(-155, 250, "gem").setScale(0.9),
+      this.add
+        .gameText(-190, 250, String(turretData.base.cost), 4)
+        .setOrigin(1, 0.5),
+    ]);
 
     tooltip.each((child) => child.setAlpha(0));
 
-    //if (name != "railgun") tooltip.setVisible(false);
-
-    const c = this.add
+    const button = this.add
       .container(x, y, [bg, turret, tooltip])
       .setSize(bg.width, bg.height)
       .setInteractive()
@@ -1455,6 +1541,9 @@ class Game extends Phaser.Scene {
           scale: 1.75,
           duration: 100,
         });
+
+        // so tooltip appears over other buttons
+        button.parentContainer.bringToTop(button);
 
         tooltip.each((child) => {
           const delay = 500;
@@ -1493,7 +1582,7 @@ class Game extends Phaser.Scene {
       })
       .on("pointerout", () => {
         bg.fillColor = 0xffffff;
-        c.off("pointerup");
+        button.off("pointerup");
 
         this.tweens.add({
           targets: bg,
@@ -1513,15 +1602,25 @@ class Game extends Phaser.Scene {
           this.tweens.add({
             targets: child,
             alpha: 0,
-            duration: 50,
+            duration: 100,
           });
         });
       })
       .on("pointerdown", () => {
         bg.fillColor = 0xe1e1e1;
 
-        if (c.listenerCount("pointerup") < 1) {
-          c.on("pointerup", (p) => {
+        tooltip.each((child) => {
+          this.tweens.killTweensOf(child);
+
+          this.tweens.add({
+            targets: child,
+            alpha: 0,
+            duration: 100,
+          });
+        });
+
+        if (button.listenerCount("pointerup") < 1) {
+          button.on("pointerup", (p) => {
             bg.fillColor = 0xffffff;
 
             // don't grab another object if we're still holding something
@@ -1529,14 +1628,27 @@ class Game extends Phaser.Scene {
 
             const size = this.tileW * 1.1;
 
-            if (this.gameStats.gems >= this.costs[name]) {
+            if (this.gameStats.gems >= turretData.base.cost) {
               this.selectedObj = this.prefab
                 .instantiate(prefab, p.worldX, p.worldY, size, size)
                 .setAlpha(0.9)
-                .setDepth(2);
+                .setDepth(4) // above buttons and rangeIndicator
+                .setData(
+                  "rangeIndicator",
+                  this.add
+                    .circle(
+                      p.worldX,
+                      p.worldY,
+                      turretData.base.range * this.tileW,
+                      0xffffff,
+                      0.3
+                    )
+                    .setStrokeStyle(3, 0xffffff, 0.9)
+                    .setDepth(3) // above buttons
+                );
             } else this.brokeAlert();
 
-            c.off("pointerup");
+            button.off("pointerup");
 
             // emit a pointermove event so the turret will adjust accordingly
             this.input.emit("pointermove", p);
@@ -1544,7 +1656,7 @@ class Game extends Phaser.Scene {
         }
       });
 
-    return c;
+    return button;
   }
 
   brokeAlert() {
@@ -1631,7 +1743,7 @@ class Game extends Phaser.Scene {
   }
 
   alienWaveHandler() {
-    const updateSpeed = this.gameStats.speed.alienSpawn; //3000;
+    const updateSpeed = this.gameData.alien.spawnRate;
 
     this.portal.setData(
       "loop",
@@ -1663,7 +1775,7 @@ class Game extends Phaser.Scene {
       .setStrokeStyle(10, 0x857c8d, 1)
       .setScale(0.75)
       .setData("pathIndex", 0)
-      .setData("health", 5)
+      .setData("health", this.gameData.alien.base.health)
       .setAlpha(0)
       .setName("alien");
 
@@ -1671,8 +1783,7 @@ class Game extends Phaser.Scene {
     this.alienGroup.add(alien);
     alien.body.isCircle = true;
 
-    const updateSpeed = this.gameStats.speed.alien;
-
+    const updateSpeed = this.gameData.alien.base.speed;
     alien.setData(
       "loop",
       this.time.addEvent({
@@ -1702,7 +1813,8 @@ class Game extends Phaser.Scene {
 
             if (!this.gameOver) {
               // if drone hasn't escaped yet, apply damage
-              this.updateGameStat("hearts", -1);
+              const damage = this.gameData.alien.base.damage;
+              this.updateGameStat("hearts", -1 * damage);
               alien.destroy();
             }
             return; // return immediately so we don't invoke moveToObject
@@ -2606,7 +2718,6 @@ class Prefab extends Phaser.GameObjects.GameObject {
         return this.scene.add
           .rectangle(x, y, w, h, this.colors.drone.fill)
           .setStrokeStyle(4, this.colors.drone.stroke)
-          .setData("health", 5)
           .setName("turtle");
       case 3:
         return this.scene.add
