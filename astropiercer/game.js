@@ -1,6 +1,6 @@
 const VERSION = "Astropiercer v0.2";
 
-const DEV_MODE = true; // turns on physics debug mode
+const DEV_MODE = false; // turns on physics debug mode
 
 const gameW = 1920;
 const gameH = 1080;
@@ -277,7 +277,6 @@ class Game extends Phaser.Scene {
   display; // all interactable icons in the menu, for updating and changing
   paused; // we gotta implement our own pause system, so here's the variable
   gameStats; // keeps track of the stats: gems, hearts, danger
-  costs; // how much everything costs I guess
   gameData; // our "save file" containing all game data
 
   constructor() {
@@ -285,13 +284,14 @@ class Game extends Phaser.Scene {
   }
 
   create() {
-    this.initVariables();
     this.createResolution();
 
     //this.cameras.main.fadeIn();
 
     this.createAsteroidGrid();
     this.centerAsteroidGrid();
+
+    this.initVariables(); // this.tileW must be set first
 
     this.createOreDeposits();
     this.createMouseControls();
@@ -364,6 +364,7 @@ class Game extends Phaser.Scene {
         },
       },
       turrets: {
+        size: this.tileW * 1.1,
         railgun: {
           tooltip: {
             title: "Railgun",
@@ -1005,12 +1006,38 @@ class Game extends Phaser.Scene {
       }
     });
 
-    this.input.on("pointerdown", (p) => {
-      // if we're over a button, the player intends to interact with it
+    this.input.on("pointerdown", (p, over) => {
+      // if we're over a button or turret, the player intends to interact
       // so don't mess with selectedObj just yet
-      if (this.input.hitTestPointer(p).length > 0) return;
+      if (over.length > 0) return;
 
-      if (!this.selectedObj) return;
+      if (!this.selectedObj) {
+        // we're not holding anything,
+        // but we should unselect any turrets that are selected
+        this.turretGroup.children.each((child) => {
+          if (child.getData("highlight").strokeAlpha == 1) {
+            child.setDepth(2);
+
+            this.tweens.add({
+              targets: child.getData("highlight"),
+              strokeAlpha: 0,
+              fillAlpha: 0,
+              duration: 100,
+            });
+
+            this.tweens.add({
+              targets: child.getData("rangeIndicator"),
+              alpha: 0,
+              duration: 100,
+            });
+          }
+        });
+
+        this.display.turretSelect.setVisible(false);
+        this.display.turretButtons.forEach((b) => b.setVisible(true));
+
+        return;
+      }
 
       const pos = this.convertWorldToGrid(
         this.selectedObj.x,
@@ -1022,7 +1049,11 @@ class Game extends Phaser.Scene {
         // turret, either build it or don't
         if (this.selectedObj.alpha == 1)
           this.buildTurret(pos, this.selectedObj); // valid position
-        else this.selectedObj.destroy(); // invalid position, just cancel it
+        else {
+          const range = this.selectedObj.getData("rangeIndicator");
+          if (range) range.destroy();
+          this.selectedObj.destroy(); // invalid position, just cancel it
+        }
 
         this.selectedObj = null; // turret was built or canceled
       }
@@ -1034,8 +1065,10 @@ class Game extends Phaser.Scene {
     const cost = this.gameData.turrets[turret.name].base.cost;
     this.updateGameStat("gems", -1 * cost);
 
+    const tile = this.grid[pos.x][pos.y];
+
     // first, adjust the tiles around it so we can't build turrets near it
-    this.grid[pos.x][pos.y].setData("turret", true);
+    tile.setData("turret", true);
 
     // was green, now color it white
     turret.strokeColor = 0xffffff;
@@ -1044,7 +1077,116 @@ class Game extends Phaser.Scene {
     turret.setDepth(2);
 
     // turn range indicator off and put it behind turret
-    turret.getData("rangeIndicator").setDepth(1).setVisible(false);
+    turret.getData("rangeIndicator").setDepth(3).setAlpha(0);
+
+    // add rectangle on top that will act as highlight and select indicator
+    const size = this.gameData.turrets.size * 1.2;
+
+    const highlight = this.add
+      .rectangle(turret.x, turret.y, size, size, 0xffffff, 0)
+      .setStrokeStyle(4, 0xffffff, 0)
+      .setDepth(3);
+
+    const rangeIndicator = turret.getData("rangeIndicator");
+
+    turret.setData("highlight", highlight);
+
+    // add highlight and select functionality
+    // using the tile below the turret as the interactive object
+    // because each turret has a different shape and therefore
+    // a different hit area, which is not what I want
+    tile
+      .setInteractive()
+      .on("pointerover", () => {
+        // player is holding something, don't select turret
+        if (this.selectedObj) return;
+
+        this.tweens.add({
+          targets: highlight,
+          fillAlpha: 0.3,
+          duration: 100,
+        });
+      })
+      .on("pointerout", () => {
+        // player is holding something, don't select turret
+        if (this.selectedObj) return;
+
+        // turret is selected, keep it highlighted
+        if (highlight.strokeAlpha == 1) return;
+
+        // otherwise, stop highlight
+        this.tweens.add({
+          targets: highlight,
+          fillAlpha: 0,
+          duration: 100,
+        });
+      })
+      .on("pointerdown", () => {
+        // player is holding something, don't select turret
+        if (this.selectedObj) return;
+
+        this.turretGroup.children.each((child) => {
+          // unselect all other turrets
+          if (turret == child) return;
+          if (child.getData("highlight").strokeAlpha == 1) {
+            child.setDepth(2);
+
+            this.tweens.add({
+              targets: child.getData("highlight"),
+              strokeAlpha: 0,
+              fillAlpha: 0,
+              duration: 100,
+            });
+
+            this.tweens.add({
+              targets: child.getData("rangeIndicator"),
+              alpha: 0,
+              duration: 100,
+            });
+          }
+        });
+
+        // select or unselect
+        if (highlight.strokeAlpha == 0) {
+          this.tweens.add({
+            targets: highlight,
+            strokeAlpha: 1,
+            duration: 100,
+          });
+
+          this.tweens.add({
+            targets: rangeIndicator,
+            alpha: 1,
+            duration: 100,
+          });
+
+          turret.setDepth(4);
+
+          const name = this.gameData.turrets[turret.name].tooltip.title;
+
+          this.display.turretSelect.text = String(name);
+
+          this.display.turretSelect.setVisible(true);
+          this.display.turretButtons.forEach((b) => b.setVisible(false));
+        } else {
+          this.tweens.add({
+            targets: highlight,
+            strokeAlpha: 0,
+            duration: 100,
+          });
+
+          this.tweens.add({
+            targets: rangeIndicator,
+            alpha: 0,
+            duration: 100,
+          });
+
+          turret.setDepth(2);
+
+          this.display.turretSelect.setVisible(false);
+          this.display.turretButtons.forEach((b) => b.setVisible(true));
+        }
+      });
 
     // set 3x3 grid around cornerTile to be turreted
     // so it leaves room for mining turtle to move around
@@ -1289,9 +1431,17 @@ class Game extends Phaser.Scene {
 
     const bounds = menu.getBounds();
 
-    menu
-      .add(this.createTurretButtons())
-      .add(this.add.gameText(0, 50 - bounds.height / 2, VERSION, 1.5));
+    menu.add(this.add.gameText(0, 50 - bounds.height / 2, VERSION, 1.5));
+
+    this.display.turretButtons = this.createTurretButtons();
+
+    menu.add(this.display.turretButtons);
+
+    this.display.turretSelect = this.add
+      .gameText(0, -400, "Turret Select", 2)
+      .setVisible(false);
+
+    menu.add(this.display.turretSelect);
 
     const gem = this.add.image(-95, 50, "gem");
     this.display.gems = this.add
@@ -1626,7 +1776,7 @@ class Game extends Phaser.Scene {
             // don't grab another object if we're still holding something
             if (this.selectedObj) return;
 
-            const size = this.tileW * 1.1;
+            const size = this.gameData.turrets.size;
 
             if (this.gameStats.gems >= turretData.base.cost) {
               this.selectedObj = this.prefab
