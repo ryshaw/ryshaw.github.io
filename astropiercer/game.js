@@ -278,6 +278,7 @@ class Game extends Phaser.Scene {
   paused; // we gotta implement our own pause system, so here's the variable
   gameStats; // keeps track of the stats: gems, hearts, danger
   gameData; // our "save file" containing all game data
+  selectedTurret; // if we have a turret selected to show stats and upgrade
 
   constructor() {
     super("Game");
@@ -343,6 +344,7 @@ class Game extends Phaser.Scene {
     // initialize and reset variables, helpful if game scene is restarted
     this.prefab = new Prefab(this);
     this.selectedObj = null;
+    this.selectedTurret = null;
     this.path = null;
     this.portal = null;
     this.gameOver = null;
@@ -370,11 +372,41 @@ class Game extends Phaser.Scene {
             title: "Railgun",
             desc: "Fires high speed bullets. Moderate range and decent damage, but only tracks one target at a time.",
           },
-          base: {
+          special: "Pierce",
+          level1: {
             speed: 1200,
             damage: 1,
             range: 4,
-            cost: 50,
+            special: 0,
+            cost: 150,
+          },
+          level2: {
+            speed: 1200,
+            damage: 1.5,
+            range: 4,
+            special: 0,
+            cost: 200,
+          },
+          level3: {
+            speed: 1200,
+            damage: 2,
+            range: 4,
+            special: 0,
+            cost: 250,
+          },
+          level4: {
+            speed: 1200,
+            damage: 2.5,
+            range: 4,
+            special: 0,
+            cost: 300,
+          },
+          level5: {
+            speed: 1200,
+            damage: 3,
+            range: 4,
+            special: 0,
+            cost: 350,
           },
         },
         plasmaBurst: {
@@ -382,11 +414,41 @@ class Game extends Phaser.Scene {
             title: "Plasma Burst",
             desc: "Fires short-range bursts of plasma energy. Good damage and hits all targets around turret.",
           },
-          base: {
+          special: "Weaken",
+          level1: {
             speed: 1200,
             damage: 2,
             range: 2,
+            special: 0,
             cost: 75,
+          },
+          level2: {
+            speed: 1200,
+            damage: 2.5,
+            range: 2,
+            special: 0,
+            cost: 100,
+          },
+          level3: {
+            speed: 1200,
+            damage: 3,
+            range: 2,
+            special: 0,
+            cost: 150,
+          },
+          level4: {
+            speed: 1200,
+            damage: 3.5,
+            range: 2,
+            special: 0,
+            cost: 200,
+          },
+          level5: {
+            speed: 1200,
+            damage: 4,
+            range: 2,
+            special: 0,
+            cost: 250,
           },
         },
         teslaCoil: {
@@ -394,11 +456,41 @@ class Game extends Phaser.Scene {
             title: "Tesla Coil",
             desc: "Fires bursts of lightning that can chain across enemies. Deadly powerful if upgraded.",
           },
-          base: {
+          special: "Chain",
+          level1: {
             speed: 1200,
             damage: 2,
             range: 5,
+            special: 0,
             cost: 150,
+          },
+          level2: {
+            speed: 1200,
+            damage: 2.5,
+            range: 5,
+            special: 0,
+            cost: 100,
+          },
+          level3: {
+            speed: 1200,
+            damage: 3,
+            range: 5,
+            special: 0,
+            cost: 150,
+          },
+          level4: {
+            speed: 1200,
+            damage: 3.5,
+            range: 5,
+            special: 0,
+            cost: 200,
+          },
+          level5: {
+            speed: 1200,
+            damage: 4,
+            range: 5,
+            special: 0,
+            cost: 250,
           },
         },
         ionCannon: {
@@ -406,11 +498,42 @@ class Game extends Phaser.Scene {
             title: "Ion Cannon",
             desc: "Fires blasts of crippling ion particles that can slow down and even stun enemies.",
           },
-          base: {
+          special: "Stun",
+          level1: {
             speed: 1200,
             damage: 2,
             range: 3,
+            special: 0,
             cost: 150,
+          },
+
+          level2: {
+            speed: 1200,
+            damage: 2,
+            range: 3,
+            special: 0,
+            cost: 100,
+          },
+          level3: {
+            speed: 1200,
+            damage: 3,
+            range: 3,
+            special: 0,
+            cost: 150,
+          },
+          level4: {
+            speed: 1200,
+            damage: 4,
+            range: 3,
+            special: 0,
+            cost: 200,
+          },
+          level5: {
+            speed: 1200,
+            damage: 5,
+            range: 3,
+            special: 0,
+            cost: 250,
           },
         },
         lrLaser: {
@@ -418,11 +541,41 @@ class Game extends Phaser.Scene {
             title: "LR Laser",
             desc: "Fires long-range laser beams. Slow, but can hit from anywhere on the map.",
           },
-          base: {
+          special: "Jolt",
+          level1: {
             speed: 1200,
             damage: 2,
             range: 0,
+            special: 0,
             cost: 200,
+          },
+          level2: {
+            speed: 1200,
+            damage: 2,
+            range: 0,
+            special: 0,
+            cost: 100,
+          },
+          level3: {
+            speed: 1200,
+            damage: 3,
+            range: 0,
+            special: 0,
+            cost: 150,
+          },
+          level4: {
+            speed: 1200,
+            damage: 4,
+            range: 0,
+            special: 0,
+            cost: 200,
+          },
+          level5: {
+            speed: 1200,
+            damage: 5,
+            range: 0,
+            special: 0,
+            cost: 250,
           },
         },
         refinery: {
@@ -430,11 +583,41 @@ class Game extends Phaser.Scene {
             title: "Refinery",
             desc: "Unable to attack enemies, but instead can buff up turrets in its radius.",
           },
-          base: {
+          special: "Boost",
+          level1: {
             speed: 1200,
             damage: 2,
             range: 4,
+            special: 0,
             cost: 200,
+          },
+          level2: {
+            speed: 1200,
+            damage: 2,
+            range: 4,
+            special: 0,
+            cost: 100,
+          },
+          level3: {
+            speed: 1200,
+            damage: 3,
+            range: 4,
+            special: 0,
+            cost: 150,
+          },
+          level4: {
+            speed: 1200,
+            damage: 4,
+            range: 4,
+            special: 0,
+            cost: 200,
+          },
+          level5: {
+            speed: 1200,
+            damage: 5,
+            range: 4,
+            special: 0,
+            cost: 250,
           },
         },
       },
@@ -1014,27 +1197,33 @@ class Game extends Phaser.Scene {
       if (!this.selectedObj) {
         // we're not holding anything,
         // but we should unselect any turrets that are selected
-        this.turretGroup.children.each((child) => {
-          if (child.getData("highlight").strokeAlpha == 1) {
-            child.setDepth(2);
 
-            this.tweens.add({
-              targets: child.getData("highlight"),
-              strokeAlpha: 0,
-              fillAlpha: 0,
-              duration: 100,
-            });
+        // only unselect turrets if we're not clicking over the menu
+        // yes this is hardcoded to tell if cursor is over the menu
+        if (p.worldX >= gameW * 0.82) return;
 
-            this.tweens.add({
-              targets: child.getData("rangeIndicator"),
-              alpha: 0,
-              duration: 100,
-            });
-          }
+        if (!this.selectedTurret) return;
+
+        this.selectedTurret.setDepth(2);
+
+        this.tweens.add({
+          targets: this.selectedTurret.getData("highlight"),
+          strokeAlpha: 0,
+          fillAlpha: 0,
+          duration: 100,
         });
+
+        this.tweens.add({
+          targets: this.selectedTurret.getData("rangeIndicator"),
+          alpha: 0,
+          duration: 100,
+        });
+
+        this.selectedTurret = null;
 
         this.display.turretSelect.setVisible(false);
         this.display.turretButtons.forEach((b) => b.setVisible(true));
+        this.display.title.setVisible(true);
 
         return;
       }
@@ -1062,7 +1251,7 @@ class Game extends Phaser.Scene {
 
   buildTurret(pos, turret) {
     // subtract gems
-    const cost = this.gameData.turrets[turret.name].base.cost;
+    const cost = this.gameData.turrets[turret.name].level1.cost;
     this.updateGameStat("gems", -1 * cost);
 
     const tile = this.grid[pos.x][pos.y];
@@ -1125,26 +1314,23 @@ class Game extends Phaser.Scene {
         // player is holding something, don't select turret
         if (this.selectedObj) return;
 
-        this.turretGroup.children.each((child) => {
-          // unselect all other turrets
-          if (turret == child) return;
-          if (child.getData("highlight").strokeAlpha == 1) {
-            child.setDepth(2);
+        // unselect currently selected turret if not this one
+        if (this.selectedTurret && this.selectedTurret != turret) {
+          this.selectedTurret.setDepth(2);
 
-            this.tweens.add({
-              targets: child.getData("highlight"),
-              strokeAlpha: 0,
-              fillAlpha: 0,
-              duration: 100,
-            });
+          this.tweens.add({
+            targets: this.selectedTurret.getData("highlight"),
+            strokeAlpha: 0,
+            fillAlpha: 0,
+            duration: 100,
+          });
 
-            this.tweens.add({
-              targets: child.getData("rangeIndicator"),
-              alpha: 0,
-              duration: 100,
-            });
-          }
-        });
+          this.tweens.add({
+            targets: this.selectedTurret.getData("rangeIndicator"),
+            alpha: 0,
+            duration: 100,
+          });
+        }
 
         // select or unselect
         if (highlight.strokeAlpha == 0) {
@@ -1161,13 +1347,13 @@ class Game extends Phaser.Scene {
           });
 
           turret.setDepth(4);
+          this.selectedTurret = turret;
 
-          const name = this.gameData.turrets[turret.name].tooltip.title;
-
-          this.display.turretSelect.text = String(name);
+          this.updateTurretSelect(turret);
 
           this.display.turretSelect.setVisible(true);
           this.display.turretButtons.forEach((b) => b.setVisible(false));
+          this.display.title.setVisible(false);
         } else {
           this.tweens.add({
             targets: highlight,
@@ -1182,9 +1368,11 @@ class Game extends Phaser.Scene {
           });
 
           turret.setDepth(2);
+          this.selectedTurret = null;
 
           this.display.turretSelect.setVisible(false);
           this.display.turretButtons.forEach((b) => b.setVisible(true));
+          this.display.title.setVisible(true);
         }
       });
 
@@ -1205,7 +1393,7 @@ class Game extends Phaser.Scene {
 
     // set up range
     const range =
-      this.gameData.turrets[turret.name].base.range * this.tileW * 2;
+      this.gameData.turrets[turret.name].level1.range * this.tileW * 2;
 
     turret.body.setSize(range, range); // diameter
     turret.body.isCircle = true;
@@ -1276,6 +1464,45 @@ class Game extends Phaser.Scene {
     bullet.body.onWorldBounds = true;
 
     this.physics.moveToObject(bullet, alien, 400);
+  }
+
+  updateTurretSelect(turret) {
+    const turretData = this.gameData.turrets[turret.name];
+    let level = turret.getData("level");
+    const levelData = turretData["level" + level];
+    const display = this.display.turretSelect;
+    display.getByName("title").setText(String(turretData.tooltip.title));
+    display.getByName("level").setText("Level " + level);
+    display.getByName("damage").setText("Damage: " + levelData.damage);
+    display.getByName("fireRate").setText("Fire Rate: " + levelData.speed);
+    display.getByName("range").setText("Range: " + levelData.range);
+
+    // this one needs a prefix and a suffix
+    display
+      .getByName("special")
+      .setText(turretData.special + ": " + levelData.special);
+
+    let suffix = "sec";
+
+    if (turretData.special == "Pierce" || turretData.special == "Chain") {
+      suffix = levelData == 1 ? "enemy" : "enemies";
+    }
+
+    display.getByName("special").text += " " + suffix;
+
+    display.getByName("upgrade").setVisible(true);
+    display.getByName("cost").setVisible(true);
+    display.getByName("gems").setVisible(true);
+
+    level++;
+    if (level > 5) {
+      display.getByName("upgrade").setVisible(false);
+      display.getByName("cost").setVisible(false);
+      display.getByName("gems").setVisible(false);
+      return;
+    }
+    const nextLevelCost = turretData["level" + level].cost;
+    display.getByName("cost").setText("Cost: " + nextLevelCost);
   }
 
   deployMiningDrone(pos) {
@@ -1431,15 +1658,15 @@ class Game extends Phaser.Scene {
 
     const bounds = menu.getBounds();
 
-    menu.add(this.add.gameText(0, 50 - bounds.height / 2, VERSION, 1.5));
+    this.display.title = this.add.gameText(0, -480, VERSION, 1.5);
+
+    menu.add(this.display.title);
 
     this.display.turretButtons = this.createTurretButtons();
 
     menu.add(this.display.turretButtons);
 
-    this.display.turretSelect = this.add
-      .gameText(0, -400, "Turret Select", 2)
-      .setVisible(false);
+    this.display.turretSelect = this.createTurretSelect();
 
     menu.add(this.display.turretSelect);
 
@@ -1507,6 +1734,59 @@ class Game extends Phaser.Scene {
       .gameText(gameW * 0.4, 0, "- Paused -", 3)
       .setOrigin(0.5, 0)
       .setFontStyle("bold")
+      .setVisible(false);
+  }
+
+  createTurretSelect() {
+    const button = this.add.gameTextButton(0, 350, "Upgrade", 1, 225, () => {
+      const nextLevel = this.selectedTurret.getData("level") + 1;
+      const turretData = this.gameData.turrets[this.selectedTurret.name];
+      const cost = turretData["level" + nextLevel].cost;
+
+      if (this.gameStats.gems >= Number(cost)) {
+        this.selectedTurret.setData("level", nextLevel);
+        this.updateGameStat("gems", -1 * cost);
+        this.updateTurretSelect(this.selectedTurret);
+      } else this.brokeAlert();
+    });
+
+    // this button looks weird due to the gradient and Y position,
+    // so I add another gradient to the background rectangle lol
+    button
+      .getAt(0)
+      .postFX.addGradient(CLRS.button.fill, CLRS.button.stroke, 0.6, 0, 0.55);
+
+    return this.add
+      .container(0, -480, [
+        this.add.gameText(0, 0, "Railgun", 3).setName("title"),
+        this.add
+          .gameText(0, 50, "Level 1", 1)
+          .setOrigin(0.5, 0.5)
+          .setName("level"),
+        this.add
+          .gameText(-150, 110, "Damage: 1", 1)
+          .setOrigin(0, 0.5)
+          .setName("damage")
+          .setBackgroundColor("#2a9d8f"),
+        this.add
+          .gameText(-150, 160, "Fire Rate: 1 sec", 1)
+          .setOrigin(0, 0.5)
+          .setName("fireRate"),
+        this.add
+          .gameText(-150, 210, "Range: 1 tile", 1)
+          .setOrigin(0, 0.5)
+          .setName("range"),
+        this.add
+          .gameText(-150, 260, "Piercing: 1 enemy", 1)
+          .setOrigin(0, 0.5)
+          .setName("special"),
+        button.setName("upgrade"),
+        this.add
+          .gameText(30, 440, "Cost: 100", 1)
+          .setOrigin(1, 0.5)
+          .setName("cost"),
+        this.add.image(55, 440, "gem").setScale(0.7).setName("gems"),
+      ])
       .setVisible(false);
   }
 
@@ -1669,7 +1949,7 @@ class Game extends Phaser.Scene {
         .setLineSpacing(14),
       this.add.image(-155, 250, "gem").setScale(0.9),
       this.add
-        .gameText(-190, 250, String(turretData.base.cost), 4)
+        .gameText(-190, 250, String(turretData.level1.cost), 4)
         .setOrigin(1, 0.5),
     ]);
 
@@ -1778,7 +2058,7 @@ class Game extends Phaser.Scene {
 
             const size = this.gameData.turrets.size;
 
-            if (this.gameStats.gems >= turretData.base.cost) {
+            if (this.gameStats.gems >= turretData.level1.cost) {
               this.selectedObj = this.prefab
                 .instantiate(prefab, p.worldX, p.worldY, size, size)
                 .setAlpha(0.9)
@@ -1789,7 +2069,7 @@ class Game extends Phaser.Scene {
                     .circle(
                       p.worldX,
                       p.worldY,
-                      turretData.base.range * this.tileW,
+                      turretData.level1.range * this.tileW,
                       0xffffff,
                       0.3
                     )
@@ -2599,7 +2879,7 @@ class GameTextButton extends Phaser.GameObjects.Container {
         font: `${size * 8 + 24}px`,
         fontStyle: "bold",
         padding: 24,
-        lineSpacing: 32,
+        lineSpacing: 10,
         fill: "#fff",
         align: "left",
         shadow: {
@@ -2873,11 +3153,13 @@ class Prefab extends Phaser.GameObjects.GameObject {
         return this.scene.add
           .rectangle(x, y, w, h, this.colors.turrets.railgun, 1)
           .setStrokeStyle(5, this.colors.turretStroke, 1)
+          .setData("level", 1)
           .setName("railgun");
       case 4:
         return this.scene.add
           .ellipse(x, y, w, h, this.colors.turrets.plasmaBurst, 1)
           .setStrokeStyle(5, this.colors.turretStroke, 1)
+          .setData("level", 1)
           .setSmoothness(8)
           .setAngle(180 / 8)
           .setName("plasmaBurst");
@@ -2885,12 +3167,14 @@ class Prefab extends Phaser.GameObjects.GameObject {
         return this.scene.add
           .ellipse(x, y, w, h, this.colors.turrets.teslaCoil, 1)
           .setStrokeStyle(5, this.colors.turretStroke, 1)
+          .setData("level", 1)
           .setSmoothness(6)
           .setName("teslaCoil");
       case 6:
         return this.scene.add
           .circle(x, y, w / 2, this.colors.turrets.ionCannon, 1)
           .setStrokeStyle(5, this.colors.turretStroke, 1)
+          .setData("level", 1)
           .setIterations(0.2)
           .setAngle(270 / 5)
           .setName("ionCannon");
@@ -2910,11 +3194,13 @@ class Prefab extends Phaser.GameObjects.GameObject {
           )
           .setOrigin(0, 0)
           .setStrokeStyle(5, this.colors.turretStroke, 1)
+          .setData("level", 1)
           .setName("lrLaser");
       case 8:
         return this.scene.add
           .circle(x, y, w * 0.5, this.colors.turrets.refinery, 1)
           .setStrokeStyle(5, this.colors.turretStroke, 1)
+          .setData("level", 1)
           .setName("refinery");
     }
   }
