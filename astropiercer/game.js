@@ -1507,7 +1507,7 @@ class Game extends Phaser.Scene {
       return;
     }
     const nextLevelCost = turretData["level" + level].cost;
-    display.getByName("cost").setText("Cost: " + nextLevelCost);
+    display.getByName("cost").setText(nextLevelCost);
   }
 
   deployMiningDrone(pos) {
@@ -1743,8 +1743,8 @@ class Game extends Phaser.Scene {
   }
 
   createTurretSelect() {
-    const button = this.add
-      .gameTextButton(0, 0, "Upgrade", 1, 225, () => {
+    const upgradeButton = this.add
+      .gameTextButton(0, 0, "Upgrade", 1, null, () => {
         const nextLevel = this.selectedTurret.getData("level") + 1;
         const turretData = this.gameData.turrets[this.selectedTurret.name];
         const cost = turretData["level" + nextLevel].cost;
@@ -1781,33 +1781,20 @@ class Game extends Phaser.Scene {
         });
       });
 
-    // this button looks weird due to the gradient and Y position,
-    // so I add another gradient to the background rectangle lol
-    button
-      .getAt(0)
-      .postFX.addGradient(CLRS.button.fill, CLRS.button.stroke, 0.6, 0, 0.55);
-
-    const sellButton = this.add.gameTextButton(
-      30,
-      300,
-      "Sell",
-      1,
-      100,
-      () => {}
-    );
-
-    /* sellButton
-      .getAt(0)
-      .postFX.addGradient(CLRS.button.fill, CLRS.button.stroke, 0.6, 0, 0.55);*/
+    const sellButton = this.add.gameTextButton(0, 0, "$", 1, null, () => {
+      sellMenu.visible = !sellMenu.visible;
+    });
 
     const sellMenu = this.prefab
-      .instantiate(Prefab.Object.Menu, 0, 200, 280, 250)
+      .instantiate(Prefab.Object.Menu, 0, 0, 250, 250)
       .add([
         this.add.gameText(0, -80, "Really sell?", 1),
         this.add.gameText(15, -20, "+200", 2).setOrigin(1, 0.5),
         this.add.image(45, -20, "gem").setScale(0.8),
-        this.add.gameImageButton(-50, 70, "checkmark", 0.5, () => {}),
-        this.add.gameImageButton(50, 70, "cross", 0.5, () => {}),
+        this.add.gameImageButton(-50, 70, "checkmark", 0.4, () => {}),
+        this.add.gameImageButton(50, 70, "cross", 0.4, () => {
+          sellMenu.setVisible(false);
+        }),
       ])
       .setVisible(false);
 
@@ -1834,14 +1821,11 @@ class Game extends Phaser.Scene {
           .gameText(-140, 260, "Piercing: 1 enemy", 1)
           .setOrigin(0, 0.5)
           .setName("special"),
-        button.setPosition(0, 360).setName("upgrade"),
-        sellButton.setName("sell"),
-        sellMenu.setName("sellMenu"),
-        this.add
-          .gameText(30, 440, "Cost: 100", 1)
-          .setOrigin(1, 0.5)
-          .setName("cost"),
-        this.add.image(55, 440, "gem").setScale(0.7).setName("gems"),
+        upgradeButton.setPosition(-50, 350).setName("upgrade"),
+        sellButton.setPosition(90, 350).setName("sell"),
+        sellMenu.setPosition(0, 200).setName("sellMenu"),
+        this.add.gameText(-35, 430, "100", 2).setOrigin(1, 0.5).setName("cost"),
+        this.add.image(-10, 430, "gem").setScale(0.7).setName("gems"),
       ])
       .setVisible(false);
   }
@@ -2963,23 +2947,13 @@ class GameTextButton extends Phaser.GameObjects.Container {
 
     const bgGradient = bg.postFX.addGradient(
       CLRS.button.fill,
-      CLRS.button.stroke
+      CLRS.button.stroke,
+      0.2,
+      0,
+      0,
+      0,
+      2
     );
-
-    // sometimes when a button is on the top half of the screen,
-    // it doesn't catch the gradient enough so it stays white.
-    // this adds another gradient so it turns the correct gradient
-    // dunno why but it works and still performant so whatever for now
-    if (doubleGradient)
-      bg.postFX.addGradient(
-        CLRS.button.fill,
-        CLRS.button.stroke,
-        0.6,
-        0.3,
-        0.3,
-        0.5,
-        0.5
-      );
 
     const tweenTime = 80;
 
@@ -3057,7 +3031,12 @@ class GameImageButton extends Phaser.GameObjects.Container {
 
     const bgGradient = bg.postFX.addGradient(
       CLRS.button.fill,
-      CLRS.button.stroke
+      CLRS.button.stroke,
+      0.2,
+      0,
+      0,
+      0,
+      2
     );
 
     this.gradient = bgGradient; // used for keepPressed() and letUp()
