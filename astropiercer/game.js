@@ -583,7 +583,7 @@ class Game extends Phaser.Scene {
             title: "Refinery",
             desc: "Unable to attack enemies, but instead can buff up turrets in its radius.",
           },
-          special: "Boost",
+          special: "Interest",
           level1: {
             speed: 1200,
             damage: 2,
@@ -1474,7 +1474,10 @@ class Game extends Phaser.Scene {
     display.getByName("title").setText(String(turretData.tooltip.title));
     display.getByName("level").setText("Level " + level);
     display.getByName("damage").setText("Damage: " + levelData.damage);
-    display.getByName("fireRate").setText("Fire Rate: " + levelData.speed);
+
+    // convert speed in milliseconds to seconds
+    const speed = Phaser.Math.RoundTo(levelData.speed / 1000, -2);
+    display.getByName("speed").setText("Fire Rate: " + speed + " sec");
     display.getByName("range").setText("Range: " + levelData.range);
 
     // this one needs a prefix and a suffix
@@ -1486,7 +1489,7 @@ class Game extends Phaser.Scene {
 
     if (turretData.special == "Pierce" || turretData.special == "Chain") {
       suffix = levelData == 1 ? "enemy" : "enemies";
-    }
+    } else if (turretData.special == "Interest") suffix = "%";
 
     display.getByName("special").text += " " + suffix;
 
@@ -1738,17 +1741,43 @@ class Game extends Phaser.Scene {
   }
 
   createTurretSelect() {
-    const button = this.add.gameTextButton(0, 350, "Upgrade", 1, 225, () => {
-      const nextLevel = this.selectedTurret.getData("level") + 1;
-      const turretData = this.gameData.turrets[this.selectedTurret.name];
-      const cost = turretData["level" + nextLevel].cost;
+    const button = this.add
+      .gameTextButton(0, 0, "Upgrade", 1, 225, () => {
+        const nextLevel = this.selectedTurret.getData("level") + 1;
+        const turretData = this.gameData.turrets[this.selectedTurret.name];
+        const cost = turretData["level" + nextLevel].cost;
 
-      if (this.gameStats.gems >= Number(cost)) {
-        this.selectedTurret.setData("level", nextLevel);
-        this.updateGameStat("gems", -1 * cost);
-        this.updateTurretSelect(this.selectedTurret);
-      } else this.brokeAlert();
-    });
+        if (this.gameStats.gems >= Number(cost)) {
+          this.selectedTurret.setData("level", nextLevel);
+          this.updateGameStat("gems", -1 * cost);
+          this.updateTurretSelect(this.selectedTurret);
+        } else this.brokeAlert();
+      })
+      .on("pointerover", () => {
+        // on mouse hover, show what stats will be upgraded
+        const level = this.selectedTurret.getData("level");
+
+        if (level >= 5) return; // no more upgrades
+
+        const turretData = this.gameData.turrets[this.selectedTurret.name];
+        const levelData = turretData["level" + level];
+        const nextLevelData = turretData["level" + (level + 1)];
+
+        for (const stat in levelData) {
+          if (stat == "cost") continue; // cost is always different
+          if (levelData[stat] != nextLevelData[stat]) {
+            // stat is changed on upgrade, so highlight it
+            const statText = this.display.turretSelect.getByName(stat);
+            if (statText) statText.setBackgroundColor("#2a9d8f");
+          }
+        }
+      })
+      .on("pointerout", () => {
+        // reset all highlights
+        this.display.turretSelect.each((item) => {
+          if (item.type == "Text") item.setBackgroundColor();
+        });
+      });
 
     // this button looks weird due to the gradient and Y position,
     // so I add another gradient to the background rectangle lol
@@ -1764,23 +1793,22 @@ class Game extends Phaser.Scene {
           .setOrigin(0.5, 0.5)
           .setName("level"),
         this.add
-          .gameText(-150, 110, "Damage: 1", 1)
+          .gameText(-140, 110, "Damage: 1", 1)
           .setOrigin(0, 0.5)
-          .setName("damage")
-          .setBackgroundColor("#2a9d8f"),
+          .setName("damage"),
         this.add
-          .gameText(-150, 160, "Fire Rate: 1 sec", 1)
+          .gameText(-140, 160, "Fire Rate: 1 sec", 1)
           .setOrigin(0, 0.5)
-          .setName("fireRate"),
+          .setName("speed"),
         this.add
-          .gameText(-150, 210, "Range: 1 tile", 1)
+          .gameText(-140, 210, "Range: 1 tile", 1)
           .setOrigin(0, 0.5)
           .setName("range"),
         this.add
-          .gameText(-150, 260, "Piercing: 1 enemy", 1)
+          .gameText(-140, 260, "Piercing: 1 enemy", 1)
           .setOrigin(0, 0.5)
           .setName("special"),
-        button.setName("upgrade"),
+        button.setPosition(0, 360).setName("upgrade"),
         this.add
           .gameText(30, 440, "Cost: 100", 1)
           .setOrigin(1, 0.5)
