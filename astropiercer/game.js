@@ -99,6 +99,8 @@ class Background extends Phaser.Scene {
     this.load.image("fastForward", "fastForward.png");
     this.load.image("pause", "pause.png");
     this.load.image("right", "right.png");
+    this.load.image("checkmark", "checkmark.png");
+    this.load.image("cross", "cross.png");
 
     this.load.setPath("assets/kenney_simplified-platformer-pack/Tilesheet/");
 
@@ -1785,6 +1787,30 @@ class Game extends Phaser.Scene {
       .getAt(0)
       .postFX.addGradient(CLRS.button.fill, CLRS.button.stroke, 0.6, 0, 0.55);
 
+    const sellButton = this.add.gameTextButton(
+      30,
+      300,
+      "Sell",
+      1,
+      100,
+      () => {}
+    );
+
+    /* sellButton
+      .getAt(0)
+      .postFX.addGradient(CLRS.button.fill, CLRS.button.stroke, 0.6, 0, 0.55);*/
+
+    const sellMenu = this.prefab
+      .instantiate(Prefab.Object.Menu, 0, 200, 280, 250)
+      .add([
+        this.add.gameText(0, -80, "Really sell?", 1),
+        this.add.gameText(15, -20, "+200", 2).setOrigin(1, 0.5),
+        this.add.image(45, -20, "gem").setScale(0.8),
+        this.add.gameImageButton(-50, 70, "checkmark", 0.5, () => {}),
+        this.add.gameImageButton(50, 70, "cross", 0.5, () => {}),
+      ])
+      .setVisible(false);
+
     return this.add
       .container(0, -480, [
         this.add.gameText(0, 0, "Railgun", 3).setName("title"),
@@ -1809,6 +1835,8 @@ class Game extends Phaser.Scene {
           .setOrigin(0, 0.5)
           .setName("special"),
         button.setPosition(0, 360).setName("upgrade"),
+        sellButton.setName("sell"),
+        sellMenu.setName("sellMenu"),
         this.add
           .gameText(30, 440, "Cost: 100", 1)
           .setOrigin(1, 0.5)
@@ -2898,7 +2926,8 @@ class GameTextButton extends Phaser.GameObjects.Container {
     string = "",
     size = 0,
     width = null,
-    callback
+    callback,
+    doubleGradient = false // see doubleGradient below
   ) {
     super(scene, x, y);
 
@@ -2936,6 +2965,21 @@ class GameTextButton extends Phaser.GameObjects.Container {
       CLRS.button.fill,
       CLRS.button.stroke
     );
+
+    // sometimes when a button is on the top half of the screen,
+    // it doesn't catch the gradient enough so it stays white.
+    // this adds another gradient so it turns the correct gradient
+    // dunno why but it works and still performant so whatever for now
+    if (doubleGradient)
+      bg.postFX.addGradient(
+        CLRS.button.fill,
+        CLRS.button.stroke,
+        0.6,
+        0.3,
+        0.3,
+        0.5,
+        0.5
+      );
 
     const tweenTime = 80;
 
