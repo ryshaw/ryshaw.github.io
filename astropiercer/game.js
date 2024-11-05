@@ -1224,6 +1224,7 @@ class Game extends Phaser.Scene {
         this.selectedTurret = null;
 
         this.display.turretSelect.setVisible(false);
+        this.display.turretSelect.getByName("sellMenu").setVisible(false);
         this.display.turretButtons.forEach((b) => b.setVisible(true));
         this.display.title.setVisible(true);
 
@@ -1373,6 +1374,7 @@ class Game extends Phaser.Scene {
           this.selectedTurret = null;
 
           this.display.turretSelect.setVisible(false);
+          this.display.turretSelect.getByName("sellMenu").setVisible(false);
           this.display.turretButtons.forEach((b) => b.setVisible(true));
           this.display.title.setVisible(true);
         }
@@ -1745,6 +1747,8 @@ class Game extends Phaser.Scene {
   createTurretSelect() {
     const upgradeButton = this.add
       .gameTextButton(0, 0, "Upgrade", 1, null, () => {
+        sellMenu.setVisible(false);
+
         const nextLevel = this.selectedTurret.getData("level") + 1;
         const turretData = this.gameData.turrets[this.selectedTurret.name];
         const cost = turretData["level" + nextLevel].cost;
@@ -1783,15 +1787,42 @@ class Game extends Phaser.Scene {
 
     const sellButton = this.add.gameTextButton(0, 0, "$", 1, null, () => {
       sellMenu.visible = !sellMenu.visible;
+      const level = this.selectedTurret.getData("level");
+
+      const turretData = this.gameData.turrets[this.selectedTurret.name];
+
+      // add up all the costs to get to this level
+      let price = 0;
+      for (let i = 1; i <= level; i++) price += turretData["level" + i].cost;
+
+      // give back 50% of cost as the selling price
+      sellPrice.setText("+" + Math.round(price * 0.5));
     });
+
+    const sellPrice = this.add.gameText(0, 0, "+200", 2).setOrigin(1, 0.5);
 
     const sellMenu = this.prefab
       .instantiate(Prefab.Object.Menu, 0, 0, 250, 250)
       .add([
         this.add.gameText(0, -80, "Really sell?", 1),
-        this.add.gameText(15, -20, "+200", 2).setOrigin(1, 0.5),
+        sellPrice.setPosition(15, -20).setName("sellPrice"),
         this.add.image(45, -20, "gem").setScale(0.8),
-        this.add.gameImageButton(-50, 70, "checkmark", 0.4, () => {}),
+        this.add.gameImageButton(-50, 70, "checkmark", 0.4, () => {
+          sellMenu.setVisible(false);
+          this.display.turretSelect.setVisible(false);
+          this.display.turretButtons.forEach((b) => b.setVisible(true));
+          this.display.title.setVisible(true);
+
+          // ex. "+200" is the text for sellPrice, that becomes 200
+          const price = Number(sellPrice.text);
+          this.updateGameStat("gems", price);
+
+          this.selectedTurret.getData("loop").remove();
+          this.selectedTurret.getData("rangeIndicator").destroy();
+          this.selectedTurret.getData("highlight").destroy();
+          this.selectedTurret.destroy();
+          this.selectedTurret = null;
+        }),
         this.add.gameImageButton(50, 70, "cross", 0.4, () => {
           sellMenu.setVisible(false);
         }),
