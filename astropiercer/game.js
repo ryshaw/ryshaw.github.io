@@ -1380,7 +1380,7 @@ class Game extends Phaser.Scene {
         }
       });
 
-    // set 3x3 grid around cornerTile to be turreted
+    // set 3x3 grid around tile to be turreted
     // so it leaves room for mining turtle to move around
     for (let angle = 0; angle < 360; angle += 45) {
       const v = new Phaser.Math.Vector2(1, 0);
@@ -1389,7 +1389,11 @@ class Game extends Phaser.Scene {
       v.x = Math.round(v.x) + pos.x;
       v.y = Math.round(v.y) + pos.y;
 
-      this.grid[v.x][v.y].setData("turretAdjacent", true);
+      // this actually has to be a number because there may be
+      // multiple turrets around a tile, so we need to make
+      // sure we're counting them all so that if a turret
+      // gets sold, we need to check the number
+      this.grid[v.x][v.y].incData("turretAdjacent");
     }
 
     // add to physics group so it can detect aliens entering
@@ -1471,6 +1475,7 @@ class Game extends Phaser.Scene {
   }
 
   updateTurretSelect(turret) {
+    console.log(turret.name, turret);
     const turretData = this.gameData.turrets[turret.name];
     let level = turret.getData("level");
     const levelData = turretData["level" + level];
@@ -1816,6 +1821,26 @@ class Game extends Phaser.Scene {
           // ex. "+200" is the text for sellPrice, that becomes 200
           const price = Number(sellPrice.text);
           this.updateGameStat("gems", price);
+
+          const pos = this.convertWorldToGrid(
+            this.selectedTurret.x,
+            this.selectedTurret.y
+          );
+
+          this.grid[pos.x][pos.y].setData("turret", false);
+          this.grid[pos.x][pos.y].removeInteractive().off();
+
+          // set 3x3 grid around tile to not be turreted anymore
+          // so other turrets can be placed
+          for (let angle = 0; angle < 360; angle += 45) {
+            const v = new Phaser.Math.Vector2(1, 0);
+
+            v.setAngle(Phaser.Math.DegToRad(angle));
+            v.x = Math.round(v.x) + pos.x;
+            v.y = Math.round(v.y) + pos.y;
+
+            this.grid[v.x][v.y].incData("turretAdjacent", -1);
+          }
 
           this.selectedTurret.getData("loop").remove();
           this.selectedTurret.getData("rangeIndicator").destroy();
