@@ -623,6 +623,58 @@ class Game extends Phaser.Scene {
           },
         },
       },
+      ore: {
+        rarity1: {
+          aluminum: {
+            color: 0x6c757d,
+          },
+          copper: {
+            color: 0xeb5e28,
+          },
+          iron: {
+            color: 0xd3d3d3,
+          },
+          cobalt: {
+            color: 0x2f2235,
+          },
+        },
+        rarity2: {
+          silver: {
+            color: 0xe0ddcf,
+          },
+          gold: {
+            color: 0xffe824,
+          },
+          uranium: {
+            color: 0x70e000,
+          },
+          iridium: {
+            color: 0x8367c7,
+          },
+        },
+        rarity3: {
+          citrine: {
+            color: 0xf8961e,
+          },
+          ruby: {
+            color: 0xf94144,
+          },
+          sapphire: {
+            color: 0x277da1,
+          },
+          emerald: {
+            color: 0x90be6d,
+          },
+        },
+        rarity4: {
+          diamond: {
+            color: 0xffffff,
+          },
+          iridesium: {
+            color: 0xbbd0ff,
+          },
+        },
+      },
     };
   }
 
@@ -828,9 +880,27 @@ class Game extends Phaser.Scene {
   }
 
   createOreDeposits() {
+    // first, establish rarity table
+    // setting the rarity distribution to be 3/4
+    // i.e., if there are four rarities,
+    // then the most common rarity will occupy 3/4
+    // of the table, then the next rarity will occupy 3/4
+    // of the rest of the table, and so on.
+    // for four rarities, this will make a rarity table of:
+    // [0.75, 0.187, 0.046875, 0.01171875]
+
+    const rarityTable = [];
+    const rarities = this.gameData.ore;
+    const distribution = 3 / 4;
+    let available = 1;
+    for (let i = 1; i <= Object.keys(rarities).length; i++) {
+      const rarity = available - (1 - distribution) ** i;
+      rarityTable.push(rarity);
+      available -= rarity;
+    }
+
     // create num ore deposits
     // algorithm will spawn new ore deposits away from edges and other ore deposits
-
     const num = 8; //Phaser.Math.Between(8, 12);
     this.oreTiles = new Phaser.Structs.List();
 
@@ -864,6 +934,16 @@ class Game extends Phaser.Scene {
             if (dist <= 2 && this.grid[v.x][v.y].getData("ore"))
               continue findSpot;
           }
+        }
+
+        let r = Math.random();
+        let level = 1;
+        while (r > 0 && level < rarityTable.length) {
+          console.log(
+            Phaser.Math.RoundTo(r, -3),
+            Phaser.Math.RoundTo(r - rarityTable[level - 1], -3)
+          );
+          break;
         }
 
         this.grid[x][y].setFillStyle(CLRS.oreColor, 0.9).setData("ore", true);
@@ -1475,7 +1555,7 @@ class Game extends Phaser.Scene {
   }
 
   updateTurretSelect(turret) {
-    console.log(turret.name, turret);
+    //console.log(turret.name, turret);
     const turretData = this.gameData.turrets[turret.name];
     let level = turret.getData("level");
     const levelData = turretData["level" + level];
@@ -1813,6 +1893,7 @@ class Game extends Phaser.Scene {
         sellPrice.setPosition(15, -20).setName("sellPrice"),
         this.add.image(45, -20, "gem").setScale(0.8),
         this.add.gameImageButton(-50, 70, "checkmark", 0.4, () => {
+          // sell the turret
           sellMenu.setVisible(false);
           this.display.turretSelect.setVisible(false);
           this.display.turretButtons.forEach((b) => b.setVisible(true));
@@ -1828,7 +1909,7 @@ class Game extends Phaser.Scene {
           );
 
           this.grid[pos.x][pos.y].setData("turret", false);
-          this.grid[pos.x][pos.y].removeInteractive().off();
+          this.grid[pos.x][pos.y].removeInteractive().removeAllListeners();
 
           // set 3x3 grid around tile to not be turreted anymore
           // so other turrets can be placed
