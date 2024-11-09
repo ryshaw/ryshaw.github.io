@@ -936,14 +936,22 @@ class Game extends Phaser.Scene {
           }
         }
 
+        /* rarity choice algorithm
+        let's say the rarity table is distributed by 3/4
+        so it comes out to be [0.75, 0.187, 0.046875, 0.01171875]
+        start by picking a random number between 0 and 1
+        subtract the first number of the rarity table
+        if the number now is below 0, stop there and there's our level.
+        otherwise, move on to the next number of the table and subtract it
+        check if below zero, if so stop, if not then continue and so on
+        */
+
         let r = Math.random();
-        let level = 1;
+        let level = 0;
         while (r > 0 && level < rarityTable.length) {
-          console.log(
-            Phaser.Math.RoundTo(r, -3),
-            Phaser.Math.RoundTo(r - rarityTable[level - 1], -3)
-          );
-          break;
+          r -= rarityTable[level];
+          // if r is now below zero, stop here and we have our level
+          level++;
         }
 
         this.grid[x][y].setFillStyle(CLRS.oreColor, 0.9).setData("ore", true);
