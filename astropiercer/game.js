@@ -281,6 +281,7 @@ class Game extends Phaser.Scene {
   gameStats; // keeps track of the stats: gems, hearts, danger
   gameData; // our "save file" containing all game data
   selectedTurret; // if we have a turret selected to show stats and upgrade
+  results; // what ores the drone mined and if the drone survived
 
   constructor() {
     super("Game");
@@ -676,6 +677,7 @@ class Game extends Phaser.Scene {
         },
       },
     };
+    this.results = { droneSurvived: false, oreCollected: {} };
   }
 
   createAsteroidGrid() {
@@ -954,7 +956,13 @@ class Game extends Phaser.Scene {
           level++;
         }
 
-        this.grid[x][y].setFillStyle(CLRS.oreColor, 0.9).setData("ore", true);
+        const list = this.gameData.ore["rarity" + level];
+        const name = Phaser.Math.RND.pick(Object.keys(list));
+        console.log(name, level);
+
+        this.grid[x][y]
+          .setFillStyle(list[name].color, 0.9)
+          .setData("ore", name);
         this.oreTiles.add(this.grid[x][y]);
         break;
       }
@@ -1101,9 +1109,9 @@ class Game extends Phaser.Scene {
       miner.setData("y", nextTile.getData("y"));
 
       if (nextTile.getData("ore")) {
+        this.collectOre(nextTile.getData("ore"));
         nextTile.setData("ore", false);
         this.oreTiles.remove(nextTile);
-        this.collectOre();
       }
     } else {
       nextTile.alpha -= 0.34;
@@ -1211,8 +1219,10 @@ class Game extends Phaser.Scene {
     });
   }
 
-  collectOre() {
-    console.log("collected");
+  collectOre(ore) {
+    console.log("collected " + ore);
+    if (this.results.oreCollected[ore]) this.results.oreCollected[ore] += 1;
+    else this.results.oreCollected[ore] = 1;
   }
 
   createMouseControls() {
