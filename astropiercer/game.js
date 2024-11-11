@@ -27,6 +27,10 @@ const CLRS = {
   },
 };
 
+const Capitalize = (str) => {
+  return str[0].toUpperCase() + str.slice(1);
+};
+
 class Background extends Phaser.Scene {
   graphics;
 
@@ -314,6 +318,7 @@ class Game extends Phaser.Scene {
       active: () => {
         this.createDeployButton();
         this.createMenu();
+        this.createOreTooltip();
         this.createFpsText();
       },
     });
@@ -361,9 +366,9 @@ class Game extends Phaser.Scene {
     this.gameData = {
       turtleSpeed: 500,
       alien: {
-        spawnRate: 3000,
+        spawnRate: 30000,
         base: {
-          speed: 600,
+          speed: 800,
           health: 5,
           damage: 1,
         },
@@ -635,14 +640,8 @@ class Game extends Phaser.Scene {
           iron: {
             color: 0xd3d3d3,
           },
-          cobalt: {
-            color: 0x2f2235,
-          },
         },
         rarity2: {
-          silver: {
-            color: 0xe0ddcf,
-          },
           gold: {
             color: 0xffe824,
           },
@@ -654,9 +653,6 @@ class Game extends Phaser.Scene {
           },
         },
         rarity3: {
-          citrine: {
-            color: 0xf8961e,
-          },
           ruby: {
             color: 0xf94144,
           },
@@ -903,11 +899,11 @@ class Game extends Phaser.Scene {
 
     // create num ore deposits
     // algorithm will spawn new ore deposits away from edges and other ore deposits
-    const num = 8; //Phaser.Math.Between(8, 12);
+    const num = 16; //Phaser.Math.Between(8, 12);
     this.oreTiles = new Phaser.Structs.List();
 
     for (let i = 1; i <= num; i++) {
-      let iterations = 30;
+      let iterations = 50;
 
       findSpot: while (iterations > 0) {
         iterations -= 1;
@@ -922,7 +918,7 @@ class Game extends Phaser.Scene {
 
         // check neighbors to see if they're filled or have ore
 
-        for (let dist = 1; dist <= 4; dist++) {
+        for (let dist = 1; dist <= 3; dist++) {
           for (let angle = 0; angle < 360; angle += 15) {
             const v = new Phaser.Math.Vector2(dist, 0);
 
@@ -958,12 +954,8 @@ class Game extends Phaser.Scene {
 
         const list = this.gameData.ore["rarity" + level];
         const name = Phaser.Math.RND.pick(Object.keys(list));
-        console.log(name, level);
 
-        this.grid[x][y]
-          .setFillStyle(list[name].color, 0.9)
-          .setData("ore", name);
-        this.oreTiles.add(this.grid[x][y]);
+        this.createOreTile(this.grid[x][y], name, list[name].color, level);
         break;
       }
 
@@ -975,6 +967,50 @@ class Game extends Phaser.Scene {
         return;
       }
     }
+  }
+
+  createOreTile(tile, name, color, level) {
+    tile.setFillStyle(color, 0.9).setData("ore", name);
+    this.oreTiles.add(tile);
+
+    tile.setData("rarity", level);
+
+    tile
+      .setInteractive()
+      .on("pointerover", () => {
+        this.tweens.killTweensOf(this.display.oreTooltip);
+        this.display.oreTooltip.setAlpha(0);
+
+        const bounds = this.display.oreTooltip.getData("bounds");
+        let x = tile.x;
+
+        // decide if tooltip should be on right or left side
+        if (tile.x <= gameW * 0.5) x += bounds.width * 0.5 + this.tileW * 0.8;
+        else x -= bounds.width * 0.5 + this.tileW * 0.8;
+
+        this.display.oreTooltip.setPosition(x, tile.y);
+        this.display.oreTooltip.getByName("oreText").setText(Capitalize(name));
+
+        for (let i = 1; i <= 4; i++) {
+          let a = level >= i ? 1 : 0;
+          this.display.oreTooltip.getByName("star" + i).fillAlpha = a;
+        }
+
+        this.tweens.add({
+          targets: this.display.oreTooltip,
+          alpha: 1,
+          duration: 100,
+          delay: 100,
+        });
+      })
+      .on("pointerout", () => {
+        this.tweens.killTweensOf(this.display.oreTooltip);
+        this.tweens.add({
+          targets: this.display.oreTooltip,
+          alpha: 0,
+          duration: 100,
+        });
+      });
   }
 
   createMiningDrone(x, y) {
@@ -1108,11 +1144,7 @@ class Game extends Phaser.Scene {
       miner.setData("x", nextTile.getData("x"));
       miner.setData("y", nextTile.getData("y"));
 
-      if (nextTile.getData("ore")) {
-        this.collectOre(nextTile.getData("ore"));
-        nextTile.setData("ore", false);
-        this.oreTiles.remove(nextTile);
-      }
+      if (nextTile.getData("ore")) this.collectOre(nextTile);
     } else {
       nextTile.alpha -= 0.34;
     }
@@ -1219,10 +1251,20 @@ class Game extends Phaser.Scene {
     });
   }
 
-  collectOre(ore) {
+  collectOre(tile) {
+    const ore = tile.getData("ore");
     console.log("collected " + ore);
-    if (this.results.oreCollected[ore]) this.results.oreCollected[ore] += 1;
-    else this.results.oreCollected[ore] = 1;
+    if (!this.results.oreCollected[ore]) {
+      this.results.oreCollected[ore] = {
+        num: 1,
+        rarity: tile.getData("rarity"),
+      };
+    } else {
+      this.results.oreCollected[ore].num += 1;
+    }
+
+    tile.setData("ore", false);
+    this.oreTiles.remove(tile);
   }
 
   createMouseControls() {
@@ -1983,6 +2025,36 @@ class Game extends Phaser.Scene {
         this.add.image(-10, 430, "gem").setScale(0.7).setName("gems"),
       ])
       .setVisible(false);
+  }
+
+  createOreTooltip() {
+    // create tooltip for ore when mouse hovers over the tile
+
+    const stars = [];
+    for (let i = 0; i < 4; i++) {
+      stars.push(
+        this.add
+          .star(i * 36 - 36 * 1.5, 20, 5, 7, 14, 0xffffff, 0)
+          .setStrokeStyle(3, 0xffffff, 1)
+          .setName("star" + (i + 1))
+      );
+    }
+
+    this.display.oreTooltip = this.add
+      .container(400, 400, [
+        this.add
+          .rectangle(0, 0, 180, 100, 0x000000, 0.9)
+          .setStrokeStyle(2, 0xffffff, 1),
+        this.add.gameText(0, -20, "Aluminum", 0.5).setName("oreText"),
+        ...stars,
+      ])
+      .setAlpha(0)
+      .setDepth(3);
+
+    this.display.oreTooltip.setData(
+      "bounds",
+      this.display.oreTooltip.getBounds()
+    );
   }
 
   createFpsText() {
