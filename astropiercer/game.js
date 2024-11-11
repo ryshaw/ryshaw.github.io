@@ -364,7 +364,7 @@ class Game extends Phaser.Scene {
       danger: 0,
     };
     this.gameData = {
-      turtleSpeed: 500,
+      turtleSpeed: 300,
       alien: {
         spawnRate: 30000,
         base: {
@@ -1265,6 +1265,18 @@ class Game extends Phaser.Scene {
 
     tile.setData("ore", false);
     this.oreTiles.remove(tile);
+
+    const ding = this.add
+      .gameText(tile.x, tile.y, `+${tile.getData("rarity")}`, 1)
+      .setDepth(3);
+
+    this.tweens.chain({
+      targets: ding,
+      tweens: [
+        { y: `-=${this.tileW}`, duration: 500 },
+        { y: `-=${this.tileW * 0.5}`, alpha: 0, duration: 500 * 0.5 },
+      ],
+    });
   }
 
   createMouseControls() {
