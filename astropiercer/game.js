@@ -5,7 +5,7 @@ const DEV_MODE = false; // turns on physics debug mode
 const gameW = 1920;
 const gameH = 1080;
 
-const START_SCENE = "Game"; // for testing different scenes
+const START_SCENE = "Shop"; // for testing different scenes
 
 const FONTS = ["Oxanium", "Saira"];
 
@@ -364,11 +364,11 @@ class Game extends Phaser.Scene {
       danger: 0,
     };
     this.gameData = {
-      turtleSpeed: 300,
+      turtleSpeed: 700,
       alien: {
-        spawnRate: 30000,
+        spawnRate: 2000,
         base: {
-          speed: 800,
+          speed: 500,
           health: 5,
           damage: 1,
         },
@@ -899,7 +899,7 @@ class Game extends Phaser.Scene {
 
     // create num ore deposits
     // algorithm will spawn new ore deposits away from edges and other ore deposits
-    const num = 16; //Phaser.Math.Between(8, 12);
+    const num = 6; //Phaser.Math.Between(8, 12);
     this.oreTiles = new Phaser.Structs.List();
 
     for (let i = 1; i <= num; i++) {
@@ -1199,6 +1199,8 @@ class Game extends Phaser.Scene {
     this.gameOver = true; // stop processing game events
     miner.getData("loop").remove(); // stop update loop
 
+    this.results.droneSurvived = true;
+
     // spawn ship somewhere outside of the map
     // ship will spawn at point, pick up drone, then go to point2
     const point = Phaser.Geom.Circle.CircumferencePoint(
@@ -1246,7 +1248,7 @@ class Game extends Phaser.Scene {
     this.cameras.main.fade(duration);
     this.time.delayedCall(duration, () => {
       // this.scene.start() has a visual glitch, so this is the workaround
-      this.scene.launch("Shop");
+      this.scene.launch("Shop", this.results);
       this.time.delayedCall(0, () => this.scene.stop());
     });
   }
@@ -1259,16 +1261,17 @@ class Game extends Phaser.Scene {
         num: 1,
         rarity: tile.getData("rarity"),
       };
-    } else {
-      this.results.oreCollected[ore].num += 1;
-    }
+    } else this.results.oreCollected[ore].num += 1;
 
     tile.setData("ore", false);
     this.oreTiles.remove(tile);
 
-    const ding = this.add
-      .gameText(tile.x, tile.y, `+${tile.getData("rarity")}`, 1)
-      .setDepth(3);
+    let gems = 0;
+    for (let i = 1; i <= tile.getData("rarity"); i++) gems += i * 100;
+
+    this.updateGameStat("gems", gems);
+
+    const ding = this.add.gameText(tile.x, tile.y, `+${gems}`, 1).setDepth(3);
 
     this.tweens.chain({
       targets: ding,
@@ -2815,14 +2818,32 @@ class Shop extends Phaser.Scene {
     this.prefab = new Prefab(this);
     this.createResolution();
 
-    this.cameras.main.fadeIn();
+    //this.cameras.main.fadeIn();
+
+    const data = {
+      droneSurvived: false,
+      oreCollected: {
+        iron: {
+          rarity: 1,
+          num: 1,
+        },
+        aluminum: {
+          rarity: 1,
+          num: 2,
+        },
+        copper: {
+          rarity: 1,
+          num: 3,
+        },
+      },
+    };
 
     WebFont.load({
       google: {
         families: FONTS,
       },
       active: () => {
-        this.createResultsMenu();
+        this.createResultsMenu(data);
         this.createShopMenu();
         this.createContractsMenu();
         this.createFpsText();
@@ -2830,7 +2851,7 @@ class Shop extends Phaser.Scene {
     });
   }
 
-  createResultsMenu() {
+  createResultsMenu(gameResults) {
     this.results = this.prefab
       .instantiate(
         Prefab.Object.Menu,
@@ -2857,7 +2878,8 @@ class Shop extends Phaser.Scene {
           null,
           () => {
             // only start this transition if all transitions have finished
-            if (this.tweens.getTweens().length > 0) return;
+            //console.log(this.tweens.getTweens());
+            //if (this.tweens.getTweens().length > 0) return;
 
             this.add.tween({
               targets: [this.results, this.shop, this.contracts],
